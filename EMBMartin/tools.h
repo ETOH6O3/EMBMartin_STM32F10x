@@ -302,6 +302,8 @@ public:
  * @brief 
  * 安全的输出引脚类，与普通输出引脚类不同的是，该类初始化为 null_pin 时不会导致未定义行为
  * 
+ * 同时，该类会根据需求自动关闭 JTAG/SWD 功能以释放相应引脚
+ * 
  * 同时，该类封装了一些基础的输出操作方法，如 set、reset、toggle 等
  * 
  */
@@ -315,6 +317,14 @@ public:
     {
         if (p == null_pin)
             return;
+
+        if (p == PB4)
+            GPIO_PinRemapConfig(GPIO_Remap_SWJ_NoJTRST, ENABLE);
+        else if ((p == PA15) || (p == PB3))
+            GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
+        else if ((p == PA13) || (p == PA14))
+            GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE);
+
         RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(pin.port), ENABLE);
         GPIO_InitTypeDef GPIO_InitStruct = {
             .GPIO_Pin = p.pin,

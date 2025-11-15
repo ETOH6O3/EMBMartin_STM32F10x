@@ -495,7 +495,10 @@ EMBMartin::STM32::PWM::PWM(
 
 {
     SystemCoreClockUpdate();
-    RCC_APB1PeriphClockCmd(get_TIM_RCC_APB1Periph(__TIMX), ENABLE);
+    if (__TIMX != TIM1)
+        RCC_APB1PeriphClockCmd(get_TIM_RCC_APB1Periph(__TIMX), ENABLE);
+    else
+        RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
     RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(output_pin.port), ENABLE);
 
     if (TIMx_REMAP) // 复用模式
