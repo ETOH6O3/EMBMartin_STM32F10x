@@ -26,7 +26,21 @@ struct should_move : std::conditional_t < (sizeof(T) > sizeof(void*)), std::true
 
 // 判断类型 T 是否应该通过移动语义传递，如果 T 的大小大于指针大小则返回 true，否则返回 false
 template <typename T>
-bool should_move_v = should_move<T>::value;
+constexpr inline bool should_move_v = should_move<T>::value;
+
+template<typename T, typename = void>
+struct has_iterator : std::false_type {};
+
+template<typename T>
+struct has_iterator<T, std::void_t<
+    typename T::iterator,
+    typename T::const_iterator,
+    decltype(std::declval<T>().begin()),
+    decltype(std::declval<T>().end())
+>> : std::true_type {};
+
+template<typename T>
+constexpr inline bool has_iterator_v = has_iterator<T>::value;
 
 EMBMARTIN_END
 

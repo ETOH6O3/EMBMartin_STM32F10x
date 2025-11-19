@@ -16,6 +16,12 @@
 #define EMBMARTIN_MACRO_STRINGIFY(x) #x
 #define EMBMARTIN_MACRO_TOSTRING(x) EMBMARTIN_MACRO_STRINGIFY(x)
 
+#define EMBMARTIN_BLOCK_BEGIN(_enable) if(_enable) {
+#define EMBMARTIN_BLOCK_END }
+
+// 防止编译器为了适配~沟槽的~乱序多发而进行代码顺序调整
+#define EMBMARTIN_KEEP_CODE_ORDER __asm__ volatile("" ::: "memory");
+
 // ------------------------------------------名字空间--------------------------------------------------
 
 #define EMBMARTIN_BEGIN namespace EMBMartin {
@@ -47,7 +53,5 @@ namespace SYS {
 #define STM32_DEVICE_HEADER stm32f10x.h // 修改这个与使用预定义宏等效
 #endif // STM32_DEVICE_HEADER
 
-#define EMBMARTIN_BLOCK_BEGIN(_enable) if(_enable) {
-#define EMBMARTIN_BLOCK_END }
 
 #endif // EMBMARTIN_MACRO_H

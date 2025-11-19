@@ -54,13 +54,6 @@ private:
     void WriteData(uint8_t Data) noexcept;
 
     /**
-     * @brief 设置显示光标位置
-     * @param Y 行坐标(0-2)
-     * @param X 列坐标(0-15)
-     */
-    void SetCursor(uint8_t Y, uint8_t X) noexcept;
-
-    /**
      * @brief 计算X的Y次幂
      * @param X 底数
      * @param Y 指数
@@ -75,6 +68,13 @@ public:
      * @param SDA I2C数据引脚配置
      */
     IO(const GPIOPin &SCL, const GPIOPin &SDA) noexcept;
+
+    /**
+     * @brief 设置显示光标位置
+     * @param Y 行坐标(0-2)
+     * @param X 列坐标(0-15)
+     */
+    void SetCursor(uint8_t Y, uint8_t X) noexcept;
 
     /**
      * @brief 清屏操作，清除整个显示区域
@@ -199,6 +199,13 @@ public:
         show(args...);
     }
 
+    void show(double x)noexcept
+    {
+        char buff[16];
+        sprintf(buff,"%g",x);
+        ShowString(buff);
+    }
+
     /**
      * @brief 显示参数，最后显示 \\n
      * @tparam Args 参数包类型
@@ -223,11 +230,19 @@ public:
     void showlr(const Args &...args) noexcept
     {
         show(args...);
-        do
-        {
-            ShowChar(' ');
-        } while (current_X != 16);
+        if (current_X != 16)
+            do
+            {
+                ShowChar(' ');
+            } while (current_X != 16);
         ShowChar('\r');
+    }
+    template <typename... Args>
+    void printf(const char c[],const Args &...args)noexcept
+    {
+        char buff[16];
+        sprintf(buff,c,args...);
+        ShowString(buff);
     }
 };
 

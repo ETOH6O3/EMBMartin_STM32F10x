@@ -298,3 +298,6 @@ void IO::ShowBinNum(uint32_t Number) noexcept
 	} while (Number != 0);
 	ShowString(p);
 }
+
+#undef OLED_W_SCL
+#undef OLED_W_SDA

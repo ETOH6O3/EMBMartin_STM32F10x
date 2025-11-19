@@ -390,7 +390,7 @@ EMBMartin::STM32::CounterSensor::CounterSensor(
     NVIC_Init(&NVIC_InitStructure);
 }
 
-EMBMartin::STM32::RotaryEncoder::RotaryEncoder(
+EMBMartin::STM32::EXTIRotaryEncoder::EXTIRotaryEncoder(
     GPIOPin _pin_a, GPIOPin _pin_b,
     uint8_t __PreemptionPriority, uint8_t __SubPriority,
     GPIOSpeed_TypeDef GPIO_Speed, EXTIMode_TypeDef _EXTI_Mode) noexcept
@@ -447,6 +447,56 @@ EMBMartin::STM32::RotaryEncoder::RotaryEncoder(
     NVIC_Init(&NVIC_InitStructure_b);
 }
 
+EMBMartin::STM32::RotaryEncoder::RotaryEncoder(TIM_TypeDef *TIMX, uint8_t TIMx_REMAP, bool reverse) noexcept
+    : __TIMX(TIMX)
+{
+    auto gpiopin1 = _GEN_TIM_CH_TO_GPIOPin_REMAP[TIMx_REMAP][Get_TIM_Index(TIMX)][0];
+    auto gpiopin2 = _GEN_TIM_CH_TO_GPIOPin_REMAP[TIMx_REMAP][Get_TIM_Index(TIMX)][1];
+
+    /*开启时钟*/
+    if (TIMX != TIM1)
+        RCC_APB1PeriphClockCmd(get_TIM_RCC_APB1Periph(TIMX), ENABLE);
+    else
+        RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
+    RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(gpiopin1.port), ENABLE);
+    RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(gpiopin2.port), ENABLE);
+
+    /*GPIO初始化*/
+    GPIO_InitTypeDef GPIO_InitStructure;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+    GPIO_InitStructure.GPIO_Pin = gpiopin1.pin;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(gpiopin1.port, &GPIO_InitStructure);
+    GPIO_InitStructure.GPIO_Pin = gpiopin2.pin;
+    GPIO_Init(gpiopin2.port, &GPIO_InitStructure);
+
+    /*时基单元初始化*/
+    TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStructure;
+    TIM_TimeBaseInitStructure.TIM_ClockDivision = TIM_CKD_DIV1;
+    TIM_TimeBaseInitStructure.TIM_CounterMode = TIM_CounterMode_Up;
+    TIM_TimeBaseInitStructure.TIM_Period = 65536 - 1;
+    TIM_TimeBaseInitStructure.TIM_Prescaler = 1 - 1;
+    TIM_TimeBaseInitStructure.TIM_RepetitionCounter = 0;
+    TIM_TimeBaseInit(TIMX, &TIM_TimeBaseInitStructure);
+
+    /*输入捕获初始化*/
+    TIM_ICInitTypeDef TIM_ICInitStructure;
+
+    TIM_ICStructInit(&TIM_ICInitStructure);
+    TIM_ICInitStructure.TIM_Channel = TIM_Channel_1;
+    TIM_ICInitStructure.TIM_ICFilter = 0xF;
+    TIM_ICInit(TIMX, &TIM_ICInitStructure);
+
+    TIM_ICInitStructure.TIM_Channel = TIM_Channel_2;
+    TIM_ICInitStructure.TIM_ICFilter = 0xF;
+    TIM_ICInit(TIMX, &TIM_ICInitStructure);
+
+    auto polarity = reverse ? TIM_ICPolarity_Falling :TIM_ICPolarity_Rising ;
+
+    TIM_EncoderInterfaceConfig(TIMX, TIM_EncoderMode_TI12, polarity, TIM_ICPolarity_Rising);
+
+    TIM_Cmd(TIMX, ENABLE);
+}
 EMBMartin::STM32::OuterTimer::OuterTimer(
     TIM_TypeDef *__TIMX, GPIOPin echo_pin, uint16_t time,
     uint8_t PreemptionPriority, uint8_t SubPriority) noexcept
@@ -592,7 +642,12 @@ EMBMartin::STM32::PWM::PWM(
 
 void EMBMartin::STM32::PWM::set_duty(int Duty_permillage) noexcept
 {
-    Duty_permillage = std::abs(Duty_permillage) % 1001; // 限制在 0-1000 之间
+    // 限制在 0-1000 之间
+    if (Duty_permillage < 0)
+        Duty_permillage = 0;
+    else if (Duty_permillage > 1000)
+        Duty_permillage = 1000;
+
     this->_Duty_permillage = Duty_permillage;
     switch (this->_CHn)
     {
@@ -702,4 +757,59 @@ void EMBMartin::STM32::DCMotorDriver::set_speed(uint16_t speed_permillage, uint8
     }
 
     PWm->set_duty(speed_permillage);
+}
+
+void EMBMartin::STM32::I2C::send_byte(uint8_t data) noexcept
+{
+    for (uint8_t i = 0; i < 8; ++i)
+    {
+        // 契约：确保 SCL 必定已经是低电平
+        (data & (0x80 >> i)) ? _SDA.set() : _SDA.reset();
+        EMBMARTIN_KEEP_CODE_ORDER;
+        _SCL.set();
+        EMBMARTIN_KEEP_CODE_ORDER;
+        _SCL.reset();
+    }
+}
+
+uint8_t EMBMartin::STM32::I2C::receive_byte() noexcept
+{
+    uint8_t rslt{0x00};
+    // 契约：确保 SCL 必定已经是低电平
+    _SDA.set(); // 释放 SDA
+    EMBMARTIN_KEEP_CODE_ORDER;
+
+    for (uint8_t i = 0; i < 8; ++i)
+    {
+        _SCL.set();
+        EMBMARTIN_KEEP_CODE_ORDER;
+        rslt <<= 1;
+        rslt += _SDA.read();
+        EMBMARTIN_KEEP_CODE_ORDER;
+        _SCL.reset();
+    }
+
+    return rslt;
+}
+
+uint8_t EMBMartin::STM32::I2C::read_reg(uint8_t reg_addr) noexcept
+{
+    // 指定地址
+    start();
+    send_byte(_addr);
+    receive_ack();
+    send_byte(reg_addr);
+    receive_ack();
+
+    // 进入读模式
+    start();
+    send_byte(_addr | 0x01);
+    receive_ack();
+
+    // 劫收
+    uint8_t rslt = receive_byte();
+    send_ack(1);
+
+    stop();
+    return rslt;
 }
