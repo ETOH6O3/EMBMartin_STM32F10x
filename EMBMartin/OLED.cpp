@@ -206,7 +206,7 @@ void IO::ShowChar(char c) noexcept
 	}
 	if (c == '\t')
 	{
-		current_X += 4;
+		current_X += 4 - current_X % 4;
 		if (current_X > 16)
 		{
 			current_X = 1;

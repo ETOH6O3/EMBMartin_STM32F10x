@@ -1,7 +1,7 @@
 #include <cassert>
 #include "system.h"
 
-using namespace EMBMartin::STM32::SYS;
+using namespace EMBMartin::STM32::sys;
 
 extern uint32_t SystemCoreClock;
 

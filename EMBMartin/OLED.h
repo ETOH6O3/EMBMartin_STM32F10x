@@ -8,7 +8,7 @@
 
 #include "tools.h"
 
-I2C_BEGIN
+OLED_BEGIN
 
 /**
  * @brief OLED显示驱动类
@@ -60,14 +60,6 @@ private:
      * @return X的Y次幂结果
      */
     uint32_t Pow(uint32_t X, uint32_t Y) noexcept;
-
-public:
-    /**
-     * @brief 构造函数，初始化OLED显示模块
-     * @param SCL I2C时钟引脚配置
-     * @param SDA I2C数据引脚配置
-     */
-    IO(const GPIOPin &SCL, const GPIOPin &SDA) noexcept;
 
     /**
      * @brief 设置显示光标位置
@@ -151,6 +143,13 @@ public:
      * @brief 显示字符
      * @param c 要显示的字符引用
      */
+public:
+    /**
+     * @brief 构造函数，初始化OLED显示模块
+     * @param SCL I2C时钟引脚配置
+     * @param SDA I2C数据引脚配置
+     */
+    IO(const GPIOPin &SCL, const GPIOPin &SDA) noexcept;
     inline void show(const char &c) noexcept
     {
         ShowChar(c);
@@ -198,13 +197,13 @@ public:
         show(first);
         show(args...);
     }
-
-    void show(double x)noexcept
+    void show(double x) noexcept
     {
         char buff[16];
-        sprintf(buff,"%g",x);
+        sprintf(buff, "%g", x);
         ShowString(buff);
     }
+
 
     /**
      * @brief 显示参数，最后显示 \\n
@@ -238,14 +237,28 @@ public:
         ShowChar('\r');
     }
     template <typename... Args>
-    void printf(const char c[],const Args &...args)noexcept
+    void printf(const char c[], const Args &...args) noexcept
     {
-        char buff[16];
-        sprintf(buff,c,args...);
-        ShowString(buff);
+        char buff[64];
+        int len = snprintf(buff, sizeof(buff), c, args...);
+        if (len > 0 && len < (int)sizeof(buff))
+        {
+            ShowString(buff);
+        }
+        else
+        {
+            // 处理缓冲区不足的情况，例如显示错误信息或截断字符串
+            buff[sizeof(buff) - 1] = '\0';
+            ShowString(buff);
+        }
+    }
+    inline void set_coordinate(uint8_t x, uint8_t y) noexcept
+    {
+        current_X = x;
+        current_Y = y;
     }
 };
 
-I2C_END
+OLED_END
 
 #endif // EMBMARTIN_OLED_H

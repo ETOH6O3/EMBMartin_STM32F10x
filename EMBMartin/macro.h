@@ -43,9 +43,11 @@ namespace I2C {
 }
 
 #define SYS_BEGIN STM32_BEGIN \
-namespace SYS {
+namespace sys {
 #define SYS_END STM32_END \
 }
+
+
 
 // ------------------------------------------其它--------------------------------------------------
 

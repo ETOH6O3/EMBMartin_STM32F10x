@@ -694,12 +694,13 @@ class RotaryEncoder
 {
 private:
     TIM_TypeDef *__TIMX;
+
 public:
-    RotaryEncoder(TIM_TypeDef *TIMX, uint8_t TIMx_REMAP, bool reverse = false)noexcept;
-    inline int16_t get()noexcept
+    RotaryEncoder(TIM_TypeDef *TIMX, uint8_t TIMx_REMAP, bool reverse = false) noexcept;
+    inline int16_t get() noexcept
     {
         auto temp = TIM_GetCounter(__TIMX);
-        TIM_SetCounter(__TIMX,0);
+        TIM_SetCounter(__TIMX, 0);
         return temp;
     }
 };
@@ -1351,6 +1352,62 @@ public:
 
         return merge_rslt;
     }
+};
+
+class AngleComplementaryFilter
+{
+private:
+    const double alpha;         //!< 互补滤波系数
+    const double dt;            //!< 采样时间间隔（秒）
+    const int16_t &acc_x;       //!< 加速度计 X 轴数据引用
+    const int16_t &acc_y;       //!< 加速度计 Y 轴数据引用
+    const int16_t &acc_z;       //!< 加速度计 Z 轴数据引用
+    const int16_t &gyro_x;      //!< 陀螺仪 X 轴数据引用
+    const int16_t &gyro_y;      //!< 陀螺仪 Y 轴数据引用
+    const int16_t &gyro_z;      //!< 陀螺仪 Z 轴数据引用
+    double current_pitch = 0.0; //!< 当前俯仰角（度）
+    double current_roll = 0.0;  //!< 当前横滚角（度）
+    double current_yaw = 0.0;   //!< 当前偏航角（度）
+public:
+    struct Status
+    {
+        double pitch; //!< 俯仰角（度）
+        double roll;  //!< 横滚角（度）
+        double yaw;   //!< 偏航角（度）
+    };
+    AngleComplementaryFilter(
+        const int16_t &_acc_x, const int16_t &_acc_y, const int16_t &_acc_z,
+        const int16_t &_gyro_x, const int16_t &_gyro_y, const int16_t &_gyro_z,
+        double _alpha = 0.001, double _dt = 0.001) noexcept
+        : alpha(_alpha), dt(_dt),
+          acc_x(_acc_x), acc_y(_acc_y), acc_z(_acc_z),
+          gyro_x(_gyro_x), gyro_y(_gyro_y), gyro_z(_gyro_z) {};
+
+    void update() noexcept; // 在中断函数或循环中定期调用以更新角度数据
+    inline Status get_status() const noexcept { return {current_pitch, current_roll, current_yaw}; }
+};
+
+class PID
+{
+private:
+    const int16_t &acc_x;      //!< 加速度计 X 轴数据引用
+    const int16_t &acc_y;      //!< 加速度计 Y 轴数据引用
+    const int16_t &acc_z;      //!< 加速度计 Z 轴数据引用
+    const int16_t &gyro_x;     //!< 陀螺仪 X 轴数据引用
+    const int16_t &gyro_y;     //!< 陀螺仪 Y 轴数据引用
+    const int16_t &gyro_z;     //!< 陀螺仪 Z 轴数据引用
+    const int16_t &pace_left;  //!< 左轮编码器数据引用
+    const int16_t &pace_right; //!< 右轮编码器数据引用
+
+
+
+    const double vertical_kp;  //!< 垂直方向比例系数
+    const double vertical_kd;  //!< 垂直方向微分系数
+    const double velocity_kp;  //!< 速度方向比例系数
+    const double velocity_ki;  //!< 速度方向积分系数
+    const double turn_kp;      //!< 转向方向比例系数
+    const double turn_kd;      //!< 转向方向微分系数
+public:
 };
 
 STM32_END

@@ -813,3 +813,13 @@ uint8_t EMBMartin::STM32::I2C::read_reg(uint8_t reg_addr) noexcept
     stop();
     return rslt;
 }
+
+void EMBMartin::STM32::AngleComplementaryFilter::update() noexcept
+{
+    double angle_acc_pitch = std::atan2(double(acc_x), acc_z) * 180 / 3.14159265358979;
+    double angle_acc_roll = std::atan2(double(acc_y), acc_z) * 180 / 3.14159265358979;
+
+    current_pitch = alpha * angle_acc_pitch + (1 - alpha) * (current_pitch - gyro_y * 1000 / 32768.0 * dt);
+    current_roll = alpha * angle_acc_roll + (1 - alpha) * (current_roll + gyro_x * 1000 / 32768.0 * dt);
+    current_yaw = current_yaw + gyro_z * 1000 / 32768.0 * dt; // 偏航角无法互补滤波
+}
