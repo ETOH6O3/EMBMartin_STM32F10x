@@ -99,6 +99,11 @@
   EMBMARTIN_STM32F10X_NAMESPACE_END \
   }
 
+#define EMBMARTIN_BALANCED_CAR_NAMESPACE_BEGIN \
+  EMBMARTIN_STM32F10X_NAMESPACE_BEGIN    
+#define EMBMARTIN_BALANCED_CAR_NAMESPACE_END \
+  EMBMARTIN_STM32F10X_NAMESPACE_END
+
 // ------------------------------------------其它--------------------------------------------------
 
 #ifndef STM32_DEVICE_HEADER             // 未使用预定义宏
