@@ -20,7 +20,7 @@
 
 #include "macro.h"
 
-EMBMARTIN_BEGIN
+EMBMARTIN_NAMESPACE_BEGIN
 
 
 // ------------------------------------------数学运算--------------------------------------------------
@@ -335,6 +335,6 @@ constexpr inline split_double split_double_func(double x) noexcept
 	};
 }
 
-EMBMARTIN_END
+EMBMARTIN_NAMESPACE_END
 
 #endif // EMBMARTIN_FUNCTIONS_H

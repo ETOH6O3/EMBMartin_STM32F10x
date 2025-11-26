@@ -12,13 +12,11 @@
 #ifndef EMBMARTIN_METAPROGRAMING
 #define	EMBMARTIN_METAPROGRAMING
 
-#include <limits>
-#include <utility>
 #include <type_traits>
 
 #include"macro.h"
 
-EMBMARTIN_BEGIN
+EMBMARTIN_NAMESPACE_BEGIN
 
 
 template <typename T>
@@ -42,7 +40,7 @@ struct has_iterator<T, std::void_t<
 template<typename T>
 constexpr inline bool has_iterator_v = has_iterator<T>::value;
 
-EMBMARTIN_END
+EMBMARTIN_NAMESPACE_END
 
 #endif // ! EMBMARTIN_METAPROGRAMING
 

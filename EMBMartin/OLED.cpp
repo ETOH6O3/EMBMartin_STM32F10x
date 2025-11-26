@@ -1,8 +1,7 @@
 #include "OLED.h"
 #include "OLED_Font.h"
 
-using namespace EMBMartin::STM32::OLED;
-using namespace EMBMartin::STM32::OLED::I2C;
+using namespace EMBMartin::STM32;
 
 /*引脚配置*/
 #define OLED_W_SCL(x) GPIO_WriteBit(OLED_SCL.port, OLED_SCL.pin, (BitAction)(x))

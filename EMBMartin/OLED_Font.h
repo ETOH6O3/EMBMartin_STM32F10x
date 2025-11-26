@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "macro.h"
 
-OLED_BEGIN
+EMBMARTIN_OLED_NAMESPACE_BEGIN
 
 /*OLED字模库，宽8像素，高16像素*/
 constexpr uint8_t OLED_F8x16[][16]=
@@ -295,6 +295,6 @@ constexpr uint8_t OLED_F8x16[][16]=
 	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,//~ 94
 };
 
-OLED_END
+EMBMARTIN_OLED_NAMESPACE_END
 
 #endif

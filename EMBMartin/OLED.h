@@ -1,14 +1,16 @@
 #ifndef EMBMARTIN_OLED_H
 #define EMBMARTIN_OLED_H
 
+#include <cstdio>
 #include <stdint.h>
+#include <algorithm>
 
 #include "macro.h"
 #include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)
 
-#include "tools.h"
+#include "basic_tools.h"
 
-OLED_BEGIN
+EMBMARTIN_OLED_NAMESPACE_BEGIN
 
 /**
  * @brief OLED显示驱动类
@@ -259,6 +261,6 @@ public:
     }
 };
 
-OLED_END
+EMBMARTIN_OLED_NAMESPACE_END
 
 #endif // EMBMARTIN_OLED_H

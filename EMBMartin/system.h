@@ -22,7 +22,7 @@
 #include "Delay.h"
 #include "tools.h"
 
-SYS_BEGIN
+EMBMARTIN_SYS_NAMESPACE_BEGIN
 
 // C 函数封装为 C++ 函数
 
@@ -102,6 +102,6 @@ public:
     }
 };
 
-SYS_END
+EMBMARTIN_SYS_NAMESPACE_END
 
 #endif // EMBM_SYSTEM_H

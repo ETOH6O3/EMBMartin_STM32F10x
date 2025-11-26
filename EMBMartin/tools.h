@@ -19,197 +19,26 @@
 #include <type_traits>
 #include <numeric>
 #include <cmath>
+#include <algorithm>
 
 #include "macro.h"
 #include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)
 #include "meta.h"
+#include "basic_tools.h"
 #include "system.h"
-STM32_BEGIN
+
+#if EMBMARTIN_DEBUGING
+
+#include "OLED.h"
+
+#endif // EMBMARTIN_DEBUGING
+
+EMBMARTIN_DEBUGING_EXTERN_OLED; // debug 控制台
+
+EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
 
 // TODO: 时钟使能用 HAL 库重写
 
-/**
- * @brief GPIO 引脚封装结构体
- *
- * 该结构体用于封装一个 GPIO 引脚的信息，包括端口和引脚号，
- * 方便在嵌入式系统中进行 GPIO 操作。
- *
- * @note 所有操作的安全合法性完全由用户确保
- */
-struct GPIOPin
-{
-    GPIO_TypeDef *port; //!< GPIO 端口指针
-    uint16_t pin;       //!< GPIO 引脚号
-
-    inline GPIOPin(GPIO_TypeDef *_port, uint16_t _pin) noexcept : port{_port}, pin(_pin) {};
-    volatile inline void set() noexcept // 读取模式可用
-    {
-        GPIO_WriteBit(this->port, this->pin, Bit_SET);
-    }
-
-    volatile inline void reset() noexcept // 读取模式可用
-    {
-        GPIO_WriteBit(this->port, this->pin, Bit_RESET);
-    }
-
-    volatile inline bool read() noexcept // 读取模式和开漏输出模式可用
-    {
-        return GPIO_ReadInputDataBit(this->port, this->pin);
-    }
-
-    volatile inline bool read_output() noexcept // 输出模式可用
-    {
-        return GPIO_ReadOutputDataBit(this->port, this->pin);
-    }
-};
-
-inline bool operator==(const GPIOPin p1, const GPIOPin p2)
-{
-    return (p1.pin == p2.pin) && (p1.port == p2.port);
-}
-const GPIOPin null_pin{nullptr, 0};
-const GPIOPin PA0{GPIOA, GPIO_Pin_0};
-const GPIOPin PA1{GPIOA, GPIO_Pin_1};
-const GPIOPin PA2{GPIOA, GPIO_Pin_2};
-const GPIOPin PA3{GPIOA, GPIO_Pin_3};
-const GPIOPin PA4{GPIOA, GPIO_Pin_4};
-const GPIOPin PA5{GPIOA, GPIO_Pin_5};
-const GPIOPin PA6{GPIOA, GPIO_Pin_6};
-const GPIOPin PA7{GPIOA, GPIO_Pin_7};
-const GPIOPin PA8{GPIOA, GPIO_Pin_8};
-const GPIOPin PA9{GPIOA, GPIO_Pin_9};
-const GPIOPin PA10{GPIOA, GPIO_Pin_10};
-const GPIOPin PA11{GPIOA, GPIO_Pin_11};
-const GPIOPin PA12{GPIOA, GPIO_Pin_12};
-const GPIOPin PA13{GPIOA, GPIO_Pin_13};
-const GPIOPin PA14{GPIOA, GPIO_Pin_14};
-const GPIOPin PA15{GPIOA, GPIO_Pin_15};
-const GPIOPin PB0{GPIOB, GPIO_Pin_0};
-const GPIOPin PB1{GPIOB, GPIO_Pin_1};
-const GPIOPin PB2{GPIOB, GPIO_Pin_2};
-const GPIOPin PB3{GPIOB, GPIO_Pin_3};
-const GPIOPin PB4{GPIOB, GPIO_Pin_4};
-const GPIOPin PB5{GPIOB, GPIO_Pin_5};
-const GPIOPin PB6{GPIOB, GPIO_Pin_6};
-const GPIOPin PB7{GPIOB, GPIO_Pin_7};
-const GPIOPin PB8{GPIOB, GPIO_Pin_8};
-const GPIOPin PB9{GPIOB, GPIO_Pin_9};
-const GPIOPin PB10{GPIOB, GPIO_Pin_10};
-const GPIOPin PB11{GPIOB, GPIO_Pin_11};
-const GPIOPin PB12{GPIOB, GPIO_Pin_12};
-const GPIOPin PB13{GPIOB, GPIO_Pin_13};
-const GPIOPin PB14{GPIOB, GPIO_Pin_14};
-const GPIOPin PB15{GPIOB, GPIO_Pin_15};
-const GPIOPin PC0{GPIOC, GPIO_Pin_0};
-const GPIOPin PC1{GPIOC, GPIO_Pin_1};
-const GPIOPin PC2{GPIOC, GPIO_Pin_2};
-const GPIOPin PC3{GPIOC, GPIO_Pin_3};
-const GPIOPin PC4{GPIOC, GPIO_Pin_4};
-const GPIOPin PC5{GPIOC, GPIO_Pin_5};
-const GPIOPin PC6{GPIOC, GPIO_Pin_6};
-const GPIOPin PC7{GPIOC, GPIO_Pin_7};
-const GPIOPin PC8{GPIOC, GPIO_Pin_8};
-const GPIOPin PC9{GPIOC, GPIO_Pin_9};
-const GPIOPin PC10{GPIOC, GPIO_Pin_10};
-const GPIOPin PC11{GPIOC, GPIO_Pin_11};
-const GPIOPin PC12{GPIOC, GPIO_Pin_12};
-const GPIOPin PC13{GPIOC, GPIO_Pin_13};
-const GPIOPin PC14{GPIOC, GPIO_Pin_14};
-const GPIOPin PC15{GPIOC, GPIO_Pin_15};
-const GPIOPin PD0{GPIOD, GPIO_Pin_0};
-const GPIOPin PD1{GPIOD, GPIO_Pin_1};
-const GPIOPin PD2{GPIOD, GPIO_Pin_2};
-const GPIOPin PD3{GPIOD, GPIO_Pin_3};
-const GPIOPin PD4{GPIOD, GPIO_Pin_4};
-const GPIOPin PD5{GPIOD, GPIO_Pin_5};
-const GPIOPin PD6{GPIOD, GPIO_Pin_6};
-const GPIOPin PD7{GPIOD, GPIO_Pin_7};
-const GPIOPin PD8{GPIOD, GPIO_Pin_8};
-const GPIOPin PD9{GPIOD, GPIO_Pin_9};
-const GPIOPin PD10{GPIOD, GPIO_Pin_10};
-const GPIOPin PD11{GPIOD, GPIO_Pin_11};
-const GPIOPin PD12{GPIOD, GPIO_Pin_12};
-const GPIOPin PD13{GPIOD, GPIO_Pin_13};
-const GPIOPin PD14{GPIOD, GPIO_Pin_14};
-const GPIOPin PD15{GPIOD, GPIO_Pin_15};
-const GPIOPin PE0{GPIOE, GPIO_Pin_0};
-const GPIOPin PE1{GPIOE, GPIO_Pin_1};
-const GPIOPin PE2{GPIOE, GPIO_Pin_2};
-const GPIOPin PE3{GPIOE, GPIO_Pin_3};
-const GPIOPin PE4{GPIOE, GPIO_Pin_4};
-const GPIOPin PE5{GPIOE, GPIO_Pin_5};
-const GPIOPin PE6{GPIOE, GPIO_Pin_6};
-const GPIOPin PE7{GPIOE, GPIO_Pin_7};
-const GPIOPin PE8{GPIOE, GPIO_Pin_8};
-const GPIOPin PE9{GPIOE, GPIO_Pin_9};
-const GPIOPin PE10{GPIOE, GPIO_Pin_10};
-const GPIOPin PE11{GPIOE, GPIO_Pin_11};
-const GPIOPin PE12{GPIOE, GPIO_Pin_12};
-const GPIOPin PE13{GPIOE, GPIO_Pin_13};
-const GPIOPin PE14{GPIOE, GPIO_Pin_14};
-const GPIOPin PE15{GPIOE, GPIO_Pin_15};
-/**
- * @brief 通用定时器输出比较端口（未复用）
- * @param _GEN_TIM_CH_TO_GPIOPin [TIM 序号][CH 序号]
- */
-const GPIOPin _GEN_TIM_CH_TO_GPIOPin[][4] = {
-    {PA8, PA9, PA10, PA11}, // TIM1 ( 兼容通用定时器 )
-    {PA0, PA1, PA2, PA3},   // TIM2
-    {PA6, PA7, PB0, PB1},   // TIM3
-    {PB6, PB7, PB8, PB9},   // TIM4
-};
-
-/**
- * @brief 通用定时器输出比较端口（部分重映像 01）
- * @param _GEN_TIM_CH_TO_GPIOPin_REMAP_01 [TIM 序号][CH 序号]
- */
-const GPIOPin _GEN_TIM_CH_TO_GPIOPin_REMAP_01[][4] = {
-    {PA8, PA9, PA10, PA11},   // TIM1 ( 兼容通用定时器 )(此模式下复用的端口是高级端口)
-    {PA15, PB3, PA2, PA3},    // TIM2
-    {PB4, PB5, PB0, PB1},     // TIM3 (没有 01 复用，这里设置为与 10 相同)
-    {PD12, PD13, PD14, PD15}, // TIM4
-};
-
-/**
- * @brief 通用定时器输出比较端口（部分重映像 10）
- * @param _GEN_TIM_CH_TO_GPIOPin_REMAP_10 [TIM 序号][CH 序号]
- */
-const GPIOPin _GEN_TIM_CH_TO_GPIOPin_REMAP_10[][4] = {
-    {PA8, PA9, PA10, PA11}, // TIM1 ( 兼容通用定时器 )(没有 10 复用，这里设置为与 01 相同)
-    {PA0, PA1, PB10, PB11}, // TIM2
-    {PB4, PB5, PB0, PB1},   // TIM3
-    {PB6, PB7, PB8, PB9},   // TIM4 (没有 10 复用，这里设置为与 00 相同)
-};
-
-/**
- * @brief 通用定时器输出比较端口（完全重映像）
- * @param _GEN_TIM_CH_TO_GPIOPin_REMAP_11 [TIM 序号][CH 序号]
- */
-const GPIOPin _GEN_TIM_CH_TO_GPIOPin_REMAP_11[][4] = {
-    {PE9, PE11, PE13, PE14},  // TIM1 ( 兼容通用定时器 )
-    {PA15, PB3, PB10, PB11},  // TIM2
-    {PC6, PC7, PC8, PC9},     // TIM3
-    {PD12, PD13, PD14, PD15}, // TIM4
-};
-
-/**
- * @brief 通用定时器输出比较端口
- * @param _GEN_TIM_CH_TO_GPIOPin_REMAP [TIMx_REMAP][TIM 序号][CH 序号]
- */
-const GPIOPin (*const _GEN_TIM_CH_TO_GPIOPin_REMAP[4])[4] = {
-    _GEN_TIM_CH_TO_GPIOPin,          // 未复用模式
-    _GEN_TIM_CH_TO_GPIOPin_REMAP_01, // 部分重映像 01
-    _GEN_TIM_CH_TO_GPIOPin_REMAP_10, // 部分重映像 10
-    _GEN_TIM_CH_TO_GPIOPin_REMAP_11  // 完全重映像
-};
-
-uint8_t Get_GPIO_PortSource(GPIO_TypeDef *port) noexcept;
-uint8_t Get_GPIO_PinSource(uint16_t pin) noexcept;
-uint32_t Get_RCC_APB2Periph(GPIO_TypeDef *port) noexcept;
-uint32_t Get_EXTI_Line(uint16_t pin) noexcept; // TODO: 使能用 HAL 库重写
-IRQn Get_IRQChannel(uint16_t pin) noexcept;
-uint32_t get_TIM_RCC_APB1Periph(TIM_TypeDef *__TIMX) noexcept;
-auto Get_TIM_Index(TIM_TypeDef *TIMX) noexcept -> size_t;
 
 /**
  * @brief 读取按键状态并进行消抖处理
@@ -262,7 +91,7 @@ inline GPIOPin merge_pins(const Container &pins) noexcept
                   "容器元素类型必须为 GPIOPin");
     assert(std::accumulate(pins.begin(), pins.end(), bool(1), [&](bool last_rslt, GPIOPin pin2)
                            { return last_rslt && (pins[0].port == pin2.port); }) &&
-           "所有引脚必须属于同一端口");
+           "All pins must be on the same port");
 
     return {pins[0].port, std::accumulate(
                               pins.begin(),
@@ -876,7 +705,7 @@ public:
 
 class DCMotorDriver
 {
-private:
+EMBMARTIN_DEBUGING_SPECIFIER:
     PWM PWMA;
     PWM PWMB;
     OutPin STBY;
@@ -884,6 +713,9 @@ private:
     OutPin BIN1;
     OutPin AIN2;
     OutPin BIN2;
+
+    int16_t current_left_speed_permillage = 0;
+    int16_t current_right_speed_permillage = 0;
 
 public:
     enum class Mode
@@ -899,7 +731,12 @@ public:
         PWM _PWMB, OutPin _BIN1, OutPin _BIN2) noexcept
         : PWMA{_PWMA}, AIN1{_AIN1}, AIN2{_AIN2},
           STBY{STBY},
-          PWMB{_PWMB}, BIN1{_BIN1}, BIN2{_BIN2} {};
+          PWMB{_PWMB}, BIN1{_BIN1}, BIN2{_BIN2}
+    {
+        work();
+        set_mode(Mode::FORWARD,0);
+        set_mode(Mode::FORWARD,1);
+    };
 
     inline DCMotorDriver(PWM _PWMA, OutPin _AIN1, OutPin _AIN2, OutPin STBY = null_pin /* 直接接到了 3V */) noexcept
         : DCMotorDriver(_PWMA, _AIN1, _AIN2, STBY,
@@ -914,17 +751,18 @@ public:
         STBY.set();
     }
     void set_mode(Mode mode, uint8_t motor_index = 0) noexcept;
-    void set_speed(uint16_t speed_permillage /* 速度占最大速度千分比 */, uint8_t motor_index = 0) noexcept;
+    void set_speed(int16_t speed_permillage /* 速度占最大速度千分比 */, uint8_t motor_index = 0) noexcept;
     inline void add_speed(int16_t delta_speed_permillage /* 速度占最大速度千分比 */, uint8_t motor_index = 0) noexcept
     {
         set_speed(
-            (motor_index == 0 ? PWMA.get_duty() : PWMB.get_duty()) + delta_speed_permillage,
+            get_speed(motor_index) + delta_speed_permillage,
             motor_index);
     }
-    inline int get_speed(uint8_t motor_index = 0) noexcept
+    inline int16_t get_speed(uint8_t motor_index = 0) noexcept
     {
-        return (motor_index == 0 ? PWMA.get_duty() : PWMB.get_duty());
+        return motor_index == 0 ? current_left_speed_permillage : current_right_speed_permillage;
     }
+
 };
 
 class I2C
@@ -1005,7 +843,7 @@ private:
     }
 
     uint8_t receive_byte() noexcept;
-    inline bool receive_ack() noexcept
+    inline void receive_ack() noexcept
     {
         bool rslt;
 
@@ -1018,7 +856,7 @@ private:
         EMBMARTIN_KEEP_CODE_ORDER;
         _SCL.reset();
 
-        return rslt;
+        EMBMARTIN_ASSERT(!rslt,"I2C req exception", &oled);
     }
 
 public:
@@ -1300,15 +1138,10 @@ public:
     {
         int16_t acc_x, acc_y, acc_z;
         int16_t gyro_x, gyro_y, gyro_z;
-
-        constexpr inline operator std::tuple<const int16_t &, const int16_t &, const int16_t &, const int16_t &, const int16_t &, const int16_t &>()
-        {
-            return std::make_tuple(acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z);
-        }
     };
     inline MPU6050(
         GPIOPin SCL, GPIOPin SDA, bool AD0 = 0, /* 是否更改地址 */
-        bool gyroscope_enable = 1, uint8_t SMPRT_DIV = 10 /* 分频数 */,
+        bool gyroscope_enable = 1, uint8_t SMPRT_DIV = 8 /* 分频数 */,
         uint8_t ACCEL_AFS_SCL = 0b01 /* 加速度满量程选择 0-3*/,
         uint8_t GYRO_FS_SEL = 0b10 /* 角速度满量程选择 0-3*/) noexcept
         : I2C{SCL, SDA, uint8_t(0xD0 + (AD0 << 1))}
@@ -1316,7 +1149,7 @@ public:
         write_reg(REGS::PWR_MGMT_1, gyroscope_enable);     // 解除休眠，是否启用陀螺仪作为时钟源
         write_reg(REGS::PWR_MGMT_2, 0x00);                 // 六轴都工作
         write_reg(REGS::SMPLRT_DIV, SMPRT_DIV - 1);        // 设置采样率
-        write_reg(REGS::CONFIG, 0x08);                     // 平滑地滤波
+        write_reg(REGS::CONFIG, 0x00);                     // 平滑地滤波
         write_reg(REGS::ACCEL_CONFIG, ACCEL_AFS_SCL << 3); // 4g 满量程
         write_reg(REGS::GYRO_CONFIG, GYRO_FS_SEL << 3);    // 1000°/s 满量程
     };
@@ -1357,14 +1190,10 @@ public:
 class AngleComplementaryFilter
 {
 private:
-    const double alpha;         //!< 互补滤波系数
-    const double dt;            //!< 采样时间间隔（秒）
-    const int16_t &acc_x;       //!< 加速度计 X 轴数据引用
-    const int16_t &acc_y;       //!< 加速度计 Y 轴数据引用
-    const int16_t &acc_z;       //!< 加速度计 Z 轴数据引用
-    const int16_t &gyro_x;      //!< 陀螺仪 X 轴数据引用
-    const int16_t &gyro_y;      //!< 陀螺仪 Y 轴数据引用
-    const int16_t &gyro_z;      //!< 陀螺仪 Z 轴数据引用
+    const double alpha;            //!< 互补滤波系数
+    const double dt;               //!< 采样时间间隔（秒）
+    const MPU6050::Data &MPU_data; //!< MPU6050 数据引用
+
     double current_pitch = 0.0; //!< 当前俯仰角（度）
     double current_roll = 0.0;  //!< 当前横滚角（度）
     double current_yaw = 0.0;   //!< 当前偏航角（度）
@@ -1376,40 +1205,110 @@ public:
         double yaw;   //!< 偏航角（度）
     };
     AngleComplementaryFilter(
-        const int16_t &_acc_x, const int16_t &_acc_y, const int16_t &_acc_z,
-        const int16_t &_gyro_x, const int16_t &_gyro_y, const int16_t &_gyro_z,
+        MPU6050::Data &_MPU_data,
         double _alpha = 0.001, double _dt = 0.001) noexcept
-        : alpha(_alpha), dt(_dt),
-          acc_x(_acc_x), acc_y(_acc_y), acc_z(_acc_z),
-          gyro_x(_gyro_x), gyro_y(_gyro_y), gyro_z(_gyro_z) {};
+        : alpha(_alpha), dt(_dt), MPU_data(_MPU_data) {};
 
     void update() noexcept; // 在中断函数或循环中定期调用以更新角度数据
     inline Status get_status() const noexcept { return {current_pitch, current_roll, current_yaw}; }
 };
 
-class PID
+class SingleLoopPID
 {
 private:
-    const int16_t &acc_x;      //!< 加速度计 X 轴数据引用
-    const int16_t &acc_y;      //!< 加速度计 Y 轴数据引用
-    const int16_t &acc_z;      //!< 加速度计 Z 轴数据引用
-    const int16_t &gyro_x;     //!< 陀螺仪 X 轴数据引用
-    const int16_t &gyro_y;     //!< 陀螺仪 Y 轴数据引用
-    const int16_t &gyro_z;     //!< 陀螺仪 Z 轴数据引用
-    const int16_t &pace_left;  //!< 左轮编码器数据引用
-    const int16_t &pace_right; //!< 右轮编码器数据引用
+    const double kp;             //!< 比例系数
+    const double ki;             //!< 积分系数
+    const double kd;             //!< 微分系数
+    const double integral_limit; //!< 积分限幅值, 小于=0表示不限制
+    const double output_limit;   //!< 输出限幅值，小于=0表示不限制
+    const double alpha;          //!< 误差滤波系数
 
+    const double &current; //!< 当前值引用
+    const double dt;       //!< 采样时间间隔（秒）
 
+    const int16_t* d_current; // 可选：直接使用现成的微分值
 
-    const double vertical_kp;  //!< 垂直方向比例系数
-    const double vertical_kd;  //!< 垂直方向微分系数
-    const double velocity_kp;  //!< 速度方向比例系数
-    const double velocity_ki;  //!< 速度方向积分系数
-    const double turn_kp;      //!< 转向方向比例系数
-    const double turn_kd;      //!< 转向方向微分系数
+    double previous_error = 0.0; //!< 上一次误差值
+    double integral = 0.0;       //!< 积分值
+
 public:
+    inline SingleLoopPID(
+        double _kp, double _ki, double _kd, double &_current, double _dt,
+        double _integral_limit, double _output_limit, double _alpha = 0.0 /*默认不滤波*/, const int16_t* _d_current = nullptr) noexcept
+        : kp(_kp), ki(_ki), kd(_kd), current(_current), dt(_dt),
+          integral_limit(_integral_limit), output_limit(_output_limit), alpha(std::clamp(_alpha, 0.0, 1.0)), d_current(_d_current) {};
+
+    double compute(double target) noexcept; // 中断函数中调用
+
+    inline void reinit()noexcept
+    {
+        this->previous_error = 0;
+        this->integral = 0;
+    }
 };
 
-STM32_END
+struct PIDParams
+{
+    double kp;
+    double ki;
+    double kd;
+    double integral_limit;
+    double output_limit;
+    double alpha = 0.0; // 误差滤波系数，默认不滤波
+};
+
+class BalancedCarPID
+{
+private:
+    // 数据获取
+    const MPU6050::Data &MPU_data; //!< MPU6050 数据引用
+    const int16_t &pace_left;      //!< 左轮编码器数据引用
+    const int16_t &pace_right;     //!< 右轮编码器数据引用
+    // 互补滤波器
+    AngleComplementaryFilter angle_filter;         //!< 角度互补滤波器
+    AngleComplementaryFilter::Status angle_status; //!< 当前角度状态,每次compute更新
+    const double pitch_med_angle;                 //!< 平衡车静止时的俯仰角（度）
+    // PID 控制器
+    SingleLoopPID vertical; //!< 垂直方向 PID 控制器
+    SingleLoopPID velocity; //!< 速度方向 PID 控制器
+    SingleLoopPID turn;     //!< 转向方向 PID 控制器
+    // 缓存值（每次compute更新）
+    double velocity_pid_current; //!< 速度 PID current 成员
+    double turn_pid_current;     //!< 转向 PID current 成员
+
+public:
+    struct Output
+    {
+        double duty_left_permillage;  //!< 左轮占空比千分比
+        double duty_right_permillage; //!< 右轮占空比千分比
+    };
+    inline BalancedCarPID(MPU6050::Data &_MPU_data,
+                          int16_t &_pace_left, int16_t &_pace_right,
+                          PIDParams vertical_params, PIDParams velocity_params, PIDParams turn_params,
+                          double dt /* 采样时间间隔（秒） */, double _pitch_med_angle) noexcept
+        : MPU_data(_MPU_data),
+          pace_left(_pace_left), pace_right(_pace_right),
+          angle_filter(_MPU_data, 0.001, dt),
+          vertical(vertical_params.kp, vertical_params.ki, vertical_params.kd,
+                   this->angle_status.pitch, dt,
+                   vertical_params.integral_limit, vertical_params.output_limit, vertical_params.alpha,
+                &this->MPU_data.gyro_y),
+          velocity(velocity_params.kp, velocity_params.ki, velocity_params.kd,
+                   this->velocity_pid_current, dt,
+                   velocity_params.integral_limit, velocity_params.output_limit, velocity_params.alpha),
+          turn(turn_params.kp, turn_params.ki, turn_params.kd,
+               this->turn_pid_current, dt,
+               turn_params.integral_limit, turn_params.output_limit, turn_params.alpha),
+                pitch_med_angle(_pitch_med_angle) {};
+
+    Output compute(double turn_trg, double velocity_trg) noexcept; // 中断函数中调用
+
+    
+};
+
+EMBMARTIN_STM32F10X_NAMESPACE_END
+
+
+
 
 #endif // EMBMARTIN_TOOLS_H
