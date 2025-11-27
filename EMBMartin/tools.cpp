@@ -484,11 +484,11 @@ EMBMartin::STM32::RotaryEncoder::RotaryEncoder(TIM_TypeDef *TIMX, uint8_t TIMx_R
 
     TIM_ICStructInit(&TIM_ICInitStructure);
     TIM_ICInitStructure.TIM_Channel = TIM_Channel_1;
-    TIM_ICInitStructure.TIM_ICFilter = 0xF;
+    TIM_ICInitStructure.TIM_ICFilter = 0x0;
     TIM_ICInit(TIMX, &TIM_ICInitStructure);
 
     TIM_ICInitStructure.TIM_Channel = TIM_Channel_2;
-    TIM_ICInitStructure.TIM_ICFilter = 0xF;
+    TIM_ICInitStructure.TIM_ICFilter = 0x0;
     TIM_ICInit(TIMX, &TIM_ICInitStructure);
 
     auto polarity = reverse ? TIM_ICPolarity_Falling : TIM_ICPolarity_Rising;

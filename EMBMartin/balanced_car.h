@@ -7,7 +7,7 @@ EMBMARTIN_BALANCED_CAR_NAMESPACE_BEGIN
 
 class BalancedCar
 {
-private:
+EMBMARTIN_DEBUGING_SPECIFIER:
     const double EXTI_TIME_S;
     const double left_speed_scaling;
 
