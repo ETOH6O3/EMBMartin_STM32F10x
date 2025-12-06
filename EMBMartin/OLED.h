@@ -10,6 +10,7 @@
 
 #include "basic_tools.h"
 
+
 EMBMARTIN_OLED_NAMESPACE_BEGIN
 
 /**
@@ -262,5 +263,10 @@ public:
 };
 
 EMBMARTIN_OLED_NAMESPACE_END
+
+
+#if EMBMARTIN_DEBUGING
+EMBMARTIN_DEBUGING_EXTERN_OLED; // debug 控制台
+#endif // EMBMARTIN_DEBUGING
 
 #endif // EMBMARTIN_OLED_H

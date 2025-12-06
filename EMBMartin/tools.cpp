@@ -1,4 +1,7 @@
+#include "basic_tools.h"
 #include "tools.h"
+
+using namespace EMBMartin::STM32;
 
 extern uint32_t SystemCoreClock;
 uint8_t EMBMartin::STM32::Get_GPIO_PortSource(GPIO_TypeDef *port) noexcept
@@ -219,7 +222,6 @@ uint32_t EMBMartin::STM32::Get_RCC_APB2Periph(GPIO_TypeDef *port) noexcept
 #endif        // GPION
     return 0; // 默认回退
 }
-
 uint32_t EMBMartin::STM32::Get_EXTI_Line(uint16_t pin) noexcept
 {
     switch (pin)
@@ -851,10 +853,9 @@ double EMBMartin::STM32::SingleLoopPID::compute(double target) noexcept
             this->integral = -this->integral_limit;
     }
 
-    
     // 微分项计算
     double derivative;
-    if(this->d_current == nullptr)
+    if (this->d_current == nullptr)
         derivative = (error - this->previous_error) / this->dt;
     else
         derivative = *(this->d_current);
@@ -894,4 +895,41 @@ EMBMartin::STM32::BalancedCarPID::Output EMBMartin::STM32::BalancedCarPID::compu
         .duty_left_permillage = vertical_out - turn_out,
         .duty_right_permillage = vertical_out + turn_out,
     };
+}
+
+EMBMartin::STM32::USART::USART(USART_TypeDef *USARTx, int remap, int baud_rate) noexcept
+:_USARTx(USARTx)
+{
+    auto pin_tx = USARTX_REMAP[Get_USART_Index(USARTx)][remap].tx;
+    auto pin_rx = USARTX_REMAP[Get_USART_Index(USARTx)][remap].rx;
+    // 开启时钟
+    if (USARTx == USART1)
+        RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
+    else
+        RCC_APB1PeriphClockCmd(Get_RCC_APB1Periph(USARTx), ENABLE);
+    RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(pin_tx.port), ENABLE);
+    RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(pin_rx.port), ENABLE);
+
+    // 配置引脚
+    GPIO_InitTypeDef GPIO_InitStructure;
+    // TX
+    GPIO_InitStructure.GPIO_Pin = pin_tx.pin;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
+    GPIO_Init(pin_tx.port, &GPIO_InitStructure);
+    // RX
+    GPIO_InitStructure.GPIO_Pin = pin_rx.pin;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+    GPIO_Init(pin_rx.port, &GPIO_InitStructure);
+
+    // 配置 USART
+    USART_InitTypeDef USART_InitStructure;
+    USART_InitStructure.USART_BaudRate = baud_rate;
+    USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+    USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
+    USART_InitStructure.USART_Parity = USART_Parity_No;
+    USART_InitStructure.USART_StopBits = USART_StopBits_1;
+    USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+    USART_Init(USARTx, &USART_InitStructure);
+    USART_Cmd(USARTx, ENABLE);
 }

@@ -16,12 +16,12 @@
 #define EMBMARTIN_BASIC_TOOLS_H
 
 #include <stddef.h>
+#include <numeric>
 
 #include "macro.h"
 #include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)
 
 EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
-
 
 /**
  * @brief GPIO 引脚封装结构体
@@ -201,11 +201,108 @@ const GPIOPin (*const _GEN_TIM_CH_TO_GPIOPin_REMAP[4])[4] = {
 uint8_t Get_GPIO_PortSource(GPIO_TypeDef *port) noexcept;
 uint8_t Get_GPIO_PinSource(uint16_t pin) noexcept;
 uint32_t Get_RCC_APB2Periph(GPIO_TypeDef *port) noexcept;
+inline uint32_t Get_RCC_APB1Periph(USART_TypeDef *usartx) noexcept
+{
+    if (usartx == USART2)
+        return RCC_APB1Periph_USART2;
+    else if (usartx == USART3)
+        return RCC_APB1Periph_USART3;
+    else
+        return 0;
+}
+
 uint32_t Get_EXTI_Line(uint16_t pin) noexcept; // TODO: 使能用 HAL 库重写
 IRQn Get_IRQChannel(uint16_t pin) noexcept;
 uint32_t get_TIM_RCC_APB1Periph(TIM_TypeDef *__TIMX) noexcept;
 auto Get_TIM_Index(TIM_TypeDef *TIMX) noexcept -> size_t;
+inline auto Get_USART_Index(USART_TypeDef *USARTx) noexcept
+{
+    if (USARTx == USART1)
+        return 0;
+    else if (USARTx == USART2)
+        return 1;
+    else if (USARTx == USART3)
+        return 2;
+    else
+        return -1;
+}
 
+/**
+ * @brief 将容器中的多个 GPIO 引脚合并为一个 GPIOPin 对象
+ *
+ * 此函数通过按位或操作将多个 GPIO 引脚的 pin 值合并成一个新的 GPIOPin 对象。
+ * 合并后的对象保留第一个引脚的端口，并将所有引脚的 pin 值进行或运算组合。
+ *
+ * @tparam Container 容器类型，其元素类型必须为 GPIOPin
+ * @param pins 包含多个 GPIOPin 对象的容器
+ * @return GPIOPin 合并后的 GPIOPin 对象，其 port 为第一个引脚的 port，
+ *         pin 为所有引脚 pin 值按位或运算的结果
+ *
+ * @note 使用 static_assert 确保容器元素类型为 GPIOPin
+ */
+template <typename Container>
+inline GPIOPin merge_pins(const Container &pins) noexcept
+{
+    static_assert(std::is_same_v<typename Container::value_type, GPIOPin>,
+                  "容器元素类型必须为 GPIOPin");
+    assert(std::accumulate(pins.begin(), pins.end(), bool(1), [&](bool last_rslt, GPIOPin pin2)
+                           { return last_rslt && (pins[0].port == pin2.port); }) &&
+           "All pins must be on the same port");
+
+    return {pins[0].port, std::accumulate(
+                              pins.begin(),
+                              pins.end(),
+                              (uint16_t)0,
+                              [](uint16_t last_rslt, GPIOPin pin2) -> uint16_t
+                              { return last_rslt | pin2.pin; })};
+}
+
+struct USARTPins
+{
+    GPIOPin tx;
+    GPIOPin rx;
+    GPIOPin ck = null_pin;
+    GPIOPin cts = null_pin;
+    GPIOPin rts = null_pin;
+};
+
+const USARTPins USARTX_REMAP[3][4] =
+    {
+        // USART1
+        {
+            // 未复用
+            {PA9, PA10},
+            // 完全重映像
+            {PB6, PB7},
+            // 保留
+            {PA9, PA10},
+            // 保留
+            {PB6, PB7},
+        },
+        // USART2
+        {
+            // 未复用
+            {PA2, PA3, PA4, PA0, PA1},
+            // 部分重映像
+            {PD5, PD6, PA7, PA3, PA4},
+            // 完全重映像
+            {PA2, PA3, PA4, PA0, PA1},
+            // 保留
+            {PD5, PD6, PA7, PA3, PA4},
+        },
+        // USART3
+        {
+            // 未复用
+            {PB10, PB11, PB12, PB13, PB14},
+            // 部分重映像
+            {PC10, PC11, PC12, PB13, PB14},
+            // 完全重映像
+            {PD8, PD9, PD10, PD11, PD12},
+            // 保留
+            {PD8, PD9, PD10, PD11, PD12},
+        },
+
+};
 
 EMBMARTIN_STM32F10X_NAMESPACE_END
 
