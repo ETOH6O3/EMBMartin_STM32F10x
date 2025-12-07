@@ -23,6 +23,8 @@
 
 EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
 
+using IQRHandlerFunc = void (*)(void);
+
 /**
  * @brief GPIO 引脚封装结构体
  *
@@ -227,6 +229,18 @@ inline auto Get_USART_Index(USART_TypeDef *USARTx) noexcept
         return -1;
 }
 
+inline auto Get_USART_IRQChannel(USART_TypeDef *USARTx) noexcept
+{
+    if (USARTx == USART1)
+        return USART1_IRQn;
+    else if (USARTx == USART2)
+        return USART2_IRQn;
+    else if (USARTx == USART3)
+        return USART3_IRQn;
+    else
+        return (IRQn)1;
+}
+
 /**
  * @brief 将容器中的多个 GPIO 引脚合并为一个 GPIOPin 对象
  *
@@ -305,5 +319,9 @@ const USARTPins USARTX_REMAP[3][4] =
 };
 
 EMBMARTIN_STM32F10X_NAMESPACE_END
+
+extern "C" void USART1_IRQHandler(void);
+extern "C" void USART2_IRQHandler(void);
+extern "C" void USART3_IRQHandler(void);
 
 #endif // EMBMARTIN_BASIC_TOOLS_H
