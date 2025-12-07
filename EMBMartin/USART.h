@@ -61,6 +61,8 @@ public:
     
 };
 
+using BluetoothConsole = USBConsole;
+
 EMBMARTIN_STM32F10X_NAMESPACE_END
 
 #endif // EMBMARTIN_USART_H
