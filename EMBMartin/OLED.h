@@ -531,6 +531,12 @@ public:
             show_char(c);
         }
     };
+
+    inline void set_coordinate(uint8_t x, uint8_t y) noexcept
+    {
+        this->current_position.x = x;
+        this->current_position.y = y;
+    }
 };
 
 template <OLEDFontSize font_size>
