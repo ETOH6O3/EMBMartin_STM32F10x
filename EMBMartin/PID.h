@@ -5,6 +5,7 @@
 #include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)
 #include "basic_tools.h"
 #include "system.h"
+#include "I2C.h"
 
 EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
 

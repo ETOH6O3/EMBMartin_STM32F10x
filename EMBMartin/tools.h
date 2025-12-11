@@ -18,7 +18,7 @@
 #include "basic_tools.h"
 #include "outpin.h"
 #include "inpin.h"
-#include "IO.h"
+#include "stream.h"
 #include "TIM.h"
 #include "PWM.h"
 #include "OLED.h"

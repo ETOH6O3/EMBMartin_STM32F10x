@@ -31,38 +31,38 @@
 
 #define EMBMARTIN_DEBUGING_SPECIFIER public
 
-#ifndef EMBMARTIN_DEBUGING_EXTERN_OLED // 允许通过预定义宏修改
-#define EMBMARTIN_DEBUGING_EXTERN_OLED extern EMBMartin::STM32::IO oled;
+#ifndef EMBMARTIN_DEBUGING_EXTERN_CONSOLE // 允许通过预定义宏修改
+#define EMBMARTIN_DEBUGING_EXTERN_CONSOLE extern EMBMartin::OutStream<128>& console;
 #endif // EMBMARTIN_DEBUGING_EXTERN_OLED
 
 /**
  * @brief 断言宏定义函数
  * @param _PRED 断言条件
  * @param _MSG  断言失败时显示的信息
- * @param _OLED_POINTER 指向 OLED 对象的指针，用于显示断言失败信息
+ * @param _CONSOLE_POINTER 指向 OutStream 或其子类对象的指针，用于显示断言失败信息
  */
-#define EMBMARTIN_ASSERT(_PRED, _MSG, _OLED_POINTER)                                       \
-  do                                                                                       \
-  {                                                                                        \
-    if (!(_PRED))                                                                          \
-    {                                                                                      \
-      (_OLED_POINTER)->show("ASSERTION FAILED:", EMBMARTIN_MACRO_TOSTRING(_PRED), (_MSG)); \
-      while (1)                                                                            \
-      {                                                                                    \
-        EMBMARTIN_KEEP_CODE_ORDER;                                                         \
-      }                                                                                    \
-    }                                                                                      \
+#define EMBMARTIN_ASSERT(_PRED, _MSG, _CONSOLE_POINTER)                                       \
+  do                                                                                          \
+  {                                                                                           \
+    if (!(_PRED))                                                                             \
+    {                                                                                         \
+      (_CONSOLE_POINTER)->show("ASSERTION FAILED:", EMBMARTIN_MACRO_TOSTRING(_PRED), (_MSG)); \
+      while (1)                                                                               \
+      {                                                                                       \
+        EMBMARTIN_KEEP_CODE_ORDER;                                                            \
+      }                                                                                       \
+    }                                                                                         \
   } while (0)
 
 #else
 
 #define EMBMARTIN_DEBUGING_SPECIFIER private
 
-#ifndef EMBMARTIN_DEBUGING_EXTERN_OLED
-#define EMBMARTIN_DEBUGING_EXTERN_OLED
-#else                                 // EMBMARTIN_DEBUGING_EXTERN_OLED
-#undef EMBMARTIN_DEBUGING_EXTERN_OLED // 失能预定义宏
-#define EMBMARTIN_DEBUGING_EXTERN_OLED
+#ifndef EMBMARTIN_DEBUGING_EXTERN_CONSOLE
+#define EMBMARTIN_DEBUGING_EXTERN_CONSOLE
+#else                                    // EMBMARTIN_DEBUGING_EXTERN_OLED
+#undef EMBMARTIN_DEBUGING_EXTERN_CONSOLE // 失能预定义宏
+#define EMBMARTIN_DEBUGING_EXTERN_CONSOLE
 #endif // EMBMARTIN_DEBUGING_EXTERN_OLED
 
 #define EMBMARTIN_ASSERT(_PRED, _MSG, _OLED_POINTER) ((void)0)
@@ -103,6 +103,9 @@
 #define EMBMARTIN_BALANCED_CAR_NAMESPACE_END \
   EMBMARTIN_STM32F10X_NAMESPACE_END
 
+// ------------------------------------------版本控制宏--------------------------------------------------
+#define EMBMARTIN_USING_OLD_OLED_VERSION 0
+#define EMBMARTIN_ENCODING_UTF8 1 
 // ------------------------------------------其它--------------------------------------------------
 
 #ifndef STM32_DEVICE_HEADER             // 未使用预定义宏

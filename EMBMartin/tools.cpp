@@ -953,7 +953,7 @@ extern "C" void USART1_IRQHandler(void)
     if (USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)
     {
         EMBMartin::STM32::USART::data_status[0] = {.data_ready = true, .data = USART_ReceiveData(USART1)};
-        USART_ClearITPendingBit(USART1, USART_IT_RXNE);
+        // USART_ClearITPendingBit(USART1, USART_IT_RXNE);
     }
 }
 
@@ -962,7 +962,7 @@ extern "C" void USART2_IRQHandler(void)
     if (USART_GetITStatus(USART2, USART_IT_RXNE) != RESET)
     {
         EMBMartin::STM32::USART::data_status[1] = {.data_ready = true, .data = USART_ReceiveData(USART2)};
-        USART_ClearITPendingBit(USART2, USART_IT_RXNE);
+        // USART_ClearITPendingBit(USART2, USART_IT_RXNE);
     }
 }
 
@@ -971,7 +971,7 @@ extern "C" void USART3_IRQHandler(void)
     if (USART_GetITStatus(USART3, USART_IT_RXNE) != RESET)
     {
         EMBMartin::STM32::USART::data_status[2] = {.data_ready = true, .data = USART_ReceiveData(USART3)};
-        USART_ClearITPendingBit(USART3, USART_IT_RXNE);
+        // USART_ClearITPendingBit(USART3, USART_IT_RXNE);
     }
 }
 
@@ -995,6 +995,7 @@ void EMBMartin::STM32::USBConsole::read() noexcept
         if (ch == '\0' || ch == '\n' || ch == '\r' || (in_p - this->EMBMartin::InStream<128>::buffer) >= 127)
             break;
         *(in_p++) = ch;
-        *in_p = '\0';
     }
+    USART_ClearITPendingBit(this->_USARTx, USART_IT_RXNE);
+    *in_p = '\0';
 }

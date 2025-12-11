@@ -6,13 +6,13 @@
 #include "meta.h"
 #include "basic_tools.h"
 #include "system.h"
-#include "IO.h"
+#include "stream.h"
 
 EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
 
 class USART
 {
-private:
+protected:
     struct ReadStatus
     {
         bool data_ready;
@@ -41,14 +41,13 @@ public:
     friend void ::USART3_IRQHandler(void);
 };
 
-class USBConsole : public EMBMartin::IOStream<128>, public EMBMartin::STM32::USART
+class USBConsole : public EMBMartin::IOStream<128>, EMBMartin::STM32::USART
 {
 public:
     inline USBConsole(USART_TypeDef *USARTx, int remap = 0b00, int baud_rate = 9600) noexcept
         : EMBMartin::STM32::USART(USARTx, remap, baud_rate)
     {
     }
-
     void send() noexcept override
     {
         char *out_p = this->EMBMartin::OutStream<128>::buffer;

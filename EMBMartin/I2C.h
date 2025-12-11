@@ -5,17 +5,15 @@
 #include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)
 #include "basic_tools.h"
 #include "system.h"
-#include "OLED.h"
 
 EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
-
 
 class I2C
 {
 private:
     GPIOPin _SCL; //!< I2C 时钟引脚
     GPIOPin _SDA; //!< I2C 数据引脚
-
+protected:
     uint8_t _addr; //!< 从机地址
     inline void start() noexcept
     {
@@ -101,7 +99,7 @@ private:
         EMBMARTIN_KEEP_CODE_ORDER;
         _SCL.reset();
 
-        EMBMARTIN_ASSERT(!rslt,"I2C req exception", &oled);
+        EMBMARTIN_ASSERT(!rslt, "I2C req exception", &console);
     }
 
 public:
@@ -210,6 +208,10 @@ public:
         stop();
         return result;
     }
+
+#if EMBMARTIN_USING_OLD_OLED_VERSION == 0
+    friend class OLEDBase;
+#endif
 };
 
 class MPU6050 : public I2C
@@ -431,7 +433,6 @@ public:
         return merge_rslt;
     }
 };
-
 
 EMBMARTIN_STM32F10X_NAMESPACE_END
 

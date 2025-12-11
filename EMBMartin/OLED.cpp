@@ -1,7 +1,8 @@
 #include "OLED.h"
-#include "OLED_Font.h"
 
 using namespace EMBMartin::STM32;
+using namespace EMBMartin_OLED_v1;
+using namespace EMBMartin_OLED_v2;
 
 /*引脚配置*/
 #define OLED_W_SCL(x) GPIO_WriteBit(OLED_SCL.port, OLED_SCL.pin, (BitAction)(x))
@@ -81,29 +82,29 @@ inline void IO::I2C_Start(void) noexcept
 {
 	OLED_W_SDA(1);
 	// 添加数据同步屏障防止编译器重排指令
-	__DSB(); 
+	__DSB();
 	__ISB();
 	OLED_W_SCL(1);
-	__DSB(); 
+	__DSB();
 	__ISB();
 	OLED_W_SDA(0);
-	__DSB(); 
+	__DSB();
 	__ISB();
 	OLED_W_SCL(0);
-	__DSB(); 
+	__DSB();
 	__ISB();
 }
 
 inline void IO::I2C_Stop(void) noexcept
 {
 	OLED_W_SDA(0);
-	__DSB(); 
+	__DSB();
 	__ISB();
 	OLED_W_SCL(1);
-	__DSB(); 
+	__DSB();
 	__ISB();
 	OLED_W_SDA(1);
-	__DSB(); 
+	__DSB();
 	__ISB();
 }
 
@@ -121,20 +122,20 @@ inline void IO::I2C_SendByte(uint8_t Byte) noexcept
 	{
 		OLED_W_SDA(!!(Byte & (0x80 >> i)));
 		// 添加数据同步屏障防止编译器重排指令
-		__DSB(); 
+		__DSB();
 		__ISB();
 		OLED_W_SCL(1);
-		__DSB(); 
+		__DSB();
 		__ISB();
 		OLED_W_SCL(0);
-		__DSB(); 
+		__DSB();
 		__ISB();
 	}
 	OLED_W_SCL(1); // 额外的一个时钟，不处理应答信号
-	__DSB(); 
+	__DSB();
 	__ISB();
 	OLED_W_SCL(0);
-	__DSB(); 
+	__DSB();
 	__ISB();
 }
 
@@ -300,3 +301,120 @@ void IO::ShowBinNum(uint32_t Number) noexcept
 
 #undef OLED_W_SCL
 #undef OLED_W_SDA
+
+void OLEDBase::write_cmd(uint8_t cmd) noexcept
+{
+	start();
+	EMBMARTIN_KEEP_CODE_ORDER;
+	send_byte(this->_addr); // 寻址
+	EMBMARTIN_KEEP_CODE_ORDER;
+	receive_ack();
+	EMBMARTIN_KEEP_CODE_ORDER;
+	send_byte(ControlBytes::SINGLE_CMD); // 控制位: 非连续写指令
+	EMBMARTIN_KEEP_CODE_ORDER;
+	receive_ack();
+	EMBMARTIN_KEEP_CODE_ORDER;
+	send_byte(cmd);
+	EMBMARTIN_KEEP_CODE_ORDER;
+	receive_ack();
+	EMBMARTIN_KEEP_CODE_ORDER;
+	stop();
+}
+
+void OLEDBase::write_data(uint8_t data) noexcept
+{
+	start();
+	EMBMARTIN_KEEP_CODE_ORDER;
+	send_byte(this->_addr); // 寻址
+	EMBMARTIN_KEEP_CODE_ORDER;
+	receive_ack();
+	EMBMARTIN_KEEP_CODE_ORDER;
+	send_byte(ControlBytes::SINGLE_DATA); // 控制位: 非连续写数据
+	EMBMARTIN_KEEP_CODE_ORDER;
+	receive_ack();
+	EMBMARTIN_KEEP_CODE_ORDER;
+	send_byte(data);
+	EMBMARTIN_KEEP_CODE_ORDER;
+	receive_ack();
+	EMBMARTIN_KEEP_CODE_ORDER;
+	stop();
+}
+
+OLEDBase::OLEDBase(GPIOPin SCL, GPIOPin SDA, bool SA0) noexcept : I2C(SCL, SDA, 0x78 | (SA0 << 1))
+{
+
+	// 上电延迟
+	for (volatile uint32_t i = 0; i < 1000; i++)
+	{
+		for (volatile uint32_t j = 0; j < 1000; j++)
+		{
+			EMBMARTIN_KEEP_CODE_ORDER;
+		}
+		EMBMARTIN_KEEP_CODE_ORDER;
+	}
+
+	// 1. 关闭显示
+	write_cmd(Cmds::SetDisplayOff);
+
+	// 2. 设置显示时钟分频比 / 振荡器频率（主命令 + 默认参数）
+	write_cmd(Cmds::SetDisplayClockOscFreq);
+	write_cmd(Cmds::DisplayClockOsc_Default); // 对应原 0x80
+
+	// 3. 设置多路复用率（主命令 + 默认参数）
+	write_cmd(Cmds::SetMultiplexRatio);
+	write_cmd(Cmds::MultiplexRatio_Default); // 对应原 0x3F
+
+	// 4. 设置显示偏移（主命令 + 默认参数）
+	write_cmd(Cmds::SetDisplayOffset);
+	write_cmd(Cmds::DisplayOffset_Default); // 对应原 0x00
+
+	// 5. 设置显示开始行（按位或组合指令 + 默认参数）
+	write_cmd(Cmds::SetDisplayStartLine | Cmds::DisplayStartLine_Default); // 对应原 0x40
+
+	// 6. 设置左右方向（正常方向，对应原 0xA1）
+	write_cmd(Cmds::SetSegmentReMap_A1);
+
+	// 7. 设置上下方向（正常方向，对应原 0xC8）
+	write_cmd(Cmds::SetCOMScansDir_C8);
+
+	// 8. 设置 COM 引脚硬件配置（主命令 + 默认参数）
+	write_cmd(Cmds::SetCOMPinsConfig);
+	write_cmd(Cmds::COMPinsConfig_Default); // 对应原 0x12
+
+	// 9. 设置对比度控制（主命令 + 自定义参数，0xCF 无枚举项，保持原数值）
+	write_cmd(Cmds::SetContrastControl);
+	write_cmd(0xCF); // 原参数 0xCF，枚举未定义专门项，按原值传入
+
+	// 10. 设置预充电周期（主命令 + 自定义参数，0xF1 无枚举项，保持原数值）
+	write_cmd(Cmds::SetPreChargePeriod);
+	write_cmd(0xF1); // 原参数 0xF1，枚举未定义专门项，按原值传入
+
+	// 11. 设置 VCOMH 取消选择级别（主命令 + 对应参数）
+	write_cmd(Cmds::SetVCOMHLevel);
+	write_cmd(Cmds::VCOMH_0_83VCC); // 对应原 0x30
+
+	// 12. 设置整个显示为 “跟随显存内容”（对应原 0xA4）
+	write_cmd(Cmds::EntireDisplayOn_A4);
+
+	// 13. 设置正常显示（非反相，对应原 0xA6）
+	write_cmd(Cmds::SetNormalDisplay);
+
+	// 14. 设置充电泵（补充的枚举项 + 原参数 0x14）
+	write_cmd(Cmds::SetChargePump);
+	write_cmd(Cmds::ChargePumpEnable); // 充电泵使能参数（0x14 = 开启），枚举未定义，按原值传入
+
+	// 15. 开启显示
+	write_cmd(Cmds::SetDisplayOn);
+
+	for (volatile uint32_t i = 0; i < 1000; i++)
+	{
+		for (volatile uint32_t j = 0; j < 1000; j++)
+		{
+			EMBMARTIN_KEEP_CODE_ORDER;
+		}
+		EMBMARTIN_KEEP_CODE_ORDER;
+	}
+
+	clear();
+}
+

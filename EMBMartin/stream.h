@@ -6,12 +6,13 @@
  *
  */
 
-#ifndef EMBMARTIN_IO_H
-#define EMBMARTIN_IO_H
+#ifndef EMBMARTIN_STREAM_H
+#define EMBMARTIN_STREAM_H
 
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
+#include <memory>
 
 #include "macro.h"
 #include "meta.h"
@@ -40,11 +41,7 @@ public:
      * @param args 可变参数包
      */
     template <typename... Args>
-    void printf(const char c[], Args... args) noexcept
-    {
-        sprintf(this->buffer, c, args...);
-        this->send();
-    }
+    void printf(const char c[], Args... args) noexcept;
 
     /**
      * \defgroup show_funcs
@@ -106,11 +103,7 @@ public:
      * @param args 剩余参数
      */
     template <typename T, typename... Args>
-    void show(const T &first, const Args &...args) noexcept
-    {
-        show(first);
-        show(args...);
-    }
+    void show(const T &first, const Args &...args) noexcept;
 
     /**
      * @brief 显示参数，最后显示 \\n
@@ -118,11 +111,7 @@ public:
      * @param args 可变参数包，用于显示的内容
      */
     template <typename... Args>
-    void showln(const Args &...args) noexcept
-    {
-        show(args...);
-        show('\n');
-    }
+    void showln(const Args &...args) noexcept;
 
     /**
      * @brief 显示参数，最后显示 \\r
@@ -131,11 +120,8 @@ public:
      *
      */
     template <typename... Args>
-    void showlr(const Args &...args) noexcept
-    {
-        show(args...);
-        show('\r');
-    }
+    void showlr(const Args &...args) noexcept;
+    
     /**
      * @brief 显示参数，参数间以空格分隔
      * @tparam T 第一个参数的类型
@@ -144,16 +130,7 @@ public:
      * @param args 剩余参数
      */
     template <typename T, typename... Args>
-    void showsep(const T &first, const Args &...args) noexcept
-    {
-        show(first);
-
-        if constexpr (sizeof...(args) > 1)
-        {
-            show(' ');
-            showsep(args...);
-        }
-    }
+    void showsep(const T &first, const Args &...args) noexcept;
 
     /** @} */ // end of show_funcs
 };
@@ -180,11 +157,8 @@ public:
      * @param args 可变参数指针包
      */
     template <typename... Args>
-    void scanf(const char c[], Args *...args) noexcept
-    {
-        this->read();
-        sscanf(this->buffer, c, args...);
-    }
+    void scanf(const char c[], Args *...args) noexcept;
+    
 
     /**
      * @brief 现代化的的 C 风格格式化输入函数
@@ -194,28 +168,14 @@ public:
      * @param args 可变万能引用参数包，支持左值变量和右值
      */
     template <typename... Args>
-    void scanf(const char c[], Args &&...args) noexcept
-    {
-        this->read();
-        sscanf(this->buffer, c, &args...);
-    }
+    void scanf(const char c[], Args &&...args) noexcept;
 
     /**
      * @brief 读取一行字符串，直到遇到换行符或缓冲区满
      * @param src 源字符串，格式化输入使用的格式字符串
      * @param trg 目标字符串，存储读取到的内容
      */
-    void getline(char trg[]) noexcept
-    {
-        this->read();
-        char *buff_p = this->buffer;
-        char *trg_p = trg;
-        while ((*buff_p != '\n') && (*buff_p != '\0') && ((buff_p - this->buffer) < static_cast<ptrdiff_t>(_buffer_size - 1)))
-        {
-            *(trg_p++) = *(buff_p++);
-        }
-        *trg_p = '\0';
-    }
+    void getline(char trg[]) noexcept;
 };
 
 template <size_t buffer_size = 128>
@@ -227,8 +187,104 @@ public:
         this->send();
         this->read();
     }
+    /**
+     * @brief python 风格 input 函数，显示提示并返回输入内容的智能指针
+     * 
+     * @param prompt 提示信息
+     * @return auto 智能指针，指向输入内容的字符数组
+     */
+    [[nodiscard]] inline auto input(const char *prompt) noexcept
+    {
+        auto re = std::make_unique<char[]>(buffer_size);
+        this->printf("%s", prompt);
+        this->scanf("%s", re.get());
+        return re;
+    }
 };
+
+template <size_t buffer_size>
+template <typename... Args>
+void OutStream<buffer_size>::printf(const char c[], Args... args) noexcept
+{
+    if constexpr (sizeof...(args) == 0) {
+        // 无参数：把格式字符串按普通字符串写入，避免 format-security
+        std::sprintf(this->buffer, "%s", c);
+    } else {
+        // 有参数：安全格式化到固定缓冲区
+        std::sprintf(this->buffer, c, args...);
+    }
+    this->send();
+}
+
+template <size_t buffer_size>
+template <typename T, typename... Args>
+void OutStream<buffer_size>::show(const T &first, const Args &...args) noexcept
+{
+    show(first);
+    show(args...);
+}
+
+template <size_t buffer_size>
+template <typename... Args>
+void OutStream<buffer_size>::showln(const Args &...args) noexcept
+{
+    show(args...);
+    show('\n');
+}
+
+template <size_t buffer_size>
+template <typename... Args>
+void OutStream<buffer_size>::showlr(const Args &...args) noexcept
+{
+    show(args...);
+    show('\r');
+}
+
+template <size_t buffer_size>
+template <typename T, typename... Args>
+void OutStream<buffer_size>::showsep(const T &first, const Args &...args) noexcept
+{
+    show(first);
+
+    if constexpr (sizeof...(args) > 1)
+    {
+        show(' ');
+        showsep(args...);
+    }
+}
+
+template <size_t buffer_size>
+template <typename... Args>
+void InStream<buffer_size>::scanf(const char c[], Args *...args) noexcept
+{
+    this->read();
+    sscanf(this->buffer, c, args...);
+}
+
+template <size_t buffer_size>
+template <typename... Args>
+void InStream<buffer_size>::scanf(const char c[], Args &&...args) noexcept
+{
+    this->read();
+    sscanf(this->buffer, c, &args...);
+}
+
+template <size_t buffer_size>
+void InStream<buffer_size>::getline(char trg[]) noexcept
+{
+    this->read();
+    char *buff_p = this->buffer;
+    char *trg_p = trg;
+    while ((*buff_p != '\r') && (*buff_p != '\n') && (*buff_p != '\0') && ((buff_p - this->buffer) < static_cast<ptrdiff_t>(_buffer_size - 1)))
+    {
+        *(trg_p++) = *(buff_p++);
+    }
+    *trg_p = '\0';
+}
 
 EMBMARTIN_NAMESPACE_END
 
-#endif // EMBMARTIN_IO_H
+// debug 控制台
+EMBMARTIN_DEBUGING_EXTERN_CONSOLE; 
+
+#endif // EMBMARTIN_STREAM_H
