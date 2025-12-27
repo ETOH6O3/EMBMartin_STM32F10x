@@ -1,8 +1,8 @@
 /**
  ******************************************************************************
- * @file    functions.h
+ * @file    mmath.h
  * @author  孙鸣淼
- * @brief   这里存放一些嵌入式开发中常用且不依赖于平台的函数
+ * @brief   EMBMartin 内置数学库
  ******************************************************************************
  * @attention
  * 1. 至少需要的 C++ 标准： C++17
@@ -10,8 +10,8 @@
  ******************************************************************************
  */
 
-#ifndef EMBMARTIN_FUNCTIONS_H
-#define EMBMARTIN_FUNCTIONS_H
+#ifndef EMBMARTIN_MATH_H
+#define EMBMARTIN_MATH_H
 
 #include <limits>
 #include <stdint.h>
@@ -334,6 +334,13 @@ inline long double round(long double x, int prec) noexcept
 	return x / std::pow(10.0, prec);
 }
 
+template <typename T>
+constexpr inline auto ceil_div(const T &x, const T &y)
+{
+	static_assert(std::is_integral_v<T>);
+	return x / y + bool(x % y);
+}
+
 // ------------------------------------------浮点操作--------------------------------------------------
 
 // 单精度浮点数
@@ -417,5 +424,4 @@ constexpr inline split_double split_double_func(double x) noexcept
 
 EMBMARTIN_NAMESPACE_END
 
-
-#endif // EMBMARTIN_FUNCTIONS_H
+#endif // EMBMARTIN_MATH_H

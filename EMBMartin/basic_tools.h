@@ -17,11 +17,26 @@
 
 #include <stddef.h>
 #include <numeric>
+#include <bit>
 
 #include "macro.h"
 #include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)
 
 EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+
+#ifndef _HAS_CXX20 // C++17
+template <typename To, typename From>
+[[gnu::const]]
+[[nodiscard]] constexpr To bit_cast(const From &from)
+{
+    static_assert(sizeof(To) == sizeof(From) &&
+                  std::is_trivially_copyable_v<To> &&
+                  std::is_trivially_copyable_v<From>);
+    return __builtin_bit_cast(To, from);
+}
+#else
+using std::bit_cast;
+#endif
 
 using IQRHandlerFunc = void (*)(void);
 
@@ -38,23 +53,23 @@ struct GPIOPin
     GPIO_TypeDef *port; //!< GPIO 端口指针
     uint16_t pin;       //!< GPIO 引脚号
 
-    inline GPIOPin(GPIO_TypeDef *_port, uint16_t _pin) noexcept : port{_port}, pin(_pin) {};
-    volatile inline void set() noexcept // 读取模式可用
+    constexpr inline GPIOPin(GPIO_TypeDef *_port, uint16_t _pin) noexcept : port{_port}, pin(_pin) {};
+    inline void set() noexcept // 读取模式可用
     {
         GPIO_WriteBit(this->port, this->pin, Bit_SET);
     }
 
-    volatile inline void reset() noexcept // 读取模式可用
+    inline void reset() noexcept // 读取模式可用
     {
         GPIO_WriteBit(this->port, this->pin, Bit_RESET);
     }
 
-    volatile inline bool read() noexcept // 读取模式和开漏输出模式可用
+    inline bool read() noexcept // 读取模式和开漏输出模式可用
     {
         return GPIO_ReadInputDataBit(this->port, this->pin);
     }
 
-    volatile inline bool read_output() noexcept // 输出模式可用
+    inline bool read_output() noexcept // 输出模式可用
     {
         return GPIO_ReadOutputDataBit(this->port, this->pin);
     }

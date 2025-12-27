@@ -412,6 +412,12 @@ const uint8_t Diode[] = {
 /*****************江协科技|版权所有****************/
 /*****************jiangxiekeji.com*****************/
 
+enum class OLEDFontSize : uint8_t
+{
+    F6x8 = 6,
+    F8x16 = 8
+};
+
 
 EMBMARTIN_OLED_NAMESPACE_END
 

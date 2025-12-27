@@ -418,3 +418,15 @@ OLEDBase::OLEDBase(GPIOPin SCL, GPIOPin SDA, bool SA0) noexcept : I2C(SCL, SDA, 
 	clear();
 }
 
+void OLEDPlayerBase::update() noexcept
+{
+	for (uint8_t page = 0; page < 8; page++)
+	{
+		set_coordinate(0, page);
+		const auto &line = video_mem[page];
+		for (const auto data : line)
+		{
+			write_data(data);
+		}
+	}
+}

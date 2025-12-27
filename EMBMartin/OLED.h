@@ -11,8 +11,7 @@
 #include "basic_tools.h"
 #include "stream.h"
 #include "I2C.h"
-#include "OLED_Font.h"
-#include "coordinate.h"
+#include "OLEDutility.h"
 
 //------------------------------------------ 版本控制 --------------------------------------------------
 #ifndef EMBMARTIN_USING_OLD_OLED_VERSION // 一般在 macro.h 定义
@@ -453,6 +452,8 @@ protected:
 
     void write_cmd(uint8_t cmd) noexcept;
     void write_data(uint8_t data) noexcept;
+    template <typename Container>
+    std::enable_if_t<has_iterator_v<Container>> write_data(const Container &data) noexcept;
 
     inline void set_coordinate(uint8_t x, uint8_t page /*0 - 7*/) noexcept
     {
@@ -478,18 +479,35 @@ public:
     }
 };
 
-enum class OLEDFontSize : uint8_t
+template <typename Container>
+std::enable_if_t<has_iterator_v<Container>> OLEDBase::write_data(const Container &datas) noexcept
 {
-    F6x8 = 6,
-    F8x16 = 8
-};
+    start();
+    EMBMARTIN_KEEP_CODE_ORDER;
+    send_byte(this->_addr); // 寻址
+    EMBMARTIN_KEEP_CODE_ORDER;
+    receive_ack();
+    EMBMARTIN_KEEP_CODE_ORDER;
+    send_byte(ControlBytes::SINGLE_DATA); // 控制位: 非连续写数据
+    EMBMARTIN_KEEP_CODE_ORDER;
+    receive_ack();
+    EMBMARTIN_KEEP_CODE_ORDER;
+    for (const auto &data : datas)
+    {
+        send_byte(data);
+        EMBMARTIN_KEEP_CODE_ORDER;
+        receive_ack();
+    }
+
+    EMBMARTIN_KEEP_CODE_ORDER;
+    stop();
+}
 
 template <OLEDFontSize font_size = OLEDFontSize::F8x16>
-class OLEDConsole : public OLEDBase, public EMBMartin::OutStream<128>
+class OLEDConsole : private OLEDBase, public EMBMartin::OutStream<128>
 {
-    EMBMARTIN_DEBUGING_SPECIFIER :
-
-        static constexpr uint8_t font_size_x = static_cast<uint8_t>(font_size);
+private:
+    static constexpr uint8_t font_size_x = static_cast<uint8_t>(font_size);
     static constexpr uint8_t font_size_y = static_cast<uint8_t>(font_size == OLEDFontSize::F6x8 ? 8 : 16);
     static constexpr uint8_t col_num = 128 / font_size_x;
     static constexpr uint8_t col_max = col_num - 1;
@@ -562,6 +580,72 @@ void OLEDConsole<font_size>::show_char(char c) noexcept
     this->current_position++;
 }
 
+class OLEDPlayerBase : private OLEDBase
+{
+protected:
+    std::array<std::array<IterableUInt8, 128>, 8> video_mem{};
+
+    constexpr static uint8_t col_num = 128;
+    constexpr static uint8_t row_num = 64;
+    using OLEDCoordinate = Coordinate<uint8_t, 0, row_num - 1, 0, col_num - 1>;
+
+public:
+    using OLEDBase::OLEDBase;
+    void update() noexcept;
+    inline auto operator[](const OLEDCoordinate &index) noexcept
+    {
+        const auto &[row_index, col_index] = index;
+
+        const uint8_t page = row_index / 8;
+        const uint8_t bit_pos = row_index % 8;
+        return video_mem[page][col_index][bit_pos];
+    }
+    inline void clear(bool auto_update = true) noexcept
+    {
+        for (auto &page : video_mem)
+        {
+            std::fill(page.begin(), page.end(), 0);
+        }
+        if (auto_update)
+            update();
+    }
+
+    template <uint8_t X, uint8_t Y>
+    void show_pic(const OLEDBitMap<X, Y> &pic, const OLEDCoordinate &start, bool auto_update = true) noexcept
+    {
+        constexpr static auto pic_height = OLEDBitMap<X, Y>::row_num;
+        constexpr static auto pic_width = OLEDBitMap<X, Y>::col_num;
+
+        const auto &[start_row, start_col] = start;
+        for (uint8_t r = 0; (r < pic_height) && (start_row + r < row_num); r++)
+        {
+            for (uint8_t c = 0; (c < pic_width) && (start_col + c < col_num); c++)
+            {
+                const auto &pix = pic[{r, c}];
+                switch (pix)
+                {
+                case BWPixel::Transparent:
+                    break;
+                default:
+                    (*this)[{static_cast<uint8_t>(start_row + r), static_cast<uint8_t>(start_col + c)}] = bool(pix);
+                    break;
+                }
+            }
+        }
+
+        if (auto_update)
+            update();
+    }
+
+    template <typename OLEDPIC>
+    void show_pic(const OLEDPIC &pic, const OLEDCoordinate &start, bool auto_update = true) noexcept
+    {
+        constexpr static auto pic_height = OLEDPIC::row_num;
+        constexpr static auto pic_width = OLEDPIC::col_num;
+
+        return show_pic(OLEDBitMap<pic_height, pic_width>(pic), start, auto_update);
+    }
+};
 EMBMARTIN_OLED_NEW_VERSION_NAMESPACE_END
 
 EMBMARTIN_OLED_NAMESPACE_END

@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @file    functions.h
+ * @file    macro.h
  * @author  孙鸣淼
  * @brief   这里集中存放一些本库通用的宏
  ******************************************************************************
@@ -32,7 +32,7 @@
 #define EMBMARTIN_DEBUGING_SPECIFIER public
 
 #ifndef EMBMARTIN_DEBUGING_EXTERN_CONSOLE // 允许通过预定义宏修改
-#define EMBMARTIN_DEBUGING_EXTERN_CONSOLE extern EMBMartin::OutStream<128>& console;
+#define EMBMARTIN_DEBUGING_EXTERN_CONSOLE extern EMBMartin::OutStream<128> &console;
 #endif // EMBMARTIN_DEBUGING_EXTERN_OLED
 
 /**
@@ -54,6 +54,20 @@
     }                                                                                         \
   } while (0)
 
+/**
+ * @brief 非阻塞式断言宏定义函数，可用于常量表达式函数
+ * @param _PRED 断言条件
+ * @param _MSG  断言失败时显示的信息
+ * @param _CONSOLE_POINTER 指向 OutStream 或其子类对象的指针，用于显示断言失败信息
+ */
+#define EMBMARTIN_NON_BLOCKING_ASSERT(_PRED, _MSG, _CONSOLE_POINTER)                          \
+  do                                                                                          \
+  {                                                                                           \
+    if (!(_PRED))                                                                             \
+    {                                                                                         \
+      (_CONSOLE_POINTER)->show("ASSERTION FAILED:", EMBMARTIN_MACRO_TOSTRING(_PRED), (_MSG)); \
+    }                                                                                         \
+  } while (0)
 #else
 
 #define EMBMARTIN_DEBUGING_SPECIFIER private
@@ -66,10 +80,18 @@
 #endif // EMBMARTIN_DEBUGING_EXTERN_OLED
 
 #define EMBMARTIN_ASSERT(_PRED, _MSG, _OLED_POINTER) ((void)0)
+#define EMBMARTIN_NON_BLOCKING_ASSERT(_PRED, _MSG, _CONSOLE_POINTER) ((void)0)
 
 #endif // EMBMARTIN_DEBUGING
 
 // ------------------------------------------名字空间--------------------------------------------------
+
+// 细节命名空间, 嵌套在其它命名空间中
+#define EMBMARTIN_DETAIL_NAMESPACE_BEGIN \
+  namespace detail                  \
+  {
+#define EMBMARTIN_DETAIL_NAMESPACE_END \
+  }
 
 #define EMBMARTIN_NAMESPACE_BEGIN \
   namespace EMBMartin             \
@@ -105,7 +127,9 @@
 
 // ------------------------------------------版本控制宏--------------------------------------------------
 #define EMBMARTIN_USING_OLD_OLED_VERSION 0
-#define EMBMARTIN_ENCODING_UTF8 1 
+#define EMBMARTIN_ENCODING_UTF8 1
+// ------------------------------------------反射控制--------------------------------------------------
+
 // ------------------------------------------其它--------------------------------------------------
 
 #ifndef STM32_DEVICE_HEADER             // 未使用预定义宏

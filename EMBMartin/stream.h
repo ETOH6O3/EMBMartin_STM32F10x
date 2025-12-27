@@ -12,16 +12,28 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
-#include <memory>
 
 #include "macro.h"
 #include "meta.h"
+#include "fmt.h"
 
 EMBMARTIN_NAMESPACE_BEGIN
 
 template <size_t buffer_size = 128>
 class OutStream
 {
+private:
+    /**
+     * @brief 内部格式化辅助函数
+     * @tparam N 格式字符串长度
+     * @tparam Args 参数类型包
+     * @param fmt_str 格式字符串包装
+     * @param args 参数包
+     * @return 格式化是否成功
+     */
+    template <size_t N, typename... Args>
+    bool format_to_buffer(const FormatString<N>& fmt_str, Args&&... args) noexcept;
+
 protected:
     constexpr static size_t _buffer_size = buffer_size;
     char buffer[buffer_size];
@@ -63,8 +75,17 @@ public:
         this->send();
     }
 
-    template <typename T>
-    inline void show(const T &number) noexcept
+    inline void show(const std::string_view& str) noexcept
+    {
+        for(int i = 0; i < str.size(); i++)
+        {
+            this->buffer[i] = str[i];
+        }
+        this->send();
+    }
+
+    template <typename T, typename = std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>>>
+    inline void show(T number) noexcept
     {
         if constexpr (std::is_integral_v<T>)
         {
@@ -76,17 +97,14 @@ public:
             sprintf(this->buffer, "%g", number);
             this->send();
         }
-        else if constexpr (has_iterator_v<T>)
+    }
+
+    template <typename T, typename = std::enable_if_t<has_iterator_v<T>>>
+    inline void show(const T &container) noexcept
+    {
+        for (const auto &item : container)
         {
-            for (const auto &item : number)
-            {
-                this->show(item);
-            }
-        }
-        else
-        {
-            static_assert(std::is_integral_v<T> || std::is_floating_point_v<T>,
-                          "Only integral and floating point types are supported");
+            this->show(item);
         }
     }
 
@@ -121,7 +139,7 @@ public:
      */
     template <typename... Args>
     void showlr(const Args &...args) noexcept;
-    
+
     /**
      * @brief 显示参数，参数间以空格分隔
      * @tparam T 第一个参数的类型
@@ -133,7 +151,57 @@ public:
     void showsep(const T &first, const Args &...args) noexcept;
 
     /** @} */ // end of show_funcs
+
+
+    /**
+     * \defgroup print_funcs
+     * C++23 风格 print 函数族
+     * 提供安全高效的格式化输出方案
+     * @{
+     */
+
+    /**
+     * @brief C++23风格格式化输出，类似于std::print
+     * @tparam Args 参数类型包
+     * @param fmt 格式化字符串
+     * @param args 参数包
+     */
+    template <typename... Args>
+    void print(std::string_view fmt, Args&&... args) noexcept;
+
+    /**
+     * @brief C++23风格格式化输出，支持字符串字面量
+     * @tparam N 字符串长度
+     * @tparam Args 参数类型包
+     * @param fmt 格式化字符串字面量
+     * @param args 参数包
+     */
+    template <size_t N, typename... Args>
+    void print(const char (&fmt)[N], Args&&... args) noexcept;
+
+    /**
+     * @brief C++23风格格式化输出并换行，类似于std::println
+     * @tparam Args 参数类型包
+     * @param fmt 格式化字符串
+     * @param args 参数包
+     */
+    template <typename... Args>
+    void println(std::string_view fmt, Args&&... args) noexcept;
+
+    /**
+     * @brief C++23风格格式化输出并换行，支持字符串字面量
+     * @tparam N 字符串长度
+     * @tparam Args 参数类型包
+     * @param fmt 格式化字符串字面量
+     * @param args 参数包
+     */
+    template <size_t N, typename... Args>
+    void println(const char (&fmt)[N], Args&&... args) noexcept;
+
+    /** @} */ // end of print_funcs
+
 };
+
 
 template <size_t buffer_size = 128>
 class InStream
@@ -158,7 +226,6 @@ public:
      */
     template <typename... Args>
     void scanf(const char c[], Args *...args) noexcept;
-    
 
     /**
      * @brief 现代化的的 C 风格格式化输入函数
@@ -181,35 +248,68 @@ public:
 template <size_t buffer_size = 128>
 class IOStream : public OutStream<buffer_size>, public InStream<buffer_size>
 {
-public:
+protected:
     inline void update() noexcept
     {
         this->send();
         this->read();
     }
+
+public:
     /**
-     * @brief python 风格 input 函数，显示提示并返回输入内容的智能指针
-     * 
-     * @param prompt 提示信息
-     * @return auto 智能指针，指向输入内容的字符数组
+     * @brief 从输入流中获取用户输入
+     * @param prompt 提示信息字符串，显示给用户
+     * @param trg 用于存储输入数据的目标字符数组
+     * @return 无返回值
      */
-    [[nodiscard]] inline auto input(const char *prompt) noexcept
+    inline void input(const char *prompt, const char *trg) noexcept
     {
-        auto re = std::make_unique<char[]>(buffer_size);
         this->printf("%s", prompt);
-        this->scanf("%s", re.get());
-        return re;
+        this->scanf("%s", trg);
+        return;
     }
 };
+
+template <size_t buffer_size>
+template <size_t N, typename... Args>
+bool OutStream<buffer_size>::format_to_buffer(const FormatString<N>& fmt_str, Args&&... args) noexcept
+{
+    // 使用我们实现的format_to函数格式化到缓冲区
+    int result = format_to(this->buffer, _buffer_size, fmt_str, std::forward<Args>(args)...);
+    
+    if (result >= 0) {
+        // // 确保以null结尾
+        // size_t length = static_cast<size_t>(result);
+        // if (length < _buffer_size) {
+        //     this->buffer[length] = '\0';
+        // } else if (_buffer_size > 0) {
+        //     this->buffer[_buffer_size - 1] = '\0';
+        // }
+        return true;
+    }
+    
+    // 格式化失败，使用回退方案
+    const char* error_msg = "<format error>";
+    size_t error_len = strlen(error_msg);
+    size_t copy_len = error_len < _buffer_size ? error_len : _buffer_size - 1;
+    
+    strncpy(this->buffer, error_msg, copy_len);
+    this->buffer[copy_len] = '\0';
+    
+    return false;
+}
 
 template <size_t buffer_size>
 template <typename... Args>
 void OutStream<buffer_size>::printf(const char c[], Args... args) noexcept
 {
-    if constexpr (sizeof...(args) == 0) {
+    if constexpr (sizeof...(args) == 0)
+    {
         // 无参数：把格式字符串按普通字符串写入，避免 format-security
         std::sprintf(this->buffer, "%s", c);
-    } else {
+    }
+    else
+    {
         // 有参数：安全格式化到固定缓冲区
         std::sprintf(this->buffer, c, args...);
     }
@@ -246,12 +346,73 @@ void OutStream<buffer_size>::showsep(const T &first, const Args &...args) noexce
 {
     show(first);
 
-    if constexpr (sizeof...(args) > 1)
+    if constexpr (sizeof...(args) >= 1)
     {
         show(' ');
         showsep(args...);
     }
 }
+
+
+template <size_t buffer_size>
+template <typename... Args>
+void OutStream<buffer_size>::print(std::string_view fmt, Args&&... args) noexcept
+{
+    // 创建临时字符串用于构造FormatString
+    char temp[256];
+    size_t copy_len = fmt.size() < sizeof(temp) - 1 ? fmt.size() : sizeof(temp) - 1;
+    strncpy(temp, fmt.data(), copy_len);
+    temp[copy_len] = '\0';
+    
+    // 使用字符串字面量重载
+    if constexpr (sizeof...(args) == 0) {
+        // 无参数，直接输出字符串
+        strncpy(this->buffer, temp, _buffer_size - 1);
+        this->buffer[_buffer_size - 1] = '\0';
+    } else {
+        // 有参数，使用格式化
+        this->print(temp, std::forward<Args>(args)...);
+    }
+    this->send();
+}
+
+template <size_t buffer_size>
+template <size_t N, typename... Args>
+void OutStream<buffer_size>::print(const char (&fmt)[N], Args&&... args) noexcept
+{
+    if constexpr (sizeof...(args) == 0) {
+        // 无参数，直接输出字符串
+        strncpy(this->buffer, fmt, _buffer_size - 1);
+        this->buffer[_buffer_size - 1] = '\0';
+        this->send();
+    } else {
+        // 使用格式化
+        FormatString<N> fmt_str(fmt);
+        if (this->format_to_buffer(fmt_str, std::forward<Args>(args)...)) {
+            this->send();
+        } else {
+            // 格式化失败，但仍然发送错误信息
+            this->send();
+        }
+    }
+}
+
+template <size_t buffer_size>
+template <typename... Args>
+void OutStream<buffer_size>::println(std::string_view fmt, Args&&... args) noexcept
+{
+    this->print(fmt, std::forward<Args>(args)...);
+    this->show('\n');
+}
+
+template <size_t buffer_size>
+template <size_t N, typename... Args>
+void OutStream<buffer_size>::println(const char (&fmt)[N], Args&&... args) noexcept
+{
+    this->print(fmt, std::forward<Args>(args)...);
+    this->show('\n');
+}
+
 
 template <size_t buffer_size>
 template <typename... Args>
@@ -285,6 +446,6 @@ void InStream<buffer_size>::getline(char trg[]) noexcept
 EMBMARTIN_NAMESPACE_END
 
 // debug 控制台
-EMBMARTIN_DEBUGING_EXTERN_CONSOLE; 
+EMBMARTIN_DEBUGING_EXTERN_CONSOLE;
 
 #endif // EMBMARTIN_STREAM_H
