@@ -6,7 +6,7 @@
  ******************************************************************************
  * @attention
  * 1. 至少需要的 C++ 标准： C++17
- * 2. 建议的编译器环境： ARM compiler 6 或更高版本; 或 MSVC 14+ 
+ * 2. 建议的编译器环境： ARM compiler 6 或更高版本; 或 MSVC 14+
  * 3. 本模块的程序存储器开销较为严重，需要谨慎使用；若用于嵌入式系统，建议将编译器优化调至 -O3 或 -Oz
  * 4. 本模块对于浮点数的处理过于面向结果，性能甚至远不及 printf ，建议谨慎使用
  ******************************************************************************
@@ -15,10 +15,14 @@
 #define EMBMARTIN_FORMAT_STRING_H
 
 #include <cstring>
+#include <cmath>
+#include <cstdint>
+#include <limits>
 #include <type_traits>
 #include <string_view>
 
 #include "macro.h"
+#include "meta.h"
 
 EMBMARTIN_NAMESPACE_BEGIN
 
@@ -354,11 +358,11 @@ struct FormatLex
 	int _prec = default_prec;
 	Grouping _frac_part_grouping = Grouping::None; // 小数部分分隔符
 
-	Type _type = std::is_constructible_v<std::string_view, T> ? Type::String
-															  : (is_character_v<T> ? Type::Char
-																				   : (std::is_integral_v<T> ? Type::Dec
-																											: (std::is_floating_point_v<T> ? Type::gGeneral
-																																		   : Type::String)));
+	Type _type = is_string_like_v<T> ? Type::String
+									 : (is_character_v<T> ? Type::Char
+														  : (std::is_integral_v<T> ? Type::Dec
+																				   : (std::is_floating_point_v<T> ? Type::gGeneral
+																												  : Type::String)));
 
 	/**
 	 * @brief 解析格式说明符（运行时）
@@ -580,6 +584,17 @@ struct formatter<T, std::enable_if_t<std::is_arithmetic_v<T>>> : public FormatLe
 	int format(T value, FormatContext &ctx) const;
 };
 
+EMBMARTIN_DETAIL_NAMESPACE_BEGIN
+
+int decimal_exponent(long double value) noexcept;
+void round_digits(char *digits, int &length, int keep, char guard) noexcept;
+void increment_decimal(char *digits) noexcept;
+
+void make_float_parts(long double value, char type,
+					  int precision, char *integer, char *fraction, char *exponent) noexcept;
+
+EMBMARTIN_DETAIL_NAMESPACE_END
+
 template <typename T>
 int formatter<T, std::enable_if_t<std::is_arithmetic_v<T>>>::format(T value, FormatContext &ctx) const
 {
@@ -784,110 +799,75 @@ PREFIX_GEN_END:
 	}
 	else
 	{
-		// 预处理：如果四舍五入后为 -0.0 且 _z == true, 改为 +0.0
-		if (this->_z)
-		{
-			double v = static_cast<double>(value);
-			if (v < 0 && v > -0.5 * std::pow(10.0, -this->_prec))
-			{
-				value = 0.0;
-			}
-		}
-
-		// TODO: 改进，不复用 snprintf
-		// 浮点与百分数格式化，先用 snprintf 得到基础字符串，再做分组
-
-		// 拼接 snprintf 格式字符串
-		char fmt_buf[8] = "%";
-		int fi = 1;
-		fmt_buf[fi++] = '.';
-		fmt_buf[fi++] = '*';
-		switch (this->_type)
-		{
-		case BaseType::Type::eScientific:
-			fmt_buf[fi++] = 'e';
-			break;
-		case BaseType::Type::EScientific:
-			fmt_buf[fi++] = 'E';
-			break;
-		case BaseType::Type::fFixed:
-			fmt_buf[fi++] = 'f';
-			break;
-		case BaseType::Type::FFixed:
-			fmt_buf[fi++] = 'F';
-			break;
-		case BaseType::Type::gGeneral:
-			fmt_buf[fi++] = 'g';
-			break;
-		case BaseType::Type::GGeneral:
-			fmt_buf[fi++] = 'G';
-			break;
-		case BaseType::Type::Percentage:
-			fmt_buf[fi++] = 'f';
-			break;
-		default:
-			return (int)FormatError::InvalidFormatSpec;
-		}
-		fmt_buf[fi] = '\0';
-
-		double v = static_cast<double>(value);
-		if (v < 0)
-			v = -v;
+		long double numeric_value = static_cast<long double>(value);
+		bool negative = std::signbit(numeric_value);
+		if (negative)
+			numeric_value = -numeric_value;
 		if (this->_type == BaseType::Type::Percentage)
-			v *= 100.0;
+			numeric_value *= 100.0L;
+		if (this->_z && negative && numeric_value < 0.5L * std::pow(10.0L, -this->_prec))
+			negative = false;
+		if (negative)
+			sign_char[0] = '-';
+		else if (this->_sign == BaseType::Sign::All)
+			sign_char[0] = '+';
+		else if (this->_sign == BaseType::Sign::SpaceOrSign)
+			sign_char[0] = ' ';
 
-		char tmp[128];
-		int written = std::snprintf(tmp, sizeof(tmp), fmt_buf, this->_prec, v);
-		if (written <= 0 || written >= (int)sizeof(tmp))
-			return (int)FormatError::BufferOverflow;
-
-		// 拆分整数、小数与指数
-		const char *dot = std::strchr(tmp, '.');
-		const char *exp = std::strchr(tmp, 'e');
-		if (!exp)
-			exp = std::strchr(tmp, 'E');
-		size_t int_end = dot ? size_t(dot - tmp) : (exp ? size_t(exp - tmp) : (size_t)written);
-
-		// 整数部分倒序 + 分组
-		int ri = 0;
-		int cnt = 0;
-		for (int i = (int)int_end - 1; i >= 0 && ri < (int)sizeof(rev_int_digits) - 1; --i)
+		if (!std::isfinite(numeric_value))
 		{
-			if (tmp[i] == '+' || tmp[i] == '-')
-				continue;
-			rev_int_digits[ri++] = tmp[i];
-			if (int_group_char[0] && ++cnt == int_grouping_num && i > 0)
-			{
-				rev_int_digits[ri++] = *int_group_char;
-				cnt = 0;
-			}
+			const char *special = std::isnan(numeric_value) ? "nan" : "inf";
+			std::strcpy(rev_int_digits, special);
+			frac_digits[0] = '\0';
 		}
-		rev_int_digits[ri] = '\0';
-
-		// 小数部分正序 + 分组
-		int rf = 0;
-		cnt = 0;
-		if (dot)
+		else
 		{
-			const char *frac_start = dot;
-			const char *frac_end = exp ? exp : (tmp + written);
-			for (const char *p = frac_start; p < frac_end && rf < (int)sizeof(frac_digits) - 1; ++p)
+			char integer_digits[128]{};
+			char fraction_digits[64]{};
+			char exponent_digits[8]{};
+			int precision = this->_prec < 0 ? 0 : this->_prec;
+			detail::make_float_parts(numeric_value, char(this->_type), precision,
+									 integer_digits, fraction_digits, exponent_digits);
+
+			int ri = 0;
+			int integer_length = static_cast<int>(std::strlen(integer_digits));
+			int group_count = 0;
+			for (int i = integer_length - 1; i >= 0 && ri < 127; --i)
 			{
-				frac_digits[rf++] = *p;
-				if (frac_group_char[0] && ++cnt == frac_grouping_num && p + 1 < frac_end)
+				rev_int_digits[ri++] = integer_digits[i];
+				if (int_group_char[0] && ++group_count == int_grouping_num && i > 0)
 				{
-					frac_digits[rf++] = *frac_group_char;
-					cnt = 0;
+					rev_int_digits[ri++] = *int_group_char;
+					group_count = 0;
 				}
 			}
+			rev_int_digits[ri] = '\0';
+
+			int rf = 0;
+			if (fraction_digits[0])
+			{
+				frac_digits[rf++] = '.';
+				int fraction_length = static_cast<int>(std::strlen(fraction_digits));
+				for (int i = 0; i < fraction_length && rf < 62; ++i)
+				{
+					frac_digits[rf++] = fraction_digits[i];
+					if (frac_group_char[0] && (i + 1) % frac_grouping_num == 0 && i + 1 < fraction_length)
+						frac_digits[rf++] = *frac_group_char;
+				}
+			}
+			if (exponent_digits[0] && rf < 63)
+			{
+				frac_digits[rf++] = (this->_type == BaseType::Type::EScientific ||
+									 this->_type == BaseType::Type::GGeneral)
+										? 'E'
+										: 'e';
+				for (int i = 0; exponent_digits[i] && rf < 63; ++i)
+					frac_digits[rf++] = exponent_digits[i];
+			}
+			if (this->_type == BaseType::Type::Percentage && rf < 63)
+				frac_digits[rf++] = '%';
+			frac_digits[rf] = '\0';
 		}
-		// 追加指数部分（如有）
-		if (exp && rf < (int)sizeof(frac_digits) - 1)
-		{
-			while (*exp && rf < (int)sizeof(frac_digits) - 1)
-				frac_digits[rf++] = *exp++;
-		}
-		frac_digits[rf] = '\0';
 	}
 
 	// ------------------------------------------总拼接--------------------------------------------------
@@ -954,8 +934,11 @@ PREFIX_GEN_END:
 }
 
 // 字符串类型格式化器
+// 注意：这里判断的是“能否由 T 构造出 std::string_view”（即 T 是字符串类对象/字符指针/字符数组），
+// 而不是“能否由 std::string_view 构造出 T”。后者对 const char* 恒为 false，
+// 会导致 const char* 匹配不到本特化而回退到空的主模板。
 template <typename T>
-struct formatter<T, std::enable_if_t<std::is_constructible_v<T, std::string_view> || is_character_array_v<T>>>
+struct formatter<T, std::enable_if_t<is_string_like_v<T> || is_character_array_v<T>>>
 	: public FormatLex<T>
 {
 	using BaseType = FormatLex<T>;
@@ -963,7 +946,7 @@ struct formatter<T, std::enable_if_t<std::is_constructible_v<T, std::string_view
 };
 
 template <typename T>
-int formatter<T, std::enable_if_t<std::is_constructible_v<T, std::string_view> || is_character_array_v<T>>>::format(const T &value, FormatContext &ctx) const
+int formatter<T, std::enable_if_t<is_string_like_v<T> || is_character_array_v<T>>>::format(const T &value, FormatContext &ctx) const
 {
 	// 参数检查
 	if (this->_int_part_grouping != BaseType::grouping() ||
@@ -1097,41 +1080,47 @@ auto formatter<_Pair, std::enable_if_t<is_pair_v<_Pair>>>::parse(FormatParseCont
 	else
 		return ctx.empty() ? 0 : (int)FormatError::InvalidFormatSpec;
 
-	std::tie(this->_prefix, this->_suffix) = bracket(*(ctx.begin()), *(ctx.end() - 1));
+	// 说明符只有 ':' 时，两个字段都使用默认格式
+	if (ctx.empty())
+		return (int)FormatError::Success;
 
-	auto x_parse_ctx_begin = ctx.begin();
-	auto y_parse_ctx_end = ctx.end();
+	// 注意：这里统一用「下标偏移 + string_view::substr」来切分子说明符，
+	// 而不要拿 string_view 的迭代器去构造 string_view。各标准库中
+	// string_view::iterator 的具体类型不同（MSVC 上并非裸指针，
+	// 且 _HAS_CXX23 在 C++17 模式下也会被定义为 0，使原先的 #if 分支判断失效）。
+	const std::string_view spec = ctx.remainder();
+
+	std::tie(this->_prefix, this->_suffix) = bracket(spec.front(), spec.back());
+
+	size_t x_begin = 0;
+	size_t y_end = spec.size();
 	if (Prefix::None != this->_prefix)
 	{
-		x_parse_ctx_begin++;
-		y_parse_ctx_end--;
+		x_begin++;
+		y_end--;
 	}
 
 	// 查找分隔符
-	auto y_parse_ctx_begin = x_parse_ctx_begin;
-	auto x_parse_ctx_end = y_parse_ctx_end;
-	for (auto it = ctx.begin(); it < ctx.end(); it++)
+	size_t y_begin = x_begin;
+	size_t x_end = y_end;
+	for (size_t i = 0; i < spec.size(); ++i)
 	{
-		if (*it == ',' && *(it + 1) == ',')
+		if (spec[i] == ',' && i + 1 < spec.size() && spec[i + 1] == ',')
 		{
-			x_parse_ctx_end = it;
-			y_parse_ctx_begin = it + 2;
+			x_end = i;
+			y_begin = i + 2;
 			this->_sep = Sep::Comma;
 		}
-		else if (*it == ';')
+		else if (spec[i] == ';')
 		{
-			x_parse_ctx_end = it;
-			y_parse_ctx_begin = it + 1;
+			x_end = i;
+			y_begin = i + 1;
 			this->_sep = Sep::Semicolon;
 		}
 	}
-#if defined(_MSC_VER) && defined(_HAS_CXX23) // MSVC 和 GCC 中 string view 的迭代器不同
-	FormatParseContext ctx_x = std::string_view(x_parse_ctx_begin, x_parse_ctx_end);
-	FormatParseContext ctx_y = std::string_view(y_parse_ctx_begin, y_parse_ctx_end);
-#else
-	FormatParseContext ctx_x = std::string_view(x_parse_ctx_begin, x_parse_ctx_end - x_parse_ctx_begin);
-	FormatParseContext ctx_y = std::string_view(y_parse_ctx_begin, y_parse_ctx_end - y_parse_ctx_begin);
-#endif
+
+	FormatParseContext ctx_x = spec.substr(x_begin, x_end - x_begin);
+	FormatParseContext ctx_y = spec.substr(y_begin, y_end - y_begin);
 
 	auto rslt = (this->_formatter_x).parse(ctx_x);
 	if (rslt != (int)FormatError::Success)
@@ -1161,150 +1150,149 @@ auto formatter<_Pair, std::enable_if_t<is_pair_v<_Pair>>>::format(const _Pair &v
 
 // ------------------------------------------实现细节--------------------------------------------------
 
-namespace detail
+EMBMARTIN_DETAIL_NAMESPACE_BEGIN
+
+// 编译期计算占位符数量
+constexpr size_t count_placeholders(std::string_view fmt)
 {
+	size_t count = 0;
+	bool in_brace = false;
 
-	// 编译期计算占位符数量
-	constexpr size_t count_placeholders(std::string_view fmt)
+	for (size_t i = 0; i < fmt.size(); ++i)
 	{
-		size_t count = 0;
-		bool in_brace = false;
-
-		for (size_t i = 0; i < fmt.size(); ++i)
+		if (fmt[i] == '{')
 		{
-			if (fmt[i] == '{')
+			// 检查转义
+			if (i + 1 < fmt.size() && fmt[i + 1] == '{')
 			{
-				// 检查转义
-				if (i + 1 < fmt.size() && fmt[i + 1] == '{')
-				{
-					++i; // 跳过转义
-				}
-				else
-				{
-					in_brace = true;
-				}
+				++i; // 跳过转义
 			}
-			else if (fmt[i] == '}')
+			else
 			{
-				if (in_brace)
-				{
-					++count;
-					in_brace = false;
-				}
+				in_brace = true;
 			}
 		}
-		return count;
+		else if (fmt[i] == '}')
+		{
+			if (in_brace)
+			{
+				++count;
+				in_brace = false;
+			}
+		}
+	}
+	return count;
+}
+
+// 解析格式字符串中的一个部分
+template <typename Arg>
+int format_arg(FormatContext &ctx, std::string_view fmt_spec, const Arg &arg)
+{
+	// 创建格式化器
+	formatter<Arg> fmt;
+	FormatParseContext parse_ctx(fmt_spec);
+
+	// 解析格式说明符
+	int parse_result = fmt.parse(parse_ctx);
+	if (parse_result < 0)
+	{
+		return parse_result;
 	}
 
-	// 解析格式字符串中的一个部分
-	template <typename Arg>
-	int format_arg(FormatContext &ctx, std::string_view fmt_spec, const Arg &arg)
+	// 格式化参数
+	auto rslt = fmt.format(arg, ctx);
+	return rslt;
+}
+
+// 递归展开参数包的辅助函数
+template <typename... Args>
+struct FormatImpl;
+
+// 基础情况：没有参数
+template <>
+struct FormatImpl<>
+{
+	static int format(FormatContext &ctx, std::string_view fmt)
 	{
-		// 创建格式化器
-		formatter<Arg> fmt;
-		FormatParseContext parse_ctx(fmt_spec);
-
-		// 解析格式说明符
-		int parse_result = fmt.parse(parse_ctx);
-		if (parse_result < 0)
-		{
-			return parse_result;
-		}
-
-		// 格式化参数
-		auto rslt = fmt.format(arg, ctx);
-		return rslt;
+		// 直接输出剩余的格式字符串
+		ctx.write_safe(fmt);
+		return ctx.write_safe('\0') ? int(FormatError::Success) : static_cast<int>(FormatError::BufferOverflow);
 	}
+};
 
-	// 递归展开参数包的辅助函数
-	template <typename... Args>
-	struct FormatImpl;
-
-	// 基础情况：没有参数
-	template <>
-	struct FormatImpl<>
+// 递归情况：有参数需要处理
+template <typename Arg, typename... Rest>
+struct FormatImpl<Arg, Rest...>
+{
+	static int format(FormatContext &ctx, std::string_view fmt,
+					  const Arg &arg, const Rest &...rest)
 	{
-		static int format(FormatContext &ctx, std::string_view fmt)
+
+		static_assert(is_formattable_v<Arg>, "arg not formattable!");
+
+		size_t pos = 0;
+		while (pos < fmt.size())
 		{
-			// 直接输出剩余的格式字符串
-			ctx.write_safe(fmt);
-			return ctx.write_safe('\0') ? int(FormatError::Success) : static_cast<int>(FormatError::BufferOverflow);
-		}
-	};
-
-	// 递归情况：有参数需要处理
-	template <typename Arg, typename... Rest>
-	struct FormatImpl<Arg, Rest...>
-	{
-		static int format(FormatContext &ctx, std::string_view fmt,
-						  const Arg &arg, const Rest &...rest)
-		{
-
-			static_assert(is_formattable_v<Arg>, "arg not formattable!");
-
-			size_t pos = 0;
-			while (pos < fmt.size())
+			// 查找下一个占位符
+			if (fmt[pos] == '{')
 			{
-				// 查找下一个占位符
-				if (fmt[pos] == '{')
+				// 检查是否是转义 {{
+				if (pos + 1 < fmt.size() && fmt[pos + 1] == '{')
 				{
-					// 检查是否是转义 {{
-					if (pos + 1 < fmt.size() && fmt[pos + 1] == '{')
+					// 输出单个{
+					if (!ctx.write_safe('{'))
 					{
-						// 输出单个{
-						if (!ctx.write_safe('{'))
-						{
-							return static_cast<int>(FormatError::BufferOverflow);
-						}
-						pos += 2;
-						continue;
+						return static_cast<int>(FormatError::BufferOverflow);
 					}
-
-					// 找到占位符开始，查找结束}
-					size_t end = pos + 1;
-					while (end < fmt.size() && fmt[end] != '}')
-					{
-						++end;
-					}
-
-					if (end >= fmt.size())
-					{
-						// 没有找到匹配的}
-						return static_cast<int>(FormatError::MismatchedBraces);
-					}
-
-					// 输出占位符前的文本
-					if (pos > 0)
-					{
-						if (!ctx.write_safe(fmt.substr(0, pos)))
-						{
-							return static_cast<int>(FormatError::BufferOverflow);
-						}
-					}
-
-					// 提取格式说明符
-					std::string_view spec = fmt.substr(pos + 1, end - pos - 1);
-
-					// 格式化当前参数
-					int result = format_arg(ctx, spec, arg);
-					if (result < 0)
-					{
-						return result;
-					}
-
-					// 继续处理剩余的格式字符串和参数
-					std::string_view remaining_fmt = fmt.substr(end + 1);
-					return FormatImpl<Rest...>::format(ctx, remaining_fmt, rest...);
+					pos += 2;
+					continue;
 				}
-				++pos;
+
+				// 找到占位符开始，查找结束}
+				size_t end = pos + 1;
+				while (end < fmt.size() && fmt[end] != '}')
+				{
+					++end;
+				}
+
+				if (end >= fmt.size())
+				{
+					// 没有找到匹配的}
+					return static_cast<int>(FormatError::MismatchedBraces);
+				}
+
+				// 输出占位符前的文本
+				if (pos > 0)
+				{
+					if (!ctx.write_safe(fmt.substr(0, pos)))
+					{
+						return static_cast<int>(FormatError::BufferOverflow);
+					}
+				}
+
+				// 提取格式说明符
+				std::string_view spec = fmt.substr(pos + 1, end - pos - 1);
+
+				// 格式化当前参数
+				int result = format_arg(ctx, spec, arg);
+				if (result < 0)
+				{
+					return result;
+				}
+
+				// 继续处理剩余的格式字符串和参数
+				std::string_view remaining_fmt = fmt.substr(end + 1);
+				return FormatImpl<Rest...>::format(ctx, remaining_fmt, rest...);
 			}
-
-			// 没有找到占位符，直接输出剩余文本
-			return ctx.write_safe(fmt) ? static_cast<int>(fmt.size()) : static_cast<int>(FormatError::BufferOverflow);
+			++pos;
 		}
-	};
 
-} // namespace detail
+		// 没有找到占位符，直接输出剩余文本
+		return ctx.write_safe(fmt) ? static_cast<int>(fmt.size()) : static_cast<int>(FormatError::BufferOverflow);
+	}
+};
+
+EMBMARTIN_DETAIL_NAMESPACE_END
 
 // ------------------------------------------主接口函数--------------------------------------------------
 

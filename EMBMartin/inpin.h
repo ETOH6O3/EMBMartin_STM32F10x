@@ -40,6 +40,48 @@ inline bool read_key(GPIOPin pin, bool trigger = false, intmax_t debounce_delay_
 }
 
 /**
+ * @brief 通用输入引脚封装，负责 GPIO 输入模式初始化和电平读取
+ */
+class Inpin
+{
+private:
+    GPIOPin pin;
+
+public:
+    inline Inpin(GPIOPin p, GPIOMode_TypeDef mode = GPIO_Mode_IPU) noexcept : pin(p)
+    {
+        RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(pin.port), ENABLE);
+        GPIO_InitTypeDef GPIO_InitStruct = {
+            .GPIO_Pin = p.pin,
+            .GPIO_Speed = GPIO_Speed_50MHz,
+            .GPIO_Mode = mode,
+        };
+        GPIO_Init(p.port, &GPIO_InitStruct);
+    }
+
+    inline Inpin(GPIO_TypeDef *port, uint16_t pin,
+                 GPIOMode_TypeDef mode = GPIO_Mode_IPU) noexcept
+        : Inpin{GPIOPin{port, pin}, mode}
+    {
+    }
+
+    inline bool get() const noexcept
+    {
+        return GPIO_ReadInputDataBit(this->pin.port, this->pin.pin) == Bit_SET;
+    }
+
+    inline GPIOPin get_pin() const noexcept
+    {
+        return this->pin;
+    }
+
+    inline operator bool() const noexcept
+    {
+        return this->get();
+    }
+};
+
+/**
  * @brief 按键类，用于处理 STM32 GPIO 按键输入
  *
  * 该类封装了按键的 GPIO 配置和状态读取功能，支持按键消抖处理。
@@ -48,7 +90,7 @@ inline bool read_key(GPIOPin pin, bool trigger = false, intmax_t debounce_delay_
 class Key
 {
 private:
-    GPIOPin pin;  //!< GPIO 引脚信息
+    Inpin input;  //!< 输入引脚
     bool trigger; //!< 按键触发状态，false 表示低电平触发，true 表示高电平触发
 
 public:
@@ -58,15 +100,9 @@ public:
      * @param trigger 按键触发状态，默认为 false（低电平触发）
      * @note 会在构造时自动初始化 GPIO 为输入模式
      */
-    inline Key(GPIOPin p, bool trigger = false) noexcept : pin(p), trigger(trigger)
+    inline Key(GPIOPin p, bool trigger = false) noexcept
+        : input(p, trigger ? GPIO_Mode_IPD : GPIO_Mode_IPU), trigger(trigger)
     {
-        RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(pin.port), ENABLE);
-        GPIO_InitTypeDef GPIO_InitStruct = {
-            .GPIO_Pin = p.pin,
-            .GPIO_Speed = GPIO_Speed_50MHz,
-            .GPIO_Mode = trigger ? GPIO_Mode_IPD : GPIO_Mode_IPU,
-        };
-        GPIO_Init(p.port, &GPIO_InitStruct);
     }
 
     /**
@@ -84,7 +120,12 @@ public:
      */
     inline bool is_pressed() const noexcept
     {
-        return read_key(this->pin, this->trigger);
+        return read_key(this->input.get_pin(), this->trigger);
+    }
+
+    inline operator bool() const noexcept
+    {
+        return this->is_pressed();
     }
 };
 
@@ -96,22 +137,15 @@ public:
 class Sensor
 {
 private:
-    GPIOPin pin; //!< GPIO 引脚信息
+    Inpin input; //!< 输入引脚
 
 public:
     /**
      * @brief 构造一个传感器对象
      * @param p GPIOPin 结构体，包含端口和引脚信息
      */
-    inline Sensor(GPIOPin p) noexcept : pin(p)
+    inline Sensor(GPIOPin p) noexcept : input(p, GPIO_Mode_IPU)
     {
-        RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(pin.port), ENABLE);
-        GPIO_InitTypeDef GPIO_InitStruct = {
-            .GPIO_Pin = p.pin,
-            .GPIO_Speed = GPIO_Speed_50MHz,
-            .GPIO_Mode = GPIO_Mode_IPU,
-        };
-        GPIO_Init(p.port, &GPIO_InitStruct);
     }
 
     /**
@@ -127,7 +161,12 @@ public:
      */
     inline bool get() const noexcept
     {
-        return GPIO_ReadInputDataBit(this->pin.port, this->pin.pin) == Bit_SET;
+        return this->input.get();
+    }
+
+    inline operator bool() const noexcept
+    {
+        return this->get();
     }
 };
 

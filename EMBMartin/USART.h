@@ -7,6 +7,7 @@
 #include "basic_tools.h"
 #include "system.h"
 #include "stream.h"
+#include "debugger.h"
 
 EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
 
@@ -41,26 +42,45 @@ public:
     friend void ::USART3_IRQHandler(void);
 };
 
-class USBConsole : public EMBMartin::IOStream<128>, EMBMartin::STM32::USART
+template <typename BaseStream = Debugger<128>>
+class USBConsole : public BaseStream, public EMBMartin::STM32::USART
 {
 public:
     inline USBConsole(USART_TypeDef *USARTx, int remap = 0b00, int baud_rate = 9600) noexcept
         : EMBMartin::STM32::USART(USARTx, remap, baud_rate)
     {
     }
-    void send() noexcept override
+    /**
+     * @brief 输出一个字符到串口
+     * 缓冲区由 OutStream 管理，这里只需要把字符交给硬件
+     */
+    void output_char(char c) noexcept override
     {
-        char *out_p = this->EMBMartin::OutStream<128>::buffer;
-        do
-        {
-            this->send_byte(static_cast<uint8_t>(*(out_p++)));
-        } while (*out_p);
+        this->send_byte(static_cast<uint8_t>(c));
     }
     void read() noexcept override;
     
 };
 
-using BluetoothConsole = USBConsole;
+template<class BaseStream> 
+void USBConsole<BaseStream>::read() noexcept
+{
+    char *in_p = this->EMBMartin::InStream<128>::buffer;
+    // while ((*(in_p++) = this->read_halfword()) && (*in_p != '\n') && (*in_p != '\r'))
+    // ;
+    while (true)
+    {
+        char ch = this->read_halfword();
+        if (ch == '\0' || ch == '\n' || ch == '\r' || (in_p - this->EMBMartin::InStream<128>::buffer) >= 127)
+            break;
+        *(in_p++) = ch;
+    }
+    USART_ClearITPendingBit(this->_USARTx, USART_IT_RXNE);
+    *in_p = '\0';
+}
+
+template <typename BaseStream = Debugger<128>>
+using BluetoothConsole = USBConsole<BaseStream>;
 
 EMBMARTIN_STM32F10X_NAMESPACE_END
 

@@ -471,6 +471,12 @@ EMBMartin::STM32::RotaryEncoder::RotaryEncoder(TIM_TypeDef *TIMX, uint8_t TIMx_R
     GPIO_Init(gpiopin1.port, &GPIO_InitStructure);
     GPIO_InitStructure.GPIO_Pin = gpiopin2.pin;
     GPIO_Init(gpiopin2.port, &GPIO_InitStructure);
+    if (gpiopin1 == PB4)
+    {
+        GPIO_PinRemapConfig(GPIO_Remap_SWJ_NoJTRST, ENABLE);
+    }
+
+    
 
     /*时基单元初始化*/
     TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStructure;
@@ -748,7 +754,7 @@ void EMBMartin::STM32::DCMotorDriver::set_mode(Mode mode, uint8_t motor_index) n
 
 void EMBMartin::STM32::DCMotorDriver::set_speed(int16_t speed_permillage, uint8_t motor_index) noexcept
 {
-    speed_permillage = std::clamp<int16_t>(speed_permillage, -1000, 1000);
+    speed_permillage = std::clamp<int16_t>(speed_permillage, -990, 990);
     PWM *PWm;
     if (motor_index == 0)
     {
@@ -982,20 +988,4 @@ uint16_t EMBMartin::STM32::USART::read_halfword() noexcept
         EMBMARTIN_KEEP_CODE_ORDER;
     data_status[index].data_ready = false;
     return data_status[index].data;
-}
-
-void EMBMartin::STM32::USBConsole::read() noexcept
-{
-    char *in_p = this->EMBMartin::InStream<128>::buffer;
-    // while ((*(in_p++) = this->read_halfword()) && (*in_p != '\n') && (*in_p != '\r'))
-    // ;
-    while (true)
-    {
-        char ch = this->read_halfword();
-        if (ch == '\0' || ch == '\n' || ch == '\r' || (in_p - this->EMBMartin::InStream<128>::buffer) >= 127)
-            break;
-        *(in_p++) = ch;
-    }
-    USART_ClearITPendingBit(this->_USARTx, USART_IT_RXNE);
-    *in_p = '\0';
 }

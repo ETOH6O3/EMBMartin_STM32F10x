@@ -11,7 +11,7 @@
 #ifndef EMBMARTIN_MACRO_H
 #define EMBMARTIN_MACRO_H
 
-// ------------------------------------------功能宏--------------------------------------------------
+ // ------------------------------------------未分类功能--------------------------------------------------
 
 #define EMBMARTIN_MACRO_STRINGIFY(x) #x
 #define EMBMARTIN_MACRO_TOSTRING(x) EMBMARTIN_MACRO_STRINGIFY(x)
@@ -23,6 +23,26 @@
 
 // 防止编译器为了适配~沟槽的~乱序多发而进行代码顺序调整
 #define EMBMARTIN_KEEP_CODE_ORDER __asm__ volatile("" ::: "memory");
+
+// if consteval
+#if defined(_HAS_CXX23) && (_HAS_CXX23 == 1)
+#define EMBMARTIN_IF_CONSTEVAL if consteval
+#define EMBMARTIN_STATIC_ASSERT_WITH_VAR(_PRED, _MSG) void(0);
+#else
+#if defined(__GNUC__) || defined(__clang__)
+#define EMBMARTIN_IF_CONSTEVAL if (__builtin_is_constant_evaluated())
+#elif defined(_MSC_VER)
+#define EMBMARTIN_IF_CONSTEVAL if (0)
+#else
+#define EMBMARTIN_IF_CONSTEVAL               \
+  do                                         \
+  {                                          \
+    static_assert(0, "compiler not support") \
+  } while (0);                               \
+  if (0)
+#endif // defined(__GNUC__) || defined(__clang__)
+#define EMBMARTIN_STATIC_ASSERT_WITH_VAR(_PRED, _MSG)
+#endif // defined(__HAS_CXX20) && (__HAS_CXX20 == 1)
 
 // ------------------------------------------调试宏------------------------------------------
 #define EMBMARTIN_DEBUGING 1
@@ -41,32 +61,46 @@
  * @param _MSG  断言失败时显示的信息
  * @param _CONSOLE_POINTER 指向 OutStream 或其子类对象的指针，用于显示断言失败信息
  */
-#define EMBMARTIN_ASSERT(_PRED, _MSG, _CONSOLE_POINTER)                                       \
-  do                                                                                          \
-  {                                                                                           \
-    if (!(_PRED))                                                                             \
-    {                                                                                         \
-      (_CONSOLE_POINTER)->show("ASSERTION FAILED:", EMBMARTIN_MACRO_TOSTRING(_PRED), (_MSG)); \
-      while (1)                                                                               \
-      {                                                                                       \
-        EMBMARTIN_KEEP_CODE_ORDER;                                                            \
-      }                                                                                       \
-    }                                                                                         \
+#define EMBMARTIN_ASSERT(_PRED, _MSG, _CONSOLE_POINTER)                                         \
+  do                                                                                            \
+  {                                                                                             \
+    EMBMARTIN_IF_CONSTEVAL                                                                      \
+    {                                                                                           \
+      EMBMARTIN_STATIC_ASSERT_WITH_VAR((_PRED), _MSG)                                         \
+    }                                                                                           \
+    else                                                                                        \
+    {                                                                                           \
+      if (!(_PRED))                                                                             \
+      {                                                                                         \
+        (_CONSOLE_POINTER)->show("ASSERTION FAILED:", EMBMARTIN_MACRO_TOSTRING(_PRED), (_MSG)); \
+        while (1)                                                                               \
+        {                                                                                       \
+          EMBMARTIN_KEEP_CODE_ORDER;                                                            \
+        }                                                                                       \
+      }                                                                                         \
+    }                                                                                           \
   } while (0)
 
-/**
- * @brief 非阻塞式断言宏定义函数，可用于常量表达式函数
- * @param _PRED 断言条件
- * @param _MSG  断言失败时显示的信息
- * @param _CONSOLE_POINTER 指向 OutStream 或其子类对象的指针，用于显示断言失败信息
- */
-#define EMBMARTIN_NON_BLOCKING_ASSERT(_PRED, _MSG, _CONSOLE_POINTER)                          \
-  do                                                                                          \
-  {                                                                                           \
-    if (!(_PRED))                                                                             \
-    {                                                                                         \
-      (_CONSOLE_POINTER)->show("ASSERTION FAILED:", EMBMARTIN_MACRO_TOSTRING(_PRED), (_MSG)); \
-    }                                                                                         \
+ /**
+  * @brief 非阻塞式断言宏定义函数，可用于常量表达式函数
+  * @param _PRED 断言条件
+  * @param _MSG  断言失败时显示的信息
+  * @param _CONSOLE_POINTER 指向 OutStream 或其子类对象的指针，用于显示断言失败信息
+  */
+#define EMBMARTIN_NON_BLOCKING_ASSERT(_PRED, _MSG, _CONSOLE_POINTER)                            \
+  do                                                                                            \
+  {                                                                                             \
+    EMBMARTIN_IF_CONSTEVAL                                                                      \
+    {                                                                                           \
+      EMBMARTIN_STATIC_ASSERT_WITH_VAR(_PRED, _MSG)                                         \
+    }                                                                                           \
+    else                                                                                        \
+    {                                                                                           \
+      if (!(_PRED))                                                                             \
+      {                                                                                         \
+        (_CONSOLE_POINTER)->show("ASSERTION FAILED:", EMBMARTIN_MACRO_TOSTRING(_PRED), (_MSG)); \
+      }                                                                                         \
+    }                                                                                           \
   } while (0)
 #else
 
@@ -88,7 +122,7 @@
 
 // 细节命名空间, 嵌套在其它命名空间中
 #define EMBMARTIN_DETAIL_NAMESPACE_BEGIN \
-  namespace detail                  \
+  namespace detail                       \
   {
 #define EMBMARTIN_DETAIL_NAMESPACE_END \
   }
@@ -125,10 +159,9 @@
 #define EMBMARTIN_BALANCED_CAR_NAMESPACE_END \
   EMBMARTIN_STM32F10X_NAMESPACE_END
 
-// ------------------------------------------版本控制宏--------------------------------------------------
+// ------------------------------------------版本控制--------------------------------------------------
 #define EMBMARTIN_USING_OLD_OLED_VERSION 0
 #define EMBMARTIN_ENCODING_UTF8 1
-// ------------------------------------------反射控制--------------------------------------------------
 
 // ------------------------------------------其它--------------------------------------------------
 

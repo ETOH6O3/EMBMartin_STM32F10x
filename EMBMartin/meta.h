@@ -13,15 +13,31 @@
 #define EMBMARTIN_METAPROGRAMING
 
 #include <type_traits>
+#include <tuple>
+#include <string_view>
 
 #include "macro.h"
 
 EMBMARTIN_NAMESPACE_BEGIN
 
+// C++17 兼容的 remove_cvref / remove_cvref_t
+#if defined(__cpp_lib_remove_cvref)
+using std::remove_cvref;
+using std::remove_cvref_t;
+#else
+template <class T>
+struct remove_cvref
+{
+	using type = std::remove_cv_t<std::remove_reference_t<T>>;
+};
+template <class T>
+using remove_cvref_t = typename remove_cvref<T>::type;
+#endif
+
 //------------------------------------------ 是否应当移动 --------------------------------------------------
 // 判断类型 T 是否应该通过移动语义传递，如果 T 的大小大于指针大小则返回 true，否则返回 false
 template <typename T>
-struct should_move : std::conditional_t<(sizeof(T) > sizeof(void *)), std::true_type, std::false_type>
+struct should_move : std::conditional_t<(sizeof(T) > sizeof(void*)), std::true_type, std::false_type>
 {
 };
 
@@ -36,10 +52,10 @@ struct has_iterator : std::false_type
 
 template <typename T>
 struct has_iterator<T, std::void_t<
-						   typename T::iterator,
-						   typename T::const_iterator,
-						   decltype(std::declval<T>().begin()),
-						   decltype(std::declval<T>().end())>> : std::true_type
+	typename T::iterator,
+	typename T::const_iterator,
+	decltype(std::declval<T>().begin()),
+	decltype(std::declval<T>().end())>> : std::true_type
 {
 };
 
@@ -54,10 +70,10 @@ struct is_iterator_of : std::false_type
 
 template <typename Iter, typename T>
 struct is_iterator_of<Iter, T,
-					  typename std::enable_if<
-						  std::is_same<
-							  typename std::iterator_traits<Iter>::value_type,
-							  T>::value>::type> : std::true_type
+	typename std::enable_if<
+	std::is_same<
+	typename std::iterator_traits<Iter>::value_type,
+	T>::value>::type> : std::true_type
 {
 };
 
@@ -115,6 +131,24 @@ struct is_character_array<char32_t[N]> : std::true_type
 template <typename T>
 constexpr bool is_character_array_v = is_character_array<T>::value;
 
+//------------------------------------------ 判断是否为字符串类类型 --------------------------------------------------
+/**
+ * @brief 判断 T 是否为“字符串类”类型
+ *
+ * 判据是 std::string_view 能否由 T 构造得到，因此 const char* / char* / char[N] /
+ * std::string / std::string_view 等类型均为真。
+ * 注意方向：不能写成 std::is_constructible_v<T, std::string_view>，
+ * 因为 std::string_view 不能隐式转换为 const char*，那样 const char* 会被判为假。
+ */
+template <typename T>
+struct is_string_like
+{
+	static constexpr bool value = std::is_constructible_v<std::string_view, T>;
+};
+
+template <typename T>
+constexpr bool is_string_like_v = is_string_like<T>::value;
+
 //------------------------------------------ 编译时 Any --------------------------------------------------
 
 /**
@@ -131,9 +165,9 @@ struct CompileTimeAny
 	constexpr inline CompileTimeAny() noexcept = delete;
 	// decltype 不需要函数完整定义
 	template <typename T>
-	constexpr inline operator T &() noexcept; // T& 可以赋值给 T, const T, T&, const T&
+	constexpr inline operator T& () noexcept; // T& 可以赋值给 T, const T, T&, const T&
 	template <typename T>
-	constexpr inline operator T &&() noexcept; // T&& 可以赋值给 T&&, const T&&
+	constexpr inline operator T && () noexcept; // T&& 可以赋值给 T&&, const T&&
 };
 
 //------------------------------------------ pairs 概念 --------------------------------------------------
@@ -144,7 +178,7 @@ struct CompileTimeAny
 EMBMARTIN_DETAIL_NAMESPACE_BEGIN
 
 template <typename T, typename... Args>
-constexpr auto _test_constructible(int) -> decltype(T{std::declval<Args>()...}, std::true_type{});
+constexpr auto _test_constructible(int) -> decltype(T{ std::declval<Args>()... }, std::true_type{});
 
 template <typename T, typename... Args>
 constexpr std::false_type _test_constructible(...);
@@ -167,8 +201,8 @@ EMBMARTIN_DETAIL_NAMESPACE_END
 template <size_t N, typename T>
 struct is_N_list_constructible
 	: std::conditional_t<
-		  detail::_is_N_list_constructible_tester<N, T>::value,
-		  std::true_type, std::false_type>
+	detail::_is_N_list_constructible_tester<N, T>::value,
+	std::true_type, std::false_type>
 {
 };
 
@@ -180,11 +214,11 @@ EMBMARTIN_DETAIL_NAMESPACE_BEGIN
 template <typename T>
 struct _is_two_member_aggregate
 	: std::conditional_t<
-		  is_N_list_constructible_v<2, T> &&
-			  !is_N_list_constructible_v<3, T> /* 聚合类型的成员可以有默认值 */ &&
-			  std::is_aggregate_v<T> &&
-			  !std::is_array_v<T> /*C 数组可列表初始化且属于聚合类型 */,
-		  std::true_type, std::false_type>
+	is_N_list_constructible_v<2, T> &&
+	!is_N_list_constructible_v<3, T> /* 聚合类型的成员可以有默认值 */&&
+	std::is_aggregate_v<T> &&
+	!std::is_array_v<T> /*C 数组可列表初始化且属于聚合类型 */,
+	std::true_type, std::false_type>
 {
 };
 
@@ -202,9 +236,9 @@ struct is_pair_like : std::false_type
 template <typename T>
 struct is_pair_like<T, std::void_t<decltype(std::tuple_size<T>::value)>>
 	: std::integral_constant<
-		  bool,
-		  !std::is_same_v<std::tuple_size<T>, std::tuple_size<void>> &&
-			  std::tuple_size<T>::value == 2>
+	bool,
+	!std::is_same_v<std::tuple_size<T>, std::tuple_size<void>>&&
+	std::tuple_size<T>::value == 2>
 {
 };
 
@@ -215,9 +249,9 @@ constexpr bool is_pair_like_v = is_pair_like<T>::value;
 template <typename T>
 struct is_pair
 	: std::conditional_t<
-		  is_pair_like_v<T> || detail::_is_two_member_aggregate_v<T>,
-		  std::true_type,
-		  std::false_type>
+	is_pair_like_v<T> || detail::_is_two_member_aggregate_v<T>,
+	std::true_type,
+	std::false_type>
 {
 };
 
@@ -227,9 +261,9 @@ constexpr bool is_pair_v = is_pair<T>::value;
 EMBMARTIN_DETAIL_NAMESPACE_BEGIN
 
 template <size_t N, typename _Pair>
-constexpr inline auto _pair_get(const _Pair &pair) noexcept
+constexpr inline auto _pair_get(const _Pair& pair) noexcept
 {
-	const auto &[a, b] = std::forward<_Pair>(pair);
+	const auto& [a, b] = pair;
 	if constexpr (N == 0)
 	{
 		return a;
@@ -298,6 +332,14 @@ struct _is_all_tuple_element_implemented<T, std::void_t<decltype(std::tuple_size
 template <typename T>
 constexpr bool _is_all_tuple_element_implemented_v = _is_all_tuple_element_implemented<T>::value;
 
+template <typename T, size_t... Is>
+constexpr bool _has_std_get(std::index_sequence<Is...>)
+{
+	using U = std::remove_reference_t<T>;
+	// 注意：这里用 std::get<Is>(declval<T>())，要求 ADL/重载可见
+	return (std::is_same_v<decltype(std::get<Is>(std::declval<T>())), decltype(std::get<Is>(std::declval<T>()))> && ...);
+}
+
 EMBMARTIN_DETAIL_NAMESPACE_END
 
 // std tuple
@@ -324,7 +366,7 @@ template <typename T>
 struct is_tuple_like<
 	T,
 	std::void_t<
-		decltype(std::tuple_size<T>::value)>>
+	decltype(std::tuple_size<T>::value)>>
 	: detail::_is_all_tuple_element_implemented<T>
 {
 };
@@ -332,12 +374,44 @@ struct is_tuple_like<
 template <typename T>
 constexpr bool is_tuple_like_v = is_tuple_like<T>::value;
 
+
+EMBMARTIN_DETAIL_NAMESPACE_BEGIN
+
+template <typename T, size_t... Is>
+using _has_std_get_expr_t = std::void_t<decltype(std::get<Is>(std::declval<T>()))...>;
+
+template <typename T, typename Seq, typename = void>
+struct _has_std_get_seq : std::false_type
+{
+};
+
+template <typename T, size_t... Is>
+struct _has_std_get_seq<T, std::index_sequence<Is...>, _has_std_get_expr_t<T, Is...>> : std::true_type
+{
+};
+
+EMBMARTIN_DETAIL_NAMESPACE_END
+
+template <typename T, typename = void>
+struct has_std_get : std::false_type
+{
+};
+
+template <typename T>
+struct has_std_get<T, std::void_t<decltype(std::tuple_size<std::remove_reference_t<T>>::value)>>
+	: detail::_has_std_get_seq<T, std::make_index_sequence<std::tuple_size<std::remove_reference_t<T>>::value>>
+{
+};
+
+template <typename T>
+constexpr bool has_std_get_v = has_std_get<T>::value;
+
 // 可解包聚合类(广义元组和狭义元组的差集)
 template <typename T>
 struct is_unpackable_aggregate
 	: std::conditional_t<
-		  std::is_aggregate_v<T> && !std::is_array_v<T> && !std::is_empty_v<T>,
-		  std::true_type, std::false_type>
+	std::is_aggregate_v<T> && !std::is_array_v<T> && !std::is_empty_v<T>,
+	std::true_type, std::false_type>
 {
 };
 template <typename T>
@@ -347,8 +421,8 @@ constexpr bool is_unpackable_aggregate_v = is_unpackable_aggregate<T>::value;
 template <typename T>
 struct is_tuple
 	: std::conditional_t<
-		  (std::is_aggregate_v<T> && !std::is_array_v<T>)/* 可解包聚合类型 */ || is_tuple_like_v<T>,
-		  std::true_type, std::false_type>
+	(std::is_aggregate_v<T> && !std::is_array_v<T>)/* 可解包聚合类型 */ || is_tuple_like_v<T>,
+	std::true_type, std::false_type>
 {
 };
 template <typename T>
@@ -360,9 +434,9 @@ EMBMARTIN_DETAIL_NAMESPACE_BEGIN
 template <size_t N, typename T>
 struct _aggr_member_num_test_from
 	: std::conditional_t<
-		  is_N_list_constructible_v<N, T> && !is_N_list_constructible_v<N + 1, T>,
-		  std::integral_constant<size_t, N>,
-		  _aggr_member_num_test_from<N + 1, T>>
+	is_N_list_constructible_v<N, T> && !is_N_list_constructible_v<N + 1, T>,
+	std::integral_constant<size_t, N>,
+	_aggr_member_num_test_from<N + 1, T>>
 {
 };
 
@@ -380,9 +454,9 @@ constexpr auto unpackable_aggregate_size_v = unpackable_aggregate_size<T>::value
 template <typename T>
 struct tuple_size
 	: std::conditional_t<
-		  is_unpackable_aggregate_v<T>,
-		  unpackable_aggregate_size<T>,
-		  std::tuple_size<T>>
+	is_unpackable_aggregate_v<T>,
+	unpackable_aggregate_size<T>,
+	std::tuple_size<T>>
 {
 };
 template <typename T>
@@ -390,15 +464,28 @@ constexpr auto tuple_size_v = tuple_size<T>::value;
 
 EMBMARTIN_DETAIL_NAMESPACE_BEGIN
 
-template <typename TUPLE>
-constexpr decltype(auto) _to_tuple(const TUPLE &_tuple_obj)
+template <typename TUPLE, typename MEMBER>
+constexpr decltype(auto) _aggregate_forward(MEMBER &member) noexcept
 {
-	static_assert(is_tuple_v<std::remove_reference_t<TUPLE>>);
+	if constexpr (std::is_rvalue_reference_v<TUPLE &&>)
+	{
+		return std::move(member);
+	}
+	else
+	{
+		return (member);
+	}
+}
+
+template <typename TUPLE>
+constexpr decltype(auto) _to_tuple(TUPLE &&_tuple_obj)
+{
+	static_assert(is_tuple_v<remove_cvref_t<TUPLE>>);
 	if constexpr (false)
 	{
 	}
 
-	// else if constexpr(tuple_size_v<std::remove_reference_t<TUPLE>> == 1 )
+	// else if constexpr(tuple_size_v<remove_cvref_t<TUPLE>> == 1 )
 	// {
 	// 	const auto &[_0] = _tuple_obj;
 	// 	return std::forward_as_tuple(_0);
@@ -417,17 +504,17 @@ EMBMARTIN_DETAIL_NAMESPACE_END
 template<typename TUPLE>
 struct corresponding_std_tuple
 {
-	using type = decltype(detail::_to_tuple(std::declval<TUPLE>()));
+	using type = decltype(detail::_to_tuple(std::declval<const std::remove_reference_t<TUPLE> &>()));
 };
 template<typename TUPLE>
-using corresponding_std_tuple_t =typename corresponding_std_tuple<TUPLE>::type;
+using corresponding_std_tuple_t = typename corresponding_std_tuple<TUPLE>::type;
 
 
 template <size_t N, typename T>
 struct tuple_element
 {
 private:
-	using tuple_type = decltype(detail::_to_tuple(std::declval<T>()));
+	using tuple_type = decltype(detail::_to_tuple(std::declval<const std::remove_cv_t<std::remove_reference_t<T>> &>()));
 
 public:
 	using type = std::tuple_element_t<N, tuple_type>;
@@ -438,9 +525,9 @@ using tuple_element_t = typename tuple_element<N, T>::type;
 EMBMARTIN_DETAIL_NAMESPACE_BEGIN
 template <typename Func, typename Tuple, size_t... Is>
 constexpr auto _is_invocable_with_std_tuple(std::index_sequence<Is...>)
-	-> std::bool_constant<
-		std::is_invocable_v<Func,
-							typename std::tuple_element<Is, Tuple>::type...>>;
+-> std::bool_constant<
+	std::is_invocable_v<Func,
+	decltype(std::get<Is>(std::declval<Tuple &&>()))...>>;
 EMBMARTIN_DETAIL_NAMESPACE_END
 
 template <typename Func, typename Tuple>
@@ -449,7 +536,7 @@ using is_invocable_with_std_tuple = decltype(detail::_is_invocable_with_std_tupl
 
 template <typename Func, typename Tuple>
 constexpr bool is_invocable_with_std_tuple_v =
-	is_invocable_with_std_tuple<Func, Tuple>::value;
+is_invocable_with_std_tuple<Func, Tuple>::value;
 
 // ------------------------------------------索引序列--------------------------------------------------
 
@@ -478,4 +565,5 @@ auto make_swapped_index_sequence()
 }
 
 EMBMARTIN_NAMESPACE_END
-#endif // ! EMBMARTIN_METAPROGRAMING
+
+#endif

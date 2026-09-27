@@ -503,8 +503,8 @@ std::enable_if_t<has_iterator_v<Container>> OLEDBase::write_data(const Container
     stop();
 }
 
-template <OLEDFontSize font_size = OLEDFontSize::F8x16>
-class OLEDConsole : private OLEDBase, public EMBMartin::OutStream<128>
+template <OLEDFontSize font_size = OLEDFontSize::F8x16, typename BaseOStream = EMBMartin::OutStream<128>>
+class OLEDConsole : private OLEDBase, public BaseOStream
 {
 private:
     static constexpr uint8_t font_size_x = static_cast<uint8_t>(font_size);
@@ -540,14 +540,13 @@ private:
 public:
     using OLEDBase::OLEDBase;
 
-    inline void send() noexcept override
+    /**
+     * @brief 输出一个字符到 OLED
+     * 缓冲区由 OutStream 管理，这里只需要把字符交给显示驱动
+     */
+    inline void output_char(char c) noexcept override
     {
-        for (char c : this->buffer)
-        {
-            if (c == '\0')
-                break;
-            show_char(c);
-        }
+        show_char(c);
     };
 
     inline void set_coordinate(uint8_t x, uint8_t y) noexcept
@@ -555,10 +554,17 @@ public:
         this->current_position.x = x;
         this->current_position.y = y;
     }
+
+    inline void clear() noexcept
+    {
+        OLEDBase::clear();
+        this->current_position.x = 0;
+        this->current_position.y = 0;
+    }
 };
 
-template <OLEDFontSize font_size>
-void OLEDConsole<font_size>::show_char(char c) noexcept
+template <OLEDFontSize font_size, typename BaseOStream>
+void OLEDConsole<font_size, BaseOStream>::show_char(char c) noexcept
 {
     if (c == '\n')
     {
@@ -576,9 +582,27 @@ void OLEDConsole<font_size>::show_char(char c) noexcept
         this->current_position += 4 - this->current_position.x % 4;
         return;
     }
+    if (/* 非可显示 ASCII 码 */ c < 32 || c > 126)
+    {
+        char str_hex[3];
+        // 转为 hex
+        sprintf(str_hex, "%02X", static_cast<uint8_t>(c));
+
+        show_char(this->current_position.x * font_size_x, this->current_position.y * font_size_y / 8, '\\');
+        this->current_position++;
+        show_char(this->current_position.x * font_size_x, this->current_position.y * font_size_y / 8, 'x');
+        this->current_position++;
+        show_char(this->current_position.x * font_size_x, this->current_position.y * font_size_y / 8, str_hex[0]);
+        this->current_position++;
+        show_char(this->current_position.x * font_size_x, this->current_position.y * font_size_y / 8, str_hex[1]);
+        this->current_position++;
+        return;
+    }
+    
     show_char(this->current_position.x * font_size_x, this->current_position.y * font_size_y / 8, c);
     this->current_position++;
 }
+
 
 class OLEDPlayerBase : private OLEDBase
 {

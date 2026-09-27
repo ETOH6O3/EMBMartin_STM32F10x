@@ -12,6 +12,8 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
+#include <tuple>
+#include <type_traits>
 
 #include "macro.h"
 #include "meta.h"
@@ -34,19 +36,60 @@ private:
     template <size_t N, typename... Args>
     bool format_to_buffer(const FormatString<N>& fmt_str, Args&&... args) noexcept;
 
+        /**
+     * @brief 将缓冲区内容逐字符输出到目标设备，并清空缓冲区
+     *
+     * 该函数由 OutStream 提供，内部循环调用 output_char，
+     * 派生类无需重写。送出后缓冲区被清空，因此重复调用不会重复输出。
+     */
+    inline void flush() noexcept
+    {
+        char *out_p = this->buffer;
+        while (*out_p != '\0')
+        {
+            this->output_char(*out_p++);
+        }
+        this->buffer[0] = '\0';
+    }
+
 protected:
     constexpr static size_t _buffer_size = buffer_size;
     char buffer[buffer_size];
 
+    /**
+     * @brief 将缓冲区中前 N 个字符输出到目标设备，并清空缓冲区。允许中间有 '\0' 字符
+     * 
+     * @param N 待输出的字符数量
+     */
+    inline void flush(size_t N) noexcept
+    {
+        if (N > buffer_size)
+        {
+            sprintf(this->buffer, "[OutStream][flush]Buffer overflow: %zu > %zu", N, buffer_size);
+            this->flush();
+        }
+        
+        char *out_p = this->buffer;
+        for (size_t i = 0; i < N ; ++i)
+        {
+            this->output_char(*out_p++);
+        }
+        this->buffer[0] = '\0';
+    }
+
 public:
     /**
-     * @brief 纯虚函数，用于将缓冲区内容输出到目标设备
+     * @brief 纯虚函数，向目标设备输出一个字符
      *
+     * 派生类只需要实现这一个接口即可；格式化、缓冲区管理与批量写出
+     * 全部由 OutStream 提供，派生类不必再关心缓冲区。
+     *
+     * @param c 待输出的字符
      */
-    virtual void send() noexcept = 0;
+    virtual void output_char(char c) noexcept = 0;
 
     /**
-     * @brief C 风格格式化输出函数，将格式化字符串写入缓冲区并调用 send 函数
+     * @brief C 风格格式化输出函数，将格式化字符串写入缓冲区并输出
      *
      * @tparam Args 可变参数包类型
      * @param c 格式化字符串
@@ -66,22 +109,22 @@ public:
     {
         this->buffer[0] = c;
         this->buffer[1] = '\0';
-        this->send();
+        this->flush();
     }
 
     inline void show(const char str[]) noexcept
     {
-        strcpy(this->buffer, str);
-        this->send();
+        strncpy(this->buffer, str, _buffer_size - 1);
+        this->buffer[_buffer_size - 1] = '\0';
+        this->flush();
     }
 
     inline void show(const std::string_view& str) noexcept
     {
-        for(int i = 0; i < str.size(); i++)
-        {
-            this->buffer[i] = str[i];
-        }
-        this->send();
+        const size_t length = str.size() < _buffer_size - 1 ? str.size() : _buffer_size - 1;
+        memcpy(this->buffer, str.data(), length);
+        this->buffer[length] = '\0';
+        this->flush();
     }
 
     template <typename T, typename = std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>>>
@@ -90,12 +133,12 @@ public:
         if constexpr (std::is_integral_v<T>)
         {
             sprintf(this->buffer, "%d", number);
-            this->send();
+            this->flush();
         }
         else if constexpr (std::is_floating_point_v<T>)
         {
             sprintf(this->buffer, "%g", number);
-            this->send();
+            this->flush();
         }
     }
 
@@ -210,6 +253,18 @@ protected:
     constexpr static size_t _buffer_size = buffer_size;
     char buffer[buffer_size];
 
+    template <typename T>
+    static T *scan_argument(T &value) noexcept
+    {
+        return &value;
+    }
+
+    template <typename T, size_t N>
+    static T *scan_argument(T (&value)[N]) noexcept
+    {
+        return value;
+    }
+
 public:
     /**
      * @brief 纯虚函数，用于将目标设备内容读入到缓冲区
@@ -228,7 +283,7 @@ public:
     void scanf(const char c[], Args *...args) noexcept;
 
     /**
-     * @brief 现代化的的 C 风格格式化输入函数
+     * @brief 现代化的 C 风格格式化输入函数
      *
      * @tparam Args 可变参数包类型
      * @param c 格式化字符串
@@ -236,6 +291,18 @@ public:
      */
     template <typename... Args>
     void scanf(const char c[], Args &&...args) noexcept;
+
+    /**
+     * @brief 读取输入并返回编译期确定类型的元组
+     *
+     * 示例：auto [x, y] = console.scan<int, int>("%d %d");
+     * @tparam Args 元组元素类型
+     * @tparam N 格式字符串长度
+     * @param c sscanf 格式字符串
+     * @return 包含读取结果的 std::tuple<Args...>
+     */
+    template <typename... Args, size_t N>
+    std::tuple<Args...> scan(const char (&c)[N]) noexcept;
 
     /**
      * @brief 读取一行字符串，直到遇到换行符或缓冲区满
@@ -251,7 +318,7 @@ class IOStream : public OutStream<buffer_size>, public InStream<buffer_size>
 protected:
     inline void update() noexcept
     {
-        this->send();
+        this->flush();
         this->read();
     }
 
@@ -266,6 +333,18 @@ public:
     {
         this->printf("%s", prompt);
         this->scanf("%s", trg);
+        return;
+    }
+
+    /**
+     * @brief 从输入流中获取用户输入，但不需要使用输入内容
+     * @param prompt 提示信息字符串，显示给用户
+     * @return 无返回值
+     */
+    inline void input(const char *prompt) noexcept
+    {
+        this->printf("%s", prompt);
+        this->read();
         return;
     }
 };
@@ -313,7 +392,7 @@ void OutStream<buffer_size>::printf(const char c[], Args... args) noexcept
         // 有参数：安全格式化到固定缓冲区
         std::sprintf(this->buffer, c, args...);
     }
-    this->send();
+    this->flush();
 }
 
 template <size_t buffer_size>
@@ -373,7 +452,7 @@ void OutStream<buffer_size>::print(std::string_view fmt, Args&&... args) noexcep
         // 有参数，使用格式化
         this->print(temp, std::forward<Args>(args)...);
     }
-    this->send();
+    this->flush();
 }
 
 template <size_t buffer_size>
@@ -384,15 +463,15 @@ void OutStream<buffer_size>::print(const char (&fmt)[N], Args&&... args) noexcep
         // 无参数，直接输出字符串
         strncpy(this->buffer, fmt, _buffer_size - 1);
         this->buffer[_buffer_size - 1] = '\0';
-        this->send();
+        this->flush();
     } else {
         // 使用格式化
         FormatString<N> fmt_str(fmt);
         if (this->format_to_buffer(fmt_str, std::forward<Args>(args)...)) {
-            this->send();
+            this->flush();
         } else {
             // 格式化失败，但仍然发送错误信息
-            this->send();
+            this->flush();
         }
     }
 }
@@ -428,6 +507,22 @@ void InStream<buffer_size>::scanf(const char c[], Args &&...args) noexcept
 {
     this->read();
     sscanf(this->buffer, c, &args...);
+}
+
+template <size_t buffer_size>
+template <typename... Args, size_t N>
+std::tuple<Args...> InStream<buffer_size>::scan(const char (&c)[N]) noexcept
+{
+    this->read();
+    std::tuple<Args...> result{};
+
+    std::apply(
+        [this, &c](auto &...args) {
+            sscanf(this->buffer, c, scan_argument(args)...);
+        },
+        result);
+
+    return result;
 }
 
 template <size_t buffer_size>

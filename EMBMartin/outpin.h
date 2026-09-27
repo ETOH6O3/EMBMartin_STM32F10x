@@ -19,13 +19,16 @@ class OutPin
 {
 private:
     GPIOPin pin;        //!< GPIO 引脚信息
-    bool current_level; //!< 目前输出
+    mutable bool current_level; //!< 目前输出
 public:
     inline OutPin(GPIOPin p) noexcept : pin(p), current_level(0)
     {
         if (p == null_pin)
             return;
 
+        RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(pin.port), ENABLE);
+
+        RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
         if (p == PB4)
             GPIO_PinRemapConfig(GPIO_Remap_SWJ_NoJTRST, ENABLE);
         else if ((p == PA15) || (p == PB3))
@@ -33,7 +36,6 @@ public:
         else if ((p == PA13) || (p == PA14))
             GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE);
 
-        RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(pin.port), ENABLE);
         GPIO_InitTypeDef GPIO_InitStruct = {
             .GPIO_Pin = p.pin,
             .GPIO_Speed = GPIO_Speed_50MHz,
@@ -43,28 +45,44 @@ public:
 
         this->reset();
     }
-    volatile inline void set() noexcept
+    inline void set() const noexcept
     {
         if (pin == null_pin)
             return;
         GPIO_WriteBit(this->pin.port, this->pin.pin, Bit_SET);
         current_level = true;
     }
-    volatile inline void reset() noexcept
+    inline void reset() const noexcept
     {
         if (pin == null_pin)
             return;
         GPIO_WriteBit(this->pin.port, this->pin.pin, Bit_RESET);
         current_level = false;
     }
-    volatile inline void toggle() noexcept
+    inline void toggle() const noexcept
     {
         if (pin == null_pin)
             return;
         GPIO_WriteBit(this->pin.port, this->pin.pin, current_level ? Bit_RESET : Bit_SET);
         current_level = !current_level;
     }
-    volatile inline bool get_level() noexcept
+    inline bool get_level() const noexcept
+    {
+        return current_level;
+    }
+
+    inline OutPin& operator=(bool value) noexcept
+    {
+        if (pin == null_pin)
+            return *this;
+        if (value)
+            this->set();
+        else
+            this->reset();
+        return *this;
+    }
+
+    inline operator bool() const noexcept
     {
         return current_level;
     }
@@ -78,7 +96,7 @@ public:
 class LED
 {
 private:
-    GPIOPin pin;       //!< GPIO 引脚信息
+    OutPin output;     //!< 物理输出引脚
     bool driven_level; //!< 驱动电平，false 表示低电平点亮，true 表示高电平点亮
 
 public:
@@ -88,16 +106,8 @@ public:
      * @param driven_level 驱动电平，默认为 false（低电平点亮 LED）
      * @note 会在构造时自动初始化 GPIO 为推挽输出模式
      */
-    inline LED(GPIOPin p, bool driven_level = false) noexcept : pin(p), driven_level(driven_level)
+    inline LED(GPIOPin p, bool driven_level = false) noexcept : output(p), driven_level(driven_level)
     {
-        RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(pin.port), ENABLE);
-        GPIO_InitTypeDef GPIO_InitStruct = {
-            .GPIO_Pin = p.pin,
-            .GPIO_Speed = GPIO_Speed_50MHz,
-            .GPIO_Mode = GPIO_Mode_Out_PP,
-        };
-        GPIO_Init(p.port, &GPIO_InitStruct);
-
         this->off(); // 初始化时熄灭 LED
     }
 
@@ -116,7 +126,10 @@ public:
      */
     inline void on() const noexcept
     {
-        GPIO_WriteBit(this->pin.port, this->pin.pin, this->driven_level ? Bit_SET : Bit_RESET);
+        if (this->driven_level)
+            this->output.set();
+        else
+            this->output.reset();
     }
 
     /**
@@ -126,7 +139,10 @@ public:
      */
     inline void off() const noexcept
     {
-        GPIO_WriteBit(this->pin.port, this->pin.pin, this->driven_level ? Bit_RESET : Bit_SET);
+        if (this->driven_level)
+            this->output.reset();
+        else
+            this->output.set();
     }
 
     /**
@@ -136,8 +152,30 @@ public:
      */
     inline void toggle() const noexcept
     {
-        GPIO_WriteBit(this->pin.port, this->pin.pin,
-                      BitAction(!GPIO_ReadOutputDataBit(this->pin.port, this->pin.pin)));
+        this->output.toggle();
+    }
+
+    inline operator bool() const noexcept
+    {
+        return this->output.get_level() == this->driven_level;
+    }
+
+    inline const LED& operator=(bool value) const noexcept
+    {
+        if (value)
+            this->on();
+        else
+            this->off();
+        return *this;
+    }
+
+    inline LED& operator=(bool value) noexcept
+    {
+        if (value)
+            this->on();
+        else
+            this->off();
+        return *this;
     }
 };
 
@@ -149,7 +187,7 @@ public:
 class Buzzer
 {
 private:
-    GPIOPin pin;       //!< GPIO 引脚信息
+    OutPin output;     //!< 物理输出引脚
     bool driven_level; //!< 驱动电平，false 表示低电平驱动，true 表示高电平驱动
 
 public:
@@ -159,16 +197,8 @@ public:
      * @param driven_level 驱动电平，默认为 false（低电平驱动蜂鸣器）
      * @note 会在构造时自动初始化 GPIO 为推挽输出模式
      */
-    inline Buzzer(GPIOPin p, bool driven_level = false) noexcept : pin(p), driven_level(driven_level)
+    inline Buzzer(GPIOPin p, bool driven_level = false) noexcept : output(p), driven_level(driven_level)
     {
-        RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(pin.port), ENABLE);
-        GPIO_InitTypeDef GPIO_InitStruct = {
-            .GPIO_Pin = p.pin,
-            .GPIO_Speed = GPIO_Speed_50MHz,
-            .GPIO_Mode = GPIO_Mode_Out_PP,
-        };
-        GPIO_Init(p.port, &GPIO_InitStruct);
-
         this->off(); // 初始化时关闭蜂鸣器
     }
 
@@ -187,7 +217,10 @@ public:
      */
     inline void on() const noexcept
     {
-        GPIO_WriteBit(this->pin.port, this->pin.pin, this->driven_level ? Bit_SET : Bit_RESET);
+        if (this->driven_level)
+            this->output.set();
+        else
+            this->output.reset();
     }
 
     /**
@@ -197,7 +230,10 @@ public:
      */
     inline void off() const noexcept
     {
-        GPIO_WriteBit(this->pin.port, this->pin.pin, this->driven_level ? Bit_RESET : Bit_SET);
+        if (this->driven_level)
+            this->output.reset();
+        else
+            this->output.set();
     }
 
     /**
@@ -207,8 +243,7 @@ public:
      */
     inline void toggle() const noexcept
     {
-        GPIO_WriteBit(this->pin.port, this->pin.pin,
-                      BitAction(!GPIO_ReadOutputDataBit(this->pin.port, this->pin.pin)));
+        this->output.toggle();
     }
 
     /**
@@ -236,6 +271,29 @@ public:
             Delay_ms(interval_ms);
         }
         this->beep(duration_ms);
+    }
+
+    inline operator bool() const noexcept
+    {
+        return this->output.get_level() == this->driven_level;
+    }
+
+    inline const Buzzer& operator=(bool value) const noexcept
+    {
+        if (value)
+            this->on();
+        else
+            this->off();
+        return *this;
+    }
+
+    inline Buzzer& operator=(bool value) noexcept
+    {
+        if (value)
+            this->on();
+        else
+            this->off();
+        return *this;
     }
 };
 EMBMARTIN_STM32F10X_NAMESPACE_END

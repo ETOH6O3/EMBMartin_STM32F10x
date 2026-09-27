@@ -18,7 +18,7 @@ protected:
     inline void start() noexcept
     {
         /***************************************************************************************************
-                 SCL
+        SCL
         XXXXXXXXXXXXXXXXXXXXXX
                              XX
                               X
@@ -219,7 +219,7 @@ class MPU6050 : public I2C
 private:
 public:
     /**
-     * @brief 仿枚举类，内含MPU6050所有寄存器对应编号
+     * @brief 仿枚举类，内含 MPU6050 所有寄存器对应编号
      *
      */
     struct REGS
