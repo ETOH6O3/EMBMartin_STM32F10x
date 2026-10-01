@@ -40,6 +40,11 @@ using std::bit_cast;
 
 using IQRHandlerFunc = void (*)(void);
 
+constexpr inline auto __decode_onehot(uint16_t onehot) noexcept
+{
+    return __builtin_ctz(onehot);
+}
+
 /**
  * @brief GPIO 引脚封装结构体
  *

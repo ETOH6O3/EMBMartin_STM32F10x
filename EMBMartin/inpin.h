@@ -70,7 +70,7 @@ public:
         return GPIO_ReadInputDataBit(this->pin.port, this->pin.pin) == Bit_SET;
     }
 
-    inline GPIOPin get_pin() const noexcept
+    inline const GPIOPin& get_pin() const noexcept
     {
         return this->pin;
     }
@@ -78,6 +78,11 @@ public:
     inline operator bool() const noexcept
     {
         return this->get();
+    }
+
+    inline auto idx() const noexcept
+    {
+        return __decode_onehot(this->pin.pin);
     }
 };
 

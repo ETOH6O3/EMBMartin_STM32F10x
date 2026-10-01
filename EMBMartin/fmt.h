@@ -1002,7 +1002,7 @@ int formatter<T, std::enable_if_t<is_string_like_v<T> || is_character_array_v<T>
 
 // pair 概念通用格式化器
 template <typename _Pair>
-struct formatter<_Pair, std::enable_if_t<is_pair_v<_Pair>>>
+struct formatter<_Pair, std::enable_if_t<is_generalized_pair_v<_Pair>>>
 {
 	/***************************************************************************************************
 	format_spec:  			[:[left bracket][x_format_spec][sep[y_format_spec]][right bracket]]
@@ -1019,8 +1019,8 @@ struct formatter<_Pair, std::enable_if_t<is_pair_v<_Pair>>>
 		console.println("aggr:  {:[]}\n", add_result<int>{20,false});				// aggr:  [20, 0]
 	****************************************************************************************************/
 	using value_type = _Pair;
-	using _Tx = pair_element_t<0, _Pair>;
-	using _Ty = pair_element_t<1, _Pair>;
+	using _Tx = generalized_pair_element_t<0, _Pair>;
+	using _Ty = generalized_pair_element_t<1, _Pair>;
 
 	enum class Prefix : char
 	{
@@ -1059,7 +1059,7 @@ struct formatter<_Pair, std::enable_if_t<is_pair_v<_Pair>>>
 };
 
 template <typename _Pair>
-constexpr auto formatter<_Pair, std::enable_if_t<is_pair_v<_Pair>>>::bracket(char pre, char suf) noexcept
+constexpr auto formatter<_Pair, std::enable_if_t<is_generalized_pair_v<_Pair>>>::bracket(char pre, char suf) noexcept
 {
 	if (pre == '(' && suf == ')')
 		return std::make_tuple(Prefix::ParenthesisBegin, Suffix::ParenthesisClose);
@@ -1072,7 +1072,7 @@ constexpr auto formatter<_Pair, std::enable_if_t<is_pair_v<_Pair>>>::bracket(cha
 }
 
 template <typename _Pair>
-auto formatter<_Pair, std::enable_if_t<is_pair_v<_Pair>>>::parse(FormatParseContext &ctx)
+auto formatter<_Pair, std::enable_if_t<is_generalized_pair_v<_Pair>>>::parse(FormatParseContext &ctx)
 {
 
 	if (ctx.peek() == ':')
@@ -1130,7 +1130,7 @@ auto formatter<_Pair, std::enable_if_t<is_pair_v<_Pair>>>::parse(FormatParseCont
 	return (this->_formatter_y).parse(ctx_y);
 }
 template <typename _Pair>
-auto formatter<_Pair, std::enable_if_t<is_pair_v<_Pair>>>::format(const _Pair &value, FormatContext &ctx) const
+auto formatter<_Pair, std::enable_if_t<is_generalized_pair_v<_Pair>>>::format(const _Pair &value, FormatContext &ctx) const
 {
 	const auto &[x, y] = value;
 	ctx.write_safe(char(this->_prefix));

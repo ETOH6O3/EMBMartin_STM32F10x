@@ -691,7 +691,7 @@ class TupleUnpackView
 {
 private:
 	static constexpr size_t total_size =
-		EMBMartin::tuple_size_v<remove_cvref_t<Tuple>>;
+		EMBMartin::generalized_tuple_size_v<remove_cvref_t<Tuple>>;
 
 	// 越界时先断言，并把 mid_size 退化为 0：否则 size_t 下溢出的天文数字会继续被
 	// make_offset_index_sequence 拿去实例化，产生一串与真正原因无关的级联报错。
@@ -877,7 +877,7 @@ constexpr auto _make_insert_view(Tuple &&tuple, ExtraTuple &&extra)
 {
 	using storage_type = std::conditional_t<std::is_lvalue_reference_v<Tuple &&>, Tuple &&, remove_cvref_t<Tuple>>;
 	using extra_type = remove_cvref_t<ExtraTuple>;
-	return TupleInsertView<storage_type, std::make_index_sequence<tuple_size_v<remove_cvref_t<storage_type>>>, N, extra_type>(
+	return TupleInsertView<storage_type, std::make_index_sequence<generalized_tuple_size_v<remove_cvref_t<storage_type>>>, N, extra_type>(
 		std::forward<Tuple>(tuple), std::forward<ExtraTuple>(extra));
 }
 
@@ -885,7 +885,7 @@ template <size_t N, typename T, typename Tuple, typename... VALUES>
 constexpr auto _make_emplace_view(Tuple &&tuple, VALUES &&...values)
 {
 	using storage_type = std::conditional_t<std::is_lvalue_reference_v<Tuple &&>, Tuple &&, remove_cvref_t<Tuple>>;
-	using index_sequence = std::make_index_sequence<tuple_size_v<remove_cvref_t<storage_type>>>;
+	using index_sequence = std::make_index_sequence<generalized_tuple_size_v<remove_cvref_t<storage_type>>>;
 	return TupleInsertView<storage_type, index_sequence, N, std::tuple<T>>(
 		std::in_place, std::forward<Tuple>(tuple), std::forward<VALUES>(values)...);
 }
@@ -1170,7 +1170,7 @@ constexpr auto get(const TupleUnpackView<Tuple, PreN, PostN> &&view) noexcept
 template <size_t PRE, size_t POST, typename Tuple>
 constexpr decltype(auto) unpack(Tuple &&t)
 {
-	constexpr size_t Size = tuple_size_v<remove_cvref_t<Tuple>>;
+	constexpr size_t Size = generalized_tuple_size_v<remove_cvref_t<Tuple>>;
 	static_assert(PRE + POST <= Size, "PRE + POST must not exceed tuple size");
 
 	using storage_type = std::conditional_t<
@@ -1326,7 +1326,7 @@ constexpr decltype(auto) unpack_last(Tuple &&t)
  * ```
  */
 template <size_t Start, size_t End, ::std::make_signed_t<size_t> Step, typename Tuple,
-		  typename = ::std::enable_if_t<is_tuple_v<remove_cvref_t<Tuple>>>>
+		  typename = ::std::enable_if_t<is_generalized_tuple_v<remove_cvref_t<Tuple>>>>
 constexpr decltype(auto) split(Tuple &&t)
 {
 	static_assert(Step != 0);
@@ -1363,7 +1363,7 @@ constexpr decltype(auto) split(Tuple &&t)
  * ```
  */
 template <size_t Start, size_t End, typename Tuple,
-		  typename = ::std::enable_if_t<is_tuple_v<remove_cvref_t<Tuple>>>>
+		  typename = ::std::enable_if_t<is_generalized_tuple_v<remove_cvref_t<Tuple>>>>
 constexpr decltype(auto) split(Tuple &&t)
 {
 	return split<Start, End, 1>(std::forward<Tuple>(t));
@@ -1385,7 +1385,7 @@ constexpr decltype(auto) split(Tuple &&t)
  * ```
  */
 template <size_t End, typename Tuple,
-		  typename = ::std::enable_if_t<is_tuple_v<remove_cvref_t<Tuple>>>>
+		  typename = ::std::enable_if_t<is_generalized_tuple_v<remove_cvref_t<Tuple>>>>
 constexpr decltype(auto) split(Tuple &&t)
 {
 	return split<0, End>(::std::forward<Tuple>(t));
@@ -1422,10 +1422,10 @@ constexpr decltype(auto) split(Tuple &&t)
  * ```
  */
 template <size_t N, typename Tuple, typename... Ty,
-		  typename = ::std::enable_if_t<is_tuple_v<remove_cvref_t<Tuple>>>>
+		  typename = ::std::enable_if_t<is_generalized_tuple_v<remove_cvref_t<Tuple>>>>
 constexpr decltype(auto) insert(Tuple &&t, Ty &&...val)
 {
-	constexpr size_t Size = tuple_size_v<remove_cvref_t<Tuple>>;
+	constexpr size_t Size = generalized_tuple_size_v<remove_cvref_t<Tuple>>;
 	static_assert(N <= Size, "Tuple insert index out of range");
 
 	return detail::_make_insert_view<N>(
@@ -1450,10 +1450,10 @@ constexpr decltype(auto) insert(Tuple &&t, Ty &&...val)
  * ```
  */
 template <typename Tuple, typename... Ty,
-		  typename = ::std::enable_if_t<is_tuple_v<remove_cvref_t<Tuple>>>>
+		  typename = ::std::enable_if_t<is_generalized_tuple_v<remove_cvref_t<Tuple>>>>
 constexpr decltype(auto) push_back(Tuple &&t, Ty &&...val)
 {
-	constexpr size_t Size = tuple_size_v<remove_cvref_t<Tuple>>;
+	constexpr size_t Size = generalized_tuple_size_v<remove_cvref_t<Tuple>>;
 
 	return insert<Size>(::std::forward<Tuple>(t), ::std::forward<Ty>(val)...);
 }
@@ -1475,7 +1475,7 @@ constexpr decltype(auto) push_back(Tuple &&t, Ty &&...val)
  * ```
  */
 template <typename Tuple, typename... Ty,
-		  typename = ::std::enable_if_t<is_tuple_v<remove_cvref_t<Tuple>>>>
+		  typename = ::std::enable_if_t<is_generalized_tuple_v<remove_cvref_t<Tuple>>>>
 constexpr decltype(auto) push_front(Tuple &&t, Ty &&...val)
 {
 	return insert<0>(::std::forward<Tuple>(t), ::std::forward<Ty>(val)...);
@@ -1501,10 +1501,10 @@ constexpr decltype(auto) push_front(Tuple &&t, Ty &&...val)
  * ```
  */
 template <size_t N, typename TupleA, typename TupleB,
-		  typename = ::std::enable_if_t<is_tuple_v<remove_cvref_t<TupleA>>>>
+		  typename = ::std::enable_if_t<is_generalized_tuple_v<remove_cvref_t<TupleA>>>>
 constexpr decltype(auto) insert_tuple(TupleA &&t, TupleB &&val)
 {
-	constexpr size_t Size = tuple_size_v<remove_cvref_t<TupleA>>;
+	constexpr size_t Size = generalized_tuple_size_v<remove_cvref_t<TupleA>>;
 	static_assert(N <= Size, "Tuple insert index out of range");
 
 	return detail::_make_insert_view<N>(
@@ -1530,10 +1530,10 @@ constexpr decltype(auto) insert_tuple(TupleA &&t, TupleB &&val)
  * ```
  */
 template <typename TupleA, typename TupleB,
-		  typename = ::std::enable_if_t<is_tuple_v<remove_cvref_t<TupleA>>>>
+		  typename = ::std::enable_if_t<is_generalized_tuple_v<remove_cvref_t<TupleA>>>>
 constexpr decltype(auto) append_tuple(TupleA &&t, TupleB &&val)
 {
-	constexpr size_t Size = tuple_size_v<remove_cvref_t<TupleA>>;
+	constexpr size_t Size = generalized_tuple_size_v<remove_cvref_t<TupleA>>;
 
 	return insert_tuple<Size>(::std::forward<TupleA>(t), ::std::forward<TupleB>(val));
 }
@@ -1555,7 +1555,7 @@ constexpr decltype(auto) append_tuple(TupleA &&t, TupleB &&val)
  * ```
  */
 template <typename TupleA, typename TupleB,
-		  typename = ::std::enable_if_t<is_tuple_v<remove_cvref_t<TupleA>>>>
+		  typename = ::std::enable_if_t<is_generalized_tuple_v<remove_cvref_t<TupleA>>>>
 constexpr decltype(auto) prepend_tuple(TupleA &&t, TupleB &&val)
 {
 	return insert_tuple<0>(::std::forward<TupleA>(t), ::std::forward<TupleB>(val));
@@ -1589,7 +1589,7 @@ constexpr decltype(auto) prepend_tuple(TupleA &&t, TupleB &&val)
  * ```
  */
 template <size_t N, typename T, typename Tuple, typename... Ty,
-		  typename = ::std::enable_if_t<is_tuple_v<remove_cvref_t<Tuple>>>>
+		  typename = ::std::enable_if_t<is_generalized_tuple_v<remove_cvref_t<Tuple>>>>
 constexpr decltype(auto) emplace(Tuple &&t, Ty &&...val)
 {
 	return detail::_make_emplace_view<N, T>(::std::forward<Tuple>(t), ::std::forward<Ty>(val)...);
@@ -1608,10 +1608,10 @@ constexpr decltype(auto) emplace(Tuple &&t, Ty &&...val)
  * @return 返回追加后的 tuple 视图。
  */
 template <typename T, typename Tuple, typename... Ty,
-		  typename = ::std::enable_if_t<is_tuple_v<remove_cvref_t<Tuple>>>>
+		  typename = ::std::enable_if_t<is_generalized_tuple_v<remove_cvref_t<Tuple>>>>
 constexpr decltype(auto) emplace_back(Tuple &&t, Ty &&...val)
 {
-	constexpr size_t Size = tuple_size_v<remove_cvref_t<Tuple>>;
+	constexpr size_t Size = generalized_tuple_size_v<remove_cvref_t<Tuple>>;
 
 	return emplace<Size, T>(::std::forward<Tuple>(t), ::std::forward<Ty>(val)...);
 }
@@ -1629,7 +1629,7 @@ constexpr decltype(auto) emplace_back(Tuple &&t, Ty &&...val)
  * @return 返回前置后的 tuple 视图。
  */
 template <typename T, typename Tuple, typename... Ty,
-		  typename = ::std::enable_if_t<is_tuple_v<remove_cvref_t<Tuple>>>>
+		  typename = ::std::enable_if_t<is_generalized_tuple_v<remove_cvref_t<Tuple>>>>
 constexpr decltype(auto) emplace_front(Tuple &&t, Ty &&...val)
 {
 	return emplace<0, T>(::std::forward<Tuple>(t), ::std::forward<Ty>(val)...);
@@ -1654,10 +1654,10 @@ constexpr decltype(auto) emplace_front(Tuple &&t, Ty &&...val)
  * ```
  */
 template <size_t N, typename Tuple,
-		  typename = ::std::enable_if_t<is_tuple_v<remove_cvref_t<Tuple>>>>
+		  typename = ::std::enable_if_t<is_generalized_tuple_v<remove_cvref_t<Tuple>>>>
 constexpr decltype(auto) erase(Tuple &&t)
 {
-	constexpr size_t Size = tuple_size_v<remove_cvref_t<Tuple>>;
+	constexpr size_t Size = generalized_tuple_size_v<remove_cvref_t<Tuple>>;
 	static_assert(N < Size, "Tuple erase index out of range");
 	return detail::_make_erase_view<N>(
 		::std::forward<Tuple>(t), std::make_index_sequence<Size - 1>{});
@@ -1675,10 +1675,10 @@ constexpr decltype(auto) erase(Tuple &&t)
  * @note 编译期要求 tuple 非空；空 tuple 会触发 `erase<tuple_size - 1>` 的静态断言。
  */
 template <typename Tuple,
-		  typename = ::std::enable_if_t<is_tuple_v<remove_cvref_t<Tuple>>>>
+		  typename = ::std::enable_if_t<is_generalized_tuple_v<remove_cvref_t<Tuple>>>>
 constexpr decltype(auto) pop_back(Tuple &&t)
 {
-	constexpr size_t Size = tuple_size_v<remove_cvref_t<Tuple>>;
+	constexpr size_t Size = generalized_tuple_size_v<remove_cvref_t<Tuple>>;
 
 	return erase<Size - 1>(::std::forward<Tuple>(t));
 }
@@ -1695,7 +1695,7 @@ constexpr decltype(auto) pop_back(Tuple &&t)
  * @note 编译期要求 tuple 非空；空 tuple 会触发 `erase<0>` 的静态断言。
  */
 template <typename Tuple,
-		  typename = ::std::enable_if_t<is_tuple_v<remove_cvref_t<Tuple>>>>
+		  typename = ::std::enable_if_t<is_generalized_tuple_v<remove_cvref_t<Tuple>>>>
 constexpr decltype(auto) pop_front(Tuple &&t)
 {
 	return erase<0>(::std::forward<Tuple>(t));
@@ -1722,7 +1722,7 @@ constexpr decltype(auto) pop_front(Tuple &&t)
 template <size_t N1, size_t N2, typename Tuple>
 constexpr decltype(auto) swap(Tuple &&t)
 {
-	constexpr size_t Size = tuple_size_v<remove_cvref_t<Tuple>>;
+	constexpr size_t Size = generalized_tuple_size_v<remove_cvref_t<Tuple>>;
 	static_assert(N1 < Size && N2 < Size, "N must be less than tuple size");
 
 	constexpr size_t MinN = (N1 <= N2) ? N1 : N2;
@@ -1837,7 +1837,7 @@ private:
 		if constexpr (
 			(MODE == _PipeUnpackMode::OnlyStdTuple && is_std_tuple_v<result_type>) ||
 			(MODE == _PipeUnpackMode::OnlyTupleLike && is_tuple_like_v<result_type>) ||
-			(MODE == _PipeUnpackMode::AllTuplesConcept && is_tuple_v<result_type>))
+			(MODE == _PipeUnpackMode::AllTuplesConcept && is_generalized_tuple_v<result_type>))
 		{
 			auto tuple_value = make_to_tuple(std::forward<RESULT>(result));
 			using tuple_type = remove_cvref_t<decltype(tuple_value)>;
@@ -2268,7 +2268,7 @@ struct _tuple_insert_element;
 template <size_t N, typename Tuple, size_t... Is, size_t InsertPos, typename... ExtraTs>
 struct _tuple_insert_element<N, Tuple, std::index_sequence<Is...>, InsertPos, std::tuple<ExtraTs...>, true, false>
 {
-	using type = EMBMartin::tuple_element_t<_tuple_view_index<N, Is...>::value, EMBMartin::remove_cvref_t<Tuple>>;
+	using type = EMBMartin::generalized_tuple_element_t<_tuple_view_index<N, Is...>::value, EMBMartin::remove_cvref_t<Tuple>>;
 };
 
 template <size_t N, typename Tuple, size_t... Is, size_t InsertPos, typename... ExtraTs>
@@ -2280,7 +2280,7 @@ struct _tuple_insert_element<N, Tuple, std::index_sequence<Is...>, InsertPos, st
 template <size_t N, typename Tuple, size_t... Is, size_t InsertPos, typename... ExtraTs>
 struct _tuple_insert_element<N, Tuple, std::index_sequence<Is...>, InsertPos, std::tuple<ExtraTs...>, false, false>
 {
-	using type = EMBMartin::tuple_element_t<
+	using type = EMBMartin::generalized_tuple_element_t<
 		_tuple_view_index<N - sizeof...(ExtraTs), Is...>::value, EMBMartin::remove_cvref_t<Tuple>>;
 };
 
@@ -2301,7 +2301,7 @@ template <size_t N, typename Tuple, size_t PreN, size_t PostN, bool Const>
 struct _tuple_unpack_view_element<N, Tuple, PreN, PostN, Const, true, false>
 {
 	using raw_ref = std::remove_reference_t<Tuple>;
-	using element = EMBMartin::tuple_element_t<N, raw_ref>;
+	using element = EMBMartin::generalized_tuple_element_t<N, raw_ref>;
 	using type = std::conditional_t<Const, std::add_const_t<element>, element>;
 };
 
@@ -2310,7 +2310,7 @@ template <size_t N, typename Tuple, size_t PreN, size_t PostN, bool Const>
 struct _tuple_unpack_view_element<N, Tuple, PreN, PostN, Const, false, true>
 {
 	static constexpr size_t total_size =
-		EMBMartin::tuple_size_v<EMBMartin::remove_cvref_t<Tuple>>;
+		EMBMartin::generalized_tuple_size_v<EMBMartin::remove_cvref_t<Tuple>>;
 	static constexpr size_t mid_size =
 		(total_size >= PreN + PostN) ? (total_size - PreN - PostN) : 0;
 	using mid_seq = make_offset_index_sequence<PreN, mid_size>;
@@ -2331,8 +2331,8 @@ template <size_t N, typename Tuple, size_t PreN, size_t PostN, bool Const>
 struct _tuple_unpack_view_element<N, Tuple, PreN, PostN, Const, false, false>
 {
 	using raw_ref = std::remove_reference_t<Tuple>;
-	using element = EMBMartin::tuple_element_t<
-		EMBMartin::tuple_size_v<EMBMartin::remove_cvref_t<Tuple>> - PostN + (N - PreN - 1),
+	using element = EMBMartin::generalized_tuple_element_t<
+		EMBMartin::generalized_tuple_size_v<EMBMartin::remove_cvref_t<Tuple>> - PostN + (N - PreN - 1),
 		raw_ref>;
 	using type = std::conditional_t<Const, std::add_const_t<element>, element>;
 };
@@ -2387,7 +2387,7 @@ namespace std
 	template <size_t N, typename Tuple, size_t... Is>
 	struct tuple_element<N, EMBMartin::TupleView<Tuple, index_sequence<Is...>>>
 	{
-		using type = EMBMartin::tuple_element_t<
+		using type = EMBMartin::generalized_tuple_element_t<
 			EMBMartin::detail::_tuple_view_index<N, Is...>::value, EMBMartin::remove_cvref_t<Tuple>>;
 	};
 	template <size_t N, typename Tuple, size_t... Is>

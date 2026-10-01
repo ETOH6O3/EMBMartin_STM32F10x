@@ -7,8 +7,10 @@ extern uint32_t SystemCoreClock;
 
 constexpr inline uint16_t __TIM_Prescaler_plus1 = 1000; // 配合 TIM_GetCounter 可获得小数点后三位精度
 InnerTimer::InnerTimer(
-    TIM_TypeDef *__TIMX, double time,
+    TIM_TypeDef *__TIMX, double time, 
+    bool open,
     uint8_t PreemptionPriority, uint8_t SubPriority) noexcept
+    : TIMX{__TIMX}
 {
     if (__TIMX != TIM1)
         RCC_APB1PeriphClockCmd(get_TIM_RCC_APB1Periph(__TIMX), ENABLE);
@@ -38,5 +40,6 @@ InnerTimer::InnerTimer(
         .NVIC_IRQChannelCmd = ENABLE};
     NVIC_Init(&NVIC_InitStructure);
 
-    TIM_Cmd(__TIMX, ENABLE);
+    if(open)
+        TIM_Cmd(__TIMX, ENABLE);
 }

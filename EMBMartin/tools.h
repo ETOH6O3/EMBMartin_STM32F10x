@@ -18,6 +18,7 @@
 #include "basic_tools.h"
 #include "outpin.h"
 #include "inpin.h"
+#include "EXTI.h"
 #include "stream.h"
 #include "TIM.h"
 #include "PWM.h"
@@ -25,5 +26,6 @@
 #include "I2C.h"
 #include "PID.h"
 #include "USART.h"
+#include "ultrasonic_sensor.h"
 
 #endif // EMBMARTIN_TOOLS_H

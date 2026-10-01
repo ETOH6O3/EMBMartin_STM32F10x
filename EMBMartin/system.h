@@ -50,6 +50,7 @@ inline auto delay_s(intmax_t s) noexcept
 class InnerTimer
 {
 private:
+    TIM_TypeDef *TIMX; ///< 定时器外设指针
 public:
     /**
      * @brief 构造函数，初始化定时器
@@ -58,10 +59,22 @@ public:
      * @param time_second 定时时间(秒)，支持最小精度0.0001秒
      * @param PreemptionPriority 抢占优先级，默认为0
      * @param SubPriority 子优先级，默认为0
+     * @param open 初始是否开启定时器，默认为true
      */
     InnerTimer(
         TIM_TypeDef *TIMX, double time_second, // 支持最小精度：0.0001秒
+        bool open = true, /* 初始是否开启定时器 */
         uint8_t PreemptionPriority = 0, uint8_t SubPriority = 0) noexcept;
+
+    inline void open()noexcept
+    {
+        TIM_Cmd(TIMX, ENABLE);
+    }
+
+    inline void close()noexcept
+    {
+        TIM_Cmd(TIMX, DISABLE);
+    }
 };
 
 /**

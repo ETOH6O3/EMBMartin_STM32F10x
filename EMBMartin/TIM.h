@@ -61,69 +61,6 @@ public:
 
 
 /**
- * @brief 旋转编码器类，用于处理正交编码器输入
- *
- * 该类封装了旋转编码器的配置和处理功能，通过两个相位信号 (A 相和 B 相) 来检测旋转方向和计数。
- * 适用于机械旋转编码器等需要旋转位置检测的设备。
- */
-class EXTIRotaryEncoder
-{
-private:
-    GPIOPin pin_a;     //!< A 相引脚
-    GPIOPin pin_b;     //!< B 相引脚
-    int16_t count = 0; //!< 当前计数值
-
-public:
-    /**
-     * @brief 构造一个旋转编码器对象
-     * @param pin_a A 相引脚 GPIOPin 结构体
-     * @param pin_b B 相引脚 GPIOPin 结构体
-     * @param PreemptionPriority 中断抢占优先级，默认为 0
-     * @param SubPriority 中断子优先级，默认为 0
-     * @param GPIO_Speed GPIO 速度，默认为 GPIO_Speed_50MHz
-     * @param _EXTI_Mode EXTI 模式，默认为 EXTI_Mode_Interrupt (中断模式)
-     */
-    EXTIRotaryEncoder(
-        GPIOPin pin_a, GPIOPin pin_b,
-        uint8_t PreemptionPriority = 0, uint8_t SubPriority = 0,
-        GPIOSpeed_TypeDef GPIO_Speed = GPIO_Speed_50MHz,
-        EXTIMode_TypeDef _EXTI_Mode = EXTI_Mode_Interrupt) noexcept;
-
-    /**
-     * @brief 获取当前计数值
-     * @return int16_t 当前计数值
-     */
-    inline int16_t get_count() const noexcept { return count; }
-
-    /**
-     * @brief A 相引脚中断处理函数
-     *
-     * 当 A 相引脚发生中断时调用此函数，根据 B 相引脚的电平状态判断旋转方向并更新计数
-     */
-    inline void pin_a_handler() noexcept
-    {
-        if (GPIO_ReadInputDataBit(pin_b.port, pin_b.pin) == 0)
-        {
-            count++;
-        }
-    }
-
-    /**
-     * @brief B 相引脚中断处理函数
-     *
-     * 当 B 相引脚发生中断时调用此函数，根据 A 相引脚的电平状态判断旋转方向并更新计数
-     */
-    inline void pin_b_handler() noexcept
-    {
-        if (GPIO_ReadInputDataBit(pin_a.port, pin_a.pin) == 0)
-        {
-            count--;
-        }
-    }
-};
-
-
-/**
  * @brief 使用 STM32 内部硬件的旋转编码器接口
  * @note 只能使用通用/高级定时器的 CH1 和 CH2
  */

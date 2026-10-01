@@ -247,7 +247,7 @@ constexpr bool is_pair_like_v = is_pair_like<T>::value;
 
 // 广义 pair 概念
 template <typename T>
-struct is_pair
+struct is_generalized_pair
 	: std::conditional_t<
 	is_pair_like_v<T> || detail::_is_two_member_aggregate_v<T>,
 	std::true_type,
@@ -256,7 +256,7 @@ struct is_pair
 };
 
 template <typename T>
-constexpr bool is_pair_v = is_pair<T>::value;
+constexpr bool is_generalized_pair_v = is_generalized_pair<T>::value;
 
 EMBMARTIN_DETAIL_NAMESPACE_BEGIN
 
@@ -281,13 +281,23 @@ constexpr inline auto _pair_get(const _Pair& pair) noexcept
 EMBMARTIN_DETAIL_NAMESPACE_END
 
 template <size_t N, typename _Pair>
-struct pair_element
+struct generalized_pair_element
 {
 	using type = std::remove_reference_t<decltype(detail::_pair_get<N, _Pair>(std::declval<_Pair>()))>;
 };
 
 template <size_t N, typename _Pair>
-using pair_element_t = typename pair_element<N, _Pair>::type;
+using generalized_pair_element_t = typename generalized_pair_element<N, _Pair>::type;
+
+// 别名：符合广义 pair 协议的类型
+template <typename T>
+using is_pair_protocol = is_generalized_pair<T>;
+template <typename T>
+constexpr bool is_pair_protocol_v = is_generalized_pair_v<T>;
+template <size_t N, typename _Pair>
+using pair_protocol_element = generalized_pair_element_t<N, _Pair>;
+template <size_t N, typename _Pair>
+using pair_protocol_element_t = generalized_pair_element_t<N, _Pair>;
 
 // ------------------------------------------ tuples 概念--------------------------------------------------
 // 定义：
@@ -419,14 +429,14 @@ constexpr bool is_unpackable_aggregate_v = is_unpackable_aggregate<T>::value;
 
 // 广义 tuples 概念
 template <typename T>
-struct is_tuple
+struct is_generalized_tuple
 	: std::conditional_t<
 	(std::is_aggregate_v<T> && !std::is_array_v<T>)/* 可解包聚合类型 */ || is_tuple_like_v<T>,
 	std::true_type, std::false_type>
 {
 };
 template <typename T>
-constexpr bool is_tuple_v = is_tuple<T>::value;
+constexpr bool is_generalized_tuple_v = is_generalized_tuple<T>::value;
 
 EMBMARTIN_DETAIL_NAMESPACE_BEGIN
 
@@ -452,7 +462,7 @@ constexpr auto unpackable_aggregate_size_v = unpackable_aggregate_size<T>::value
 
 // 广义 tuple size ; 注意与 std::tuple_size 区分
 template <typename T>
-struct tuple_size
+struct generalized_tuple_size
 	: std::conditional_t<
 	is_unpackable_aggregate_v<T>,
 	unpackable_aggregate_size<T>,
@@ -460,7 +470,7 @@ struct tuple_size
 {
 };
 template <typename T>
-constexpr auto tuple_size_v = tuple_size<T>::value;
+constexpr auto generalized_tuple_size_v = generalized_tuple_size<T>::value;
 
 EMBMARTIN_DETAIL_NAMESPACE_BEGIN
 
@@ -480,12 +490,12 @@ constexpr decltype(auto) _aggregate_forward(MEMBER &member) noexcept
 template <typename TUPLE>
 constexpr decltype(auto) _to_tuple(TUPLE &&_tuple_obj)
 {
-	static_assert(is_tuple_v<remove_cvref_t<TUPLE>>);
+	static_assert(is_generalized_tuple_v<remove_cvref_t<TUPLE>>);
 	if constexpr (false)
 	{
 	}
 
-	// else if constexpr(tuple_size_v<remove_cvref_t<TUPLE>> == 1 )
+	// else if constexpr(generalized_tuple_size_v<remove_cvref_t<TUPLE>> == 1 )
 	// {
 	// 	const auto &[_0] = _tuple_obj;
 	// 	return std::forward_as_tuple(_0);
@@ -496,7 +506,7 @@ constexpr decltype(auto) _to_tuple(TUPLE &&_tuple_obj)
 
 	else
 	{
-		static_assert(tuple_size_v<std::remove_reference_t<TUPLE>> <= 256, "too much members");
+		static_assert(generalized_tuple_size_v<std::remove_reference_t<TUPLE>> <= 256, "too much members");
 	}
 }
 EMBMARTIN_DETAIL_NAMESPACE_END
@@ -511,7 +521,7 @@ using corresponding_std_tuple_t = typename corresponding_std_tuple<TUPLE>::type;
 
 
 template <size_t N, typename T>
-struct tuple_element
+struct generalized_tuple_element
 {
 private:
 	using tuple_type = decltype(detail::_to_tuple(std::declval<const std::remove_cv_t<std::remove_reference_t<T>> &>()));
@@ -520,7 +530,7 @@ public:
 	using type = std::tuple_element_t<N, tuple_type>;
 };
 template <size_t N, typename T>
-using tuple_element_t = typename tuple_element<N, T>::type;
+using generalized_tuple_element_t = typename generalized_tuple_element<N, T>::type;
 
 EMBMARTIN_DETAIL_NAMESPACE_BEGIN
 template <typename Func, typename Tuple, size_t... Is>
@@ -532,11 +542,38 @@ EMBMARTIN_DETAIL_NAMESPACE_END
 
 template <typename Func, typename Tuple>
 using is_invocable_with_std_tuple = decltype(detail::_is_invocable_with_std_tuple<Func, Tuple>(
-	std::make_index_sequence<tuple_size_v<Tuple>>{}));
+	std::make_index_sequence<generalized_tuple_size_v<Tuple>>{}));
 
 template <typename Func, typename Tuple>
 constexpr bool is_invocable_with_std_tuple_v =
 is_invocable_with_std_tuple<Func, Tuple>::value;
+
+// ------------------------------------------别名：可解包类型/统一在元组协议下的类型--------------------------------------------------
+template <typename T>
+using is_unpackable = is_generalized_tuple<T>;
+template <typename T>
+constexpr bool is_unpackable_v = is_unpackable<T>::value;
+template <typename T>
+using unpack_size = generalized_tuple_size<T>;
+template <typename T>
+constexpr size_t unpack_size_v = unpack_size<T>::value;
+template <size_t N, typename T>
+using unpack_element = generalized_tuple_element<N, T>;
+template <size_t N, typename T>
+using unpack_element_t = typename unpack_element<N, T>::type;
+
+template <typename T>
+using is_tuple_protocol = is_generalized_tuple<T>;
+template <typename T>
+constexpr bool is_tuple_protocol_v = is_tuple_protocol<T>::value;
+template <typename T>
+using tuple_protocol_size = generalized_tuple_size<T>;
+template <typename T>
+constexpr size_t tuple_protocol_size_v = tuple_protocol_size<T>::value;
+template <size_t N, typename T>
+using tuple_protocol_element = generalized_tuple_element<N, T>;
+template <size_t N, typename T>
+using tuple_protocol_element_t = typename tuple_protocol_element<N, T>::type;
 
 // ------------------------------------------索引序列--------------------------------------------------
 

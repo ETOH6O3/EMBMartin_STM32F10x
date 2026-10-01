@@ -77,7 +77,6 @@ protected:
         this->buffer[0] = '\0';
     }
 
-public:
     /**
      * @brief 纯虚函数，向目标设备输出一个字符
      *
@@ -87,6 +86,9 @@ public:
      * @param c 待输出的字符
      */
     virtual void output_char(char c) noexcept = 0;
+    
+public:
+
 
     /**
      * @brief C 风格格式化输出函数，将格式化字符串写入缓冲区并输出
