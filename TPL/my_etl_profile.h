@@ -1,0 +1,8 @@
+#ifndef MY_ETL_PROFILE_H
+#define MY_ETL_PROFILE_H
+
+#define ETL_NO_EXCEPTIONS
+#define ETL_NO_RTTI
+#define ETL_CHECK_PUSH_POP
+
+#endif // MY_ETL_PROFILE_H

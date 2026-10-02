@@ -2,7 +2,7 @@
 
 EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
 
-EXTIManager::EXTIManager(const EMBMartin::STM32::GPIOPin &gpio_pin, const std::function<void(void)> &operate,
+EXTIManager::EXTIManager(const EMBMartin::STM32::GPIOPin &gpio_pin, const EXTIManager::Callback &operate,
                          EXTITrigger_TypeDef trigger, std::uint8_t __PreemptionPriority, std::uint8_t __SubPriority,
                          EXTIMode_TypeDef _EXTI_Mode) noexcept
     : __EXTI_pin(gpio_pin, GPIO_Mode_IPD) // GPIO 初始化
