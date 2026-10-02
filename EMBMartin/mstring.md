@@ -314,13 +314,14 @@ t.count("aa", 0, true);  // 3（可重叠）
 
 ## 格式化
 
-语法与 `OutStream::print` / `println` 完全相同，见 [STREAM.md](STREAM.md)。
+语法与 `OutStream::print` / `println` 完全相同，见 [FMT.md](FMT.md)（用户接口手册）与
+[STREAM.md](STREAM.md)。
 依赖 `fmt.h` 的模板实例化，**程序存储器开销不可忽略**。
 
 | 接口 | 说明 |
 | --- | --- |
-| `template <typename... ARGS> String &format(const char (&fmt)[M], ARGS &&...args)` | 格式串为字符串字面量 |
-| `template <typename... ARGS> String &format(TEXT fmt, ARGS &&...args)` | 格式串为运行期 `const char *` |
+| `template <typename... ARGS> String &format(const char (&fmt)[M], ARGS &&...args)` | 格式串为字符串字面量（可启用后端的编译期检查） |
+| `template <typename... ARGS> String &format(TEXT fmt, ARGS &&...args)` | 格式串为运行期 `const char *` 或 `etl::string_view` |
 | `template <typename... ARGS> String &assign_format(TEXT fmt, ARGS &&...args)` | 先清空再格式化写入 |
 
 写入前内容即被视为空串，故**不会残留旧内容**。
@@ -328,21 +329,43 @@ t.count("aa", 0, true);  // 3（可重叠）
 ```cpp
 String<32> s;
 s.format("value = {}", 42);          // "value = 42"
-s.format("{} {:g}", "pi", 3.14159f);
+s.format("{:>8}", 42);               // "      42"
 s.assign_format("Hex: {:#06X}", 0x2A);
 
 const char *runtime_fmt = "{}";
-s.format(runtime_fmt, 7);            // 运行期格式串亦可
+s.format(runtime_fmt, 7);            // 运行期 const char * 亦可
+s.format(etl::string_view("x={}"), 7);// 运行期 etl::string_view 亦可
 ```
 
 结果超出容量时保留已写出的部分，并把截断状态置位；无占位符的格式串同样按字符逐个截断。
-格式串非法时内容被覆写为 `"E:fmt"`。
+**格式串非法不再通过返回值表达**：两套后端都按 ETL 的契约走 `EMBMARTIN_FMT_ASSERT`（默认 `assert`），
+可在 `fmt.h` 之前预定义该宏接入自己的错误处理。需要 `FormatError` 错误码的代码请显式使用
+`EMBMartin::legacy_fmt::format_to` 这一旧接口。
 
-> 运行期格式串会被截入栈上 `N` 字节缓冲区，超长部分丢弃。
+> **两套底层实现**：本项目通过预定义宏 `EMBMARTIN_FMT_USE_ETL`（见 `macro.h`）选择 `fmt.h` 的底层——
+> `1` 为第三方库 ETL 的 format（`EMBMartin::etl_fmt` 内联），`0` 为本库旧格式化核心
+> （`EMBMartin::legacy_fmt` 内联）。**两套后端对外的 ETL 风格接口完全相同**，上面的调用写法
+> 不需要随宏变化；但**格式说明符语法**与部分语义（例如 `{:.Nf}` 的含义）按所选后端而定，
+> 详见 [STREAM.md](STREAM.md) 与 `fmt.h` 头部的设计说明。
 
-> 精度说明：本库中 `{:.Nf}` 的 `N` 表示**有效数字位数**，而非小数位数。
-> 例如 `{:.2f}` 对 `3.14159` 输出 `3.14`，`{:.3f}` 输出 `3.142`；
-> 需要完整精度请用 `{}` 或 `{:g}`。详见 [STREAM.md](STREAM.md)。
+> 精度说明（**仅旧后端**）：`{:.Nf}` 的 `N` 就是**小数点后的位数**（`{:.Ne}` 则是尾数的小数位数）。
+> 例如 `{:.2f}` 对 `123.456` 输出 `123.46`，对 `3.14159` 输出 `3.14`。
+> ETL 后端遵循 ETL 20.49.0 的行为：浮点的 precision 被忽略，小数点后固定 6 位。
+
+> **要在两套后端下都得到固定小数位，请用 `EMBMartin::fixed<N>`**（ETL 的浮点 precision 缺陷
+> 上游尚未修复）：
+>
+> ```cpp
+> oled.println("Dist: {}m", EMBMartin::fixed<2>{distance});   // "Dist: 1.23m"
+> ```
+>
+> `fixed<N>` 用整数运算渲染，两套后端输出逐字符一致；说明符里的 `.precision` 会覆盖 `N`
+> （如 `"{:8.3}"` 表示宽度 8、3 位小数）。只支持 `f` / `F` 表示类型。
+
+> 舍入的平台差异（**仅旧后端**）：旧核心的浮点舍入用 `long double`。被丢弃部分恰好以 5 开头
+> （平局）时，结果取决于 `long double` 的有效位数——MinGW/x86-64 是 80 位，MSVC 与 armclang(ARM)
+> 是 64 位，末位可能相差 1。例如 `{:.3e}` 对 `1234.5f` 可能是 `1.235e+003` 也可能是 `1.234e+003`。
+> `EMBMartin::fixed<N>` 不受此影响。
 
 ---
 

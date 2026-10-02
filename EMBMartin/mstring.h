@@ -70,6 +70,22 @@ using non_array_char_pointer = std::enable_if_t<
 		std::is_same_v<std::remove_reference_t<TEXT>, char *>,
 	TEXT>;
 
+/**
+ * @brief 只匹配“运行期格式串”的形参类型：非数组字符指针，或 etl::string_view
+ *
+ * format / assign_format 的格式串既可能是 `const char *`（C 字符串），也可能是
+ * `etl::string_view`（视图）。两者都必须与“字符串字面量”重载区分开，否则字面量实参
+ * 会在两个重载之间二义。
+ *
+ * @tparam TEXT 推导得到的形参类型
+ */
+template <typename TEXT>
+using runtime_format_string = std::enable_if_t<
+	std::is_same_v<std::remove_reference_t<TEXT>, const char *> ||
+		std::is_same_v<std::remove_reference_t<TEXT>, char *> ||
+		std::is_same_v<std::remove_cv_t<std::remove_reference_t<TEXT>>, etl::string_view>,
+	TEXT>;
+
 EMBMARTIN_DETAIL_NAMESPACE_BEGIN
 
 /**
@@ -257,93 +273,39 @@ private:
 	/**
 	 * @brief 格式化写入的公共实现
 	 *
-	 * 不使用 fmt.h 的 format_to ：它在“含占位符”时返回剩余格式串长度而非实际写入长度，
-	 * 无法用来确定结果长度；且它在无占位符溢出时返回 0 ，与“成功写出 0 字符”无法区分。
-	 * 这里直接驱动 FormatContext ，以 position() 为准，并单独处理上述两类返回值
+	 * 走 fmt 组件的**后端无关** ETL 风格接口 `format_to_n` / `formatted_size`：
+	 * 无论 `EMBMARTIN_FMT_USE_ETL` 取 1 还是 0，本函数都无需改动。
 	 *
-	 * @param format_string 被解析的格式串
+	 * - 返回值是已推进的输出迭代器，用 `out - data()` 得到实际写入长度；
+	 * - 写满容量时才需要再算一次真实长度，以区分「恰好写满」与「被截断」；
+	 * - 非法格式串不再返回错误码：两套后端都按 ETL 的契约断言（见 fmt.h 的错误处理说明），
+	 *   故这里不再需要 `"E:fmt"` 这类错误标记。
+	 *
+	 * @param format_string 格式串；可以是 `const char *`、`etl::string_view` 或字符串字面量
+	 *                      （字面量会命中 fmt.h 的字面量重载，从而启用后端的编译期检查）
 	 */
-	template <typename... ARGS>
-	String &_format_impl(const etl::string_view &format_string, const ARGS &...args) noexcept
+	template <typename FMT, typename... ARGS>
+	String &_format_impl(const FMT &format_string, const ARGS &...args) noexcept
 	{
-		/*
-		 * 先把底层缓冲区整体放开，再交给 fmt.h 直接写入。
-		 * FormatContext 的容量取 capacity() ，正好是底层可写字符数。
-		 */
-		this->_data.uninitialized_resize(N);
+		// 先把底层缓冲区整体放开：格式化的输出直接写进 _data 的存储
+		this->_data.uninitialized_resize(this->capacity());
 
-		FormatContext context(this->_data.data(), this->capacity());
-		const int result = detail::FormatImpl<ARGS...>::format(context, format_string, args...);
-		size_type written = context.position();
+		auto *out = EMBMartin::format_to_n(
+			this->_data.data(), this->capacity(), format_string, args...);
 
-		/*
-		 * fmt.h 的两种溢出上报方式不一致：
-		 * 1. 有占位符的路径返回 FormatError::BufferOverflow ；
-		 * 2. 无占位符的路径在 write_safe 失败时返回 0 —— 0 同时也是“成功写出 0 个字符”的返回值。
-		 * 故用“返回 0 但一个字符也没写出、而格式串非空”来识别后者
-		 */
-		const bool overflowed =
-			(result == static_cast<int>(FormatError::BufferOverflow)) ||
-			(result == 0 && written == 0 && !format_string.empty());
-
-		/*
-		 * 无参数时 fmt.h 整串一次性写出：容量不足会一个字符都不写。
-		 * 截断契约要求保留能写下的部分，故这里退化为逐字符写入
-		 */
-		if (overflowed && etl::string_view::npos == format_string.find('{'))
-		{
-			const size_type capacity = this->capacity();
-			const size_type copied = format_string.size() < capacity ? format_string.size() : capacity;
-			for (size_type i = 0; i < copied; ++i)
-			{
-				this->_data.data()[i] = format_string[i];
-			}
-			written = copied;
-		}
-
+		const size_type written = static_cast<size_type>(out - this->_data.data());
 		this->_commit_length(written);
-		this->_truncated = overflowed;
-		if (result < 0 && !overflowed)
+
+		// 只有「写满容量」这一种情形才需要确认是否真的被截断
+		this->_truncated = (written == this->capacity()) &&
+						   (EMBMartin::formatted_size(format_string, args...) > written);
+
+		// 保证以 '\0' 结尾（format_to_n 按容量截断，可能没留下结尾空间）
+		if (written < this->capacity())
 		{
-			// 格式串非法，内容被覆写为格式错误标记
-			this->_data.assign("E:fmt");
-			this->_truncated = false;
+			this->_data.data()[written] = '\0';
 		}
 		return *this;
-	}
-
-	/**
-	 * @brief 字符串字面量格式串的格式化写入
-	 *
-	 * 额外构造 FormatString 只为启用 fmt.h 的编译期格式串检查（当前其检查体被注释掉，
-	 * 属预留），解析仍走 _format_impl
-	 */
-	template <size_t M, typename... ARGS>
-	String &_format_literal(const char (&format_string)[M], const ARGS &...args) noexcept
-	{
-		const FormatString<M> checked(format_string);
-		return this->_format_impl(checked.view(), args...);
-	}
-
-	/**
-	 * @brief 运行期格式串的格式化写入
-	 *
-	 * 运行期字符串无法直接构造 FormatString ，故按本串容量截入栈上缓冲区后转成视图。
-	 * 超长部分会被丢弃
-	 *
-	 * @param format_string 以 '\\0' 结尾的格式串
-	 */
-	template <typename... ARGS>
-	String &_format_runtime(const char *format_string, const ARGS &...args) noexcept
-	{
-		char cropped[N]{};
-		size_type length = 0;
-		while (length < N - 1 && format_string[length] != '\0')
-		{
-			cropped[length] = format_string[length];
-			++length;
-		}
-		return this->_format_impl(etl::string_view(cropped, length), args...);
 	}
 
 public:
@@ -370,20 +332,20 @@ public:
 	/** @brief 从字符串视图构造；超出容量时按 ETL 契约截断 */
 	String(const etl::string_view &text) noexcept
 	{
-		this->_data.assign(detail::to_etl_view(text));
+		this->_data.assign(EMBMartin::detail::to_etl_view(text));
 	}
 
 	/** @brief 从另一个定长字符串构造，由于 text 的长度可能大于自身，此行为必须显式转换*/
 	template <size_t M, typename = std::enable_if_t<(N < M)>>
 	explicit String(const String<M> &text) noexcept
 	{
-		this->_data.assign(detail::to_etl_view(text.view()));
+		this->_data.assign(EMBMartin::detail::to_etl_view(text.view()));
 	}
 	/** @brief 从另一个定长字符串构造，text 长度必定不会超过自身最大长度，故允许隐式转换 */
 	template <size_t M, typename = std::enable_if_t<(N >= M)>, typename = void>
 	String(const String<M> &text) noexcept
 	{
-		this->_data.assign(detail::to_etl_view(text.view()));
+		this->_data.assign(EMBMartin::detail::to_etl_view(text.view()));
 	}
 
 	/** @brief 从其它“字符串类”类型构造，例如 std::string */
@@ -393,7 +355,7 @@ public:
 	explicit String(TEXT &&text) noexcept
 	{
 		const etl::string_view view{std::forward<TEXT>(text)};
-		this->_data.assign(detail::to_etl_view(view));
+		this->_data.assign(EMBMartin::detail::to_etl_view(view));
 	}
 
 	/** @brief 构造 count 个字符 c ；超出容量时按 ETL 契约截断 */
@@ -415,7 +377,7 @@ public:
 
 	String &operator=(const etl::string_view &text) noexcept
 	{
-		this->_data.assign(detail::to_etl_view(text));
+		this->_data.assign(EMBMartin::detail::to_etl_view(text));
 		return *this;
 	}
 
@@ -425,7 +387,7 @@ public:
 	String &operator=(TEXT &&text) noexcept
 	{
 		const etl::string_view view{std::forward<TEXT>(text)};
-		this->_data.assign(detail::to_etl_view(view));
+		this->_data.assign(EMBMartin::detail::to_etl_view(view));
 		return *this;
 	}
 
@@ -685,7 +647,7 @@ public:
 	/** @brief 追加字符串视图 */
 	String &append(const etl::string_view &text) noexcept
 	{
-		this->_data.append(detail::to_etl_view(text));
+		this->_data.append(EMBMartin::detail::to_etl_view(text));
 		return *this;
 	}
 
@@ -747,14 +709,14 @@ public:
 	template <size_t M>
 	String &insert(const size_type position, const char (&text)[M]) noexcept
 	{
-		this->_data.insert(position, detail::to_etl_view(etl::string_view(text)));
+		this->_data.insert(position, EMBMartin::detail::to_etl_view(etl::string_view(text)));
 		return *this;
 	}
 
 	/** @brief 在 position 处插入字符串视图 */
 	String &insert(const size_type position, const etl::string_view &text) noexcept
 	{
-		this->_data.insert(position, detail::to_etl_view(text));
+		this->_data.insert(position, EMBMartin::detail::to_etl_view(text));
 		return *this;
 	}
 
@@ -795,7 +757,7 @@ public:
 	/** @brief 用字符串视图替换 [position, position + count) 范围 */
 	String &replace(const size_type position, const size_type count, const etl::string_view &text) noexcept
 	{
-		this->_data.replace(position, count, detail::to_etl_view(text));
+		this->_data.replace(position, count, EMBMartin::detail::to_etl_view(text));
 		return *this;
 	}
 
@@ -836,7 +798,7 @@ public:
 		size_type position = this->find(old_text);
 		while (position != npos)
 		{
-			this->_data.replace(position, old_text.size(), detail::to_etl_view(new_text));
+			this->_data.replace(position, old_text.size(), EMBMartin::detail::to_etl_view(new_text));
 			++replacements;
 			position = this->find(old_text, position + new_text.size());
 		}
@@ -857,13 +819,13 @@ public:
 	/** @brief 按字典序比较，返回值含义同 std::string::compare */
 	int compare(const etl::string_view &other) const noexcept
 	{
-		const int result = this->_data.compare(detail::to_etl_view(other));
+		const int result = this->_data.compare(EMBMartin::detail::to_etl_view(other));
 		return result < 0 ? -1 : (result > 0 ? 1 : 0);
 	}
 
 	int compare(const char *other) const noexcept
 	{
-		return this->compare(etl::string_view(other, detail::string_literal_length(other)));
+		return this->compare(etl::string_view(other, EMBMartin::detail::string_literal_length(other)));
 	}
 
 	template <size_t M>
@@ -875,19 +837,19 @@ public:
 	/** @brief 是否以 prefix 开头 */
 	bool starts_with(const etl::string_view &prefix) const noexcept
 	{
-		return this->_data.starts_with(detail::to_etl_view(prefix));
+		return this->_data.starts_with(EMBMartin::detail::to_etl_view(prefix));
 	}
 
 	/** @brief 是否以 suffix 结尾 */
 	bool ends_with(const etl::string_view &suffix) const noexcept
 	{
-		return this->_data.ends_with(detail::to_etl_view(suffix));
+		return this->_data.ends_with(EMBMartin::detail::to_etl_view(suffix));
 	}
 
 	/** @brief 是否包含 needle */
 	bool contains(const etl::string_view &needle) const noexcept
 	{
-		return this->_data.contains(detail::to_etl_view(needle));
+		return this->_data.contains(EMBMartin::detail::to_etl_view(needle));
 	}
 
 	// ------------------------------------------查找--------------------------------------------------
@@ -895,7 +857,7 @@ public:
 	/** @brief 由前向后查找 needle ，失败返回 npos */
 	size_type find(const etl::string_view &needle, const size_type position = 0) const noexcept
 	{
-		return this->_data.find(detail::to_etl_view(needle), position);
+		return this->_data.find(EMBMartin::detail::to_etl_view(needle), position);
 	}
 
 	size_type find(const char c, const size_type position = 0) const noexcept
@@ -905,13 +867,13 @@ public:
 
 	size_type find(const char *needle, const size_type position = 0) const noexcept
 	{
-		return this->find(etl::string_view(needle, detail::string_literal_length(needle)), position);
+		return this->find(etl::string_view(needle, EMBMartin::detail::string_literal_length(needle)), position);
 	}
 
 	/** @brief 由后向前查找 needle ，失败返回 npos */
 	size_type rfind(const etl::string_view &needle, const size_type position = npos) const noexcept
 	{
-		return this->_data.rfind(detail::to_etl_view(needle), position);
+		return this->_data.rfind(EMBMartin::detail::to_etl_view(needle), position);
 	}
 
 	size_type rfind(const char c, const size_type position = npos) const noexcept
@@ -922,25 +884,25 @@ public:
 	/** @brief 查找集合 set 中任意字符首次出现的位置 */
 	size_type find_first_of(const etl::string_view &set, const size_type position = 0) const noexcept
 	{
-		return this->_data.find_first_of(detail::to_etl_view(set), position);
+		return this->_data.find_first_of(EMBMartin::detail::to_etl_view(set), position);
 	}
 
 	/** @brief 查找不属于集合 set 的字符首次出现的位置 */
 	size_type find_first_not_of(const etl::string_view &set, const size_type position = 0) const noexcept
 	{
-		return this->_data.find_first_not_of(detail::to_etl_view(set), position);
+		return this->_data.find_first_not_of(EMBMartin::detail::to_etl_view(set), position);
 	}
 
 	/** @brief 查找集合 set 中任意字符末次出现的位置 */
 	size_type find_last_of(const etl::string_view &set, const size_type position = npos) const noexcept
 	{
-		return this->_data.find_last_of(detail::to_etl_view(set), position);
+		return this->_data.find_last_of(EMBMartin::detail::to_etl_view(set), position);
 	}
 
 	/** @brief 查找不属于集合 set 的字符末次出现的位置 */
 	size_type find_last_not_of(const etl::string_view &set, const size_type position = npos) const noexcept
 	{
-		return this->_data.find_last_not_of(detail::to_etl_view(set), position);
+		return this->_data.find_last_not_of(EMBMartin::detail::to_etl_view(set), position);
 	}
 
 	/**
@@ -1016,29 +978,30 @@ public:
 	 *
 	 * @param format_string 以 '\\0' 结尾的格式串
 	 *
-	 * @note 本重载的格式串长度在运行期才确定，故格式串合法性只能由 fmt.h 在运行期检查，
-	 * 合法性检查失败时内容被覆写为 "E:fmt" ；若格式串是字符串字面量，请优先使用数组重载
+	 * @note 本重载的格式串内容在运行期才确定，故后端只能做运行期检查；
+	 *       非法格式串按 ETL 契约断言（不会把内容覆写成错误标记）。
+	 *       若格式串是字符串字面量，请优先使用数组重载以获得编译期检查。
 	 * @note 本接口依赖 fmt.h 的模板实例化，程序存储器开销不可忽略
 	 */
-	template <typename... ARGS, typename TEXT, typename = non_array_char_pointer<TEXT>>
+	template <typename... ARGS, typename TEXT, typename = runtime_format_string<TEXT>>
 	String &format(TEXT format_string, const ARGS &...args) noexcept
 	{
-		return this->_format_runtime(format_string, args...);
+		return this->_format_impl(format_string, args...);
 	}
 
 	/**
 	 * @brief 以字符串字面量作为格式串的格式化写入
 	 *
-	 * 此重载能在编译期得到格式串长度，故可启用 fmt.h 的编译期格式串检查
+	 * 此重载能在编译期得到格式串长度，故可启用后端的编译期格式串检查
 	 */
 	template <size_t M, typename... ARGS>
 	String &format(const char (&format_string)[M], const ARGS &...args) noexcept
 	{
-		return this->_format_literal(format_string, args...);
+		return this->_format_impl(format_string, args...);
 	}
 
 	/** @brief 清空后格式化写入 */
-	template <typename... ARGS, typename TEXT, typename = non_array_char_pointer<TEXT>>
+	template <typename... ARGS, typename TEXT, typename = runtime_format_string<TEXT>>
 	String &assign_format(TEXT format_string, const ARGS &...args) noexcept
 	{
 		this->clear();
@@ -1053,7 +1016,7 @@ public:
 		String result{*this};
 		for (size_type i = 0; i < result._data.size(); ++i)
 		{
-			result._data[i] = detail::ascii_to_lower(result._data[i]);
+			result._data[i] = EMBMartin::detail::ascii_to_lower(result._data[i]);
 		}
 		return result;
 	}
@@ -1064,7 +1027,7 @@ public:
 		String result{*this};
 		for (size_type i = 0; i < result._data.size(); ++i)
 		{
-			result._data[i] = detail::ascii_to_upper(result._data[i]);
+			result._data[i] = EMBMartin::detail::ascii_to_upper(result._data[i]);
 		}
 		return result;
 	}
@@ -1116,25 +1079,25 @@ public:
 	/** @brief 全部字符是否都是十进制数字，语义同 Python 的 str.isdigit */
 	bool isdigit() const noexcept
 	{
-		return this->_all_of(detail::ascii_digit);
+		return this->_all_of(EMBMartin::detail::ascii_digit);
 	}
 
 	/** @brief 全部字符是否都是字母，语义同 Python 的 str.isalpha */
 	bool isalpha() const noexcept
 	{
-		return this->_all_of(detail::ascii_alpha);
+		return this->_all_of(EMBMartin::detail::ascii_alpha);
 	}
 
 	/** @brief 全部字符是否都是字母或数字，语义同 Python 的 str.isalnum */
 	bool isalnum() const noexcept
 	{
-		return this->_all_of(detail::ascii_alnum);
+		return this->_all_of(EMBMartin::detail::ascii_alnum);
 	}
 
 	/** @brief 全部字符是否都是空白字符，语义同 Python 的 str.isspace */
 	bool isspace() const noexcept
 	{
-		return this->_all_of(detail::ascii_space);
+		return this->_all_of(EMBMartin::detail::ascii_space);
 	}
 
 	/** @brief 是否含至少一个字母，且所有字母均为大写，语义同 Python 的 str.isupper */
@@ -1143,11 +1106,11 @@ public:
 		bool has_cased = false;
 		for (const char c : this->_data)
 		{
-			if (detail::ascii_lower(c))
+			if (EMBMartin::detail::ascii_lower(c))
 			{
 				return false;
 			}
-			if (detail::ascii_upper(c))
+			if (EMBMartin::detail::ascii_upper(c))
 			{
 				has_cased = true;
 			}
@@ -1161,11 +1124,11 @@ public:
 		bool has_cased = false;
 		for (const char c : this->_data)
 		{
-			if (detail::ascii_upper(c))
+			if (EMBMartin::detail::ascii_upper(c))
 			{
 				return false;
 			}
-			if (detail::ascii_lower(c))
+			if (EMBMartin::detail::ascii_lower(c))
 			{
 				has_cased = true;
 			}
@@ -1178,7 +1141,7 @@ public:
 	{
 		for (const char c : this->_data)
 		{
-			if (detail::ascii_digit(c))
+			if (EMBMartin::detail::ascii_digit(c))
 			{
 				return true;
 			}
@@ -1203,7 +1166,7 @@ public:
 		const size_type total = this->_data.size();
 
 		size_type cursor = 0;
-		while (cursor < total && detail::ascii_space(text[cursor]))
+		while (cursor < total && EMBMartin::detail::ascii_space(text[cursor]))
 		{
 			++cursor;
 		}
@@ -1218,7 +1181,7 @@ public:
 		double value = 0.0;
 		size_type integer_digits = 0;
 		size_type fraction_digits = 0;
-		while (cursor < total && detail::ascii_digit(text[cursor]))
+		while (cursor < total && EMBMartin::detail::ascii_digit(text[cursor]))
 		{
 			value = value * 10.0 + (text[cursor] - '0');
 			++cursor;
@@ -1231,7 +1194,7 @@ public:
 		if (cursor < total && text[cursor] == '.')
 		{
 			++cursor;
-			while (cursor < total && detail::ascii_digit(text[cursor]))
+			while (cursor < total && EMBMartin::detail::ascii_digit(text[cursor]))
 			{
 				value = value * 10.0 + (text[cursor] - '0');
 				++cursor;
@@ -1258,11 +1221,11 @@ public:
 				++cursor;
 			}
 			// 有 'e' 却无指数数字属于非法，不做“忽略指数”的宽容处理
-			if (cursor >= total || !detail::ascii_digit(text[cursor]))
+			if (cursor >= total || !EMBMartin::detail::ascii_digit(text[cursor]))
 			{
 				return result;
 			}
-			while (cursor < total && detail::ascii_digit(text[cursor]))
+			while (cursor < total && EMBMartin::detail::ascii_digit(text[cursor]))
 			{
 				if (exponent < 100000)
 				{
@@ -1276,7 +1239,7 @@ public:
 			}
 		}
 
-		while (cursor < total && detail::ascii_space(text[cursor]))
+		while (cursor < total && EMBMartin::detail::ascii_space(text[cursor]))
 		{
 			++cursor;
 		}
@@ -1611,12 +1574,12 @@ size_t split_whitespace(const etl::string_view source, CONTAINER &container) noe
 	size_t cursor = 0;
 	while (cursor < source.size())
 	{
-		while (cursor < source.size() && detail::ascii_space(source[cursor]))
+		while (cursor < source.size() && EMBMartin::detail::ascii_space(source[cursor]))
 		{
 			++cursor;
 		}
 		const size_t start = cursor;
-		while (cursor < source.size() && !detail::ascii_space(source[cursor]))
+		while (cursor < source.size() && !EMBMartin::detail::ascii_space(source[cursor]))
 		{
 			++cursor;
 		}
@@ -1658,7 +1621,7 @@ String<N> join(const etl::string_view &separator, const CONTAINER &container) no
 template <size_t N, typename CONTAINER>
 String<N> join(const char *separator, const CONTAINER &container) noexcept
 {
-	return join<N>(etl::string_view(separator, detail::string_literal_length(separator)), container);
+	return join<N>(etl::string_view(separator, EMBMartin::detail::string_literal_length(separator)), container);
 }
 
 // ------------------------------------------比较运算符--------------------------------------------------
@@ -1841,6 +1804,40 @@ String<N + 1> operator+(const char left, const String<N> &right) noexcept
 }
 
 EMBMARTIN_NAMESPACE_END
+
+// ------------------------------------------formatter 特化：String<N>--------------------------------------------------
+//
+// ETL 后端只认 `etl::formatter<T>` 特化，故必须为 String<N> 补一份：转交 ETL 自己的
+// `etl::formatter<etl::string_view>`，因此宽度、精度、`?`（调试转义）等说明符的行为与 ETL
+// 完全一致，不重复实现任何格式化逻辑。
+//
+// 旧后端不需要这份特化：旧核心的字符串格式化器由 `is_string_like_v<String<N>>` 命中
+//（String<N> 可隐式转换为 etl::string_view）。本特化仍然无条件定义——它位于命名空间 `etl`，
+// 与 `EMBMARTIN_FMT_USE_ETL` 无关，两套后端并存不会冲突，也让直接用 etl::format_to 的代码可用。
+
+namespace etl
+{
+	/**
+	 * @brief EMBMartin::String<N> 的 ETL 自定义格式化器
+	 */
+	template <size_t N>
+	struct formatter<::EMBMartin::String<N>>
+	{
+		format_parse_context::iterator parse(format_parse_context &parse_ctx)
+		{
+			// ETL 已在 vformat_to 里统一解析过说明符，这里无需再消费
+			return parse_ctx.begin();
+		}
+
+		template <typename OutputIt>
+		typename format_context<OutputIt>::iterator format(const ::EMBMartin::String<N> &value,
+														   format_context<OutputIt> &fmt_ctx)
+		{
+			etl::formatter<etl::string_view> string_formatter;
+			return string_formatter.format(value.view(), fmt_ctx);
+		}
+	};
+} // namespace etl
 
 // ------------------------------------------与库内流设施的对接--------------------------------------------------
 // 不提供 operator<< ：库内暂未实现流运算符。

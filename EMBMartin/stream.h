@@ -27,15 +27,21 @@ class OutStream
 {
 private:
     /**
-     * @brief 内部格式化辅助函数
-     * @tparam N 格式字符串长度
-     * @tparam Args 参数类型包
-     * @param fmt_str 格式字符串包装
+     * @brief 内部格式化辅助函数（薄兼容包装，**保留旧签名形态与返回值语义**）
+     *
+     * 走 fmt 组件的**后端无关** ETL 风格接口：无论 `EMBMARTIN_FMT_USE_ETL` 取 1 还是 0，
+     * 本函数都无需改动。
+     *
+     * @tparam FMT 格式串类型；可以是 `etl::string_view`，也可以是字符串字面量
+     *             （字面量会命中后端的字面量重载，从而启用其编译期格式串检查）
+     * @param fmt_str 格式串
      * @param args 参数包
-     * @return 格式化是否成功
+     * @return 缓冲区是否装得下整份结果。`true` = 未被截断；`false` = 被截断。
+     *         非法格式串不再通过返回值表达，而是由后端按 ETL 契约断言上报
+     *         （见 fmt.h 的错误处理说明）。
      */
-    template <size_t N, typename... Args>
-    bool format_to_buffer(const FormatString<N> &fmt_str, Args &&...args) noexcept;
+    template <typename FMT, typename... Args>
+    bool format_to_buffer(const FMT &fmt_str, Args &&...args) noexcept;
 
     /**
      * @brief 将缓冲区内容逐字符输出到目标设备，并清空缓冲区
@@ -442,33 +448,22 @@ public:
 };
 
 template <size_t buffer_size>
-template <size_t N, typename... Args>
-bool OutStream<buffer_size>::format_to_buffer(const FormatString<N> &fmt_str, Args &&...args) noexcept
+template <typename FMT, typename... Args>
+bool OutStream<buffer_size>::format_to_buffer(const FMT &fmt_str, Args &&...args) noexcept
 {
-    // 使用我们实现的format_to函数格式化到缓冲区
-    int result = format_to(this->buffer, _buffer_size, fmt_str, std::forward<Args>(args)...);
+    // 后端无关的 ETL 风格接口：把内容写进本流的固定缓冲区
+    auto *out = EMBMartin::format_to_n(
+        this->buffer, _buffer_size - 1, fmt_str, args...);
 
-    if (result >= 0)
+    const size_t written = static_cast<size_t>(out - this->buffer);
+    this->buffer[written] = '\0';
+
+    // 只有「写满缓冲区」这一种情形才需要确认是否真的被截断
+    if (written == _buffer_size - 1)
     {
-        // // 确保以null结尾
-        // size_t length = static_cast<size_t>(result);
-        // if (length < _buffer_size) {
-        //     this->buffer[length] = '\0';
-        // } else if (_buffer_size > 0) {
-        //     this->buffer[_buffer_size - 1] = '\0';
-        // }
-        return true;
+        return EMBMartin::formatted_size(fmt_str, args...) <= written;
     }
-
-    // 格式化失败，使用回退方案
-    const char *error_msg = "<format error>";
-    size_t error_len = strlen(error_msg);
-    size_t copy_len = error_len < _buffer_size ? error_len : _buffer_size - 1;
-
-    strncpy(this->buffer, error_msg, copy_len);
-    this->buffer[copy_len] = '\0';
-
-    return false;
+    return true;
 }
 
 template <size_t buffer_size>
@@ -529,23 +524,20 @@ template <size_t buffer_size>
 template <typename... Args>
 void OutStream<buffer_size>::print(etl::string_view fmt, Args &&...args) noexcept
 {
-    // 创建临时字符串用于构造FormatString
-    char temp[256];
-    size_t copy_len = fmt.size() < sizeof(temp) - 1 ? fmt.size() : sizeof(temp) - 1;
-    strncpy(temp, fmt.data(), copy_len);
-    temp[copy_len] = '\0';
-
-    // 使用字符串字面量重载
     if constexpr (sizeof...(args) == 0)
     {
-        // 无参数，直接输出字符串
-        strncpy(this->buffer, temp, _buffer_size - 1);
-        this->buffer[_buffer_size - 1] = '\0';
+        // 无参数，直接把字符串视图拷进缓冲区（flush 以 '\0' 为界）
+        const size_t copy_len = fmt.size() < _buffer_size - 1 ? fmt.size() : _buffer_size - 1;
+        for (size_t i = 0; i < copy_len; ++i)
+        {
+            this->buffer[i] = fmt[i];
+        }
+        this->buffer[copy_len] = '\0';
     }
     else
     {
-        // 有参数，使用格式化
-        this->print(temp, std::forward<Args>(args)...);
+        // 有参数：格式串内容在运行期才确定，走运行期重载
+        this->format_to_buffer(fmt, args...);
     }
     this->flush();
 }
@@ -563,17 +555,9 @@ void OutStream<buffer_size>::print(const char (&fmt)[N], Args &&...args) noexcep
     }
     else
     {
-        // 使用格式化
-        FormatString<N> fmt_str(fmt);
-        if (this->format_to_buffer(fmt_str, std::forward<Args>(args)...))
-        {
-            this->flush();
-        }
-        else
-        {
-            // 格式化失败，但仍然发送错误信息
-            this->flush();
-        }
+        // 字面量：把数组本身交给后端，以便启用其编译期格式串检查
+        this->format_to_buffer(fmt, args...);
+        this->flush();
     }
 }
 

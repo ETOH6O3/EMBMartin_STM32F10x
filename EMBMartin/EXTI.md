@@ -4,7 +4,7 @@
 
 ## EXTIManager
 
-`EXTIManager` 为一个 GPIO 引脚配置外部中断，并在中断触发时调用用户提供的回调。
+`EXTIManager` 为一个 GPIO 引脚配置外部中断，并自动配置中断函数。
 
 ### 构造
 

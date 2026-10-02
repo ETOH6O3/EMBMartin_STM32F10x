@@ -131,13 +131,13 @@ position 10 20
 
 ### `print`
 
-使用 C++23 和 python 混合风格的格式化语法输出文本。
+使用格式化语法输出文本。完整的格式说明符清单与两套后端差异见
+[FMT.md](FMT.md)（fmt 组件用户接口手册）。
 
 ```cpp
 console.print("value = {}", 42);
-console.print("name = {:>d}, age = {:<2.2f}", "Martin", 20);
-console.print("DEC: {:|^#10,d}", -42000);
-console.print("Hex: {:|^#10_x}", 0xfffff);
+console.print("name = {:>10}, score = {:<6}", "Martin", 20);
+console.print("Hex: {:#010x}", 0xfffff);
 ```
 
 没有参数时，可以直接输出字符串：
@@ -146,7 +146,7 @@ console.print("Hex: {:|^#10_x}", 0xfffff);
 console.print("hello");
 ```
 
-*不支持参数位置设定，不支持变量名传参*。
+*不支持参数位置设定，不支持变量名传参。*
 
 ### `println`
 
@@ -158,7 +158,18 @@ console.println("value = {}", 42);
 
 ### 常用格式说明
 
-参见 [Python 格式化语法](https://docs.python.org/3/library/string.html#format-specification-mini-language)。
+> **格式化说明符的语法取决于 `fmt.h` 的底层实现**，由预定义宏 `EMBMARTIN_FMT_USE_ETL`
+> （见 `macro.h`）选择，详见 `fmt.h` 头部的设计说明：
+>
+> - `EMBMARTIN_FMT_USE_ETL = 1`（**默认**）：底层是第三方库 ETL，语法同 C++20 `std::format`。
+>   对齐只有 `<` `>` `^`（**没有** `=`），支持 `+` `-`（空格）`#` `0` `L`、`{}` 形式的嵌套
+>   动态宽度/精度、`{0}` 手动参数索引；表示类型为 `s ? b B c d o x X a A e E f F g G p P`。
+>   **不支持** `z`、数值分组（`,` / `_`）、`%`。
+> - `EMBMARTIN_FMT_USE_ETL = 0`：底层是本库旧格式化核心，语法同 Python 的
+>   format-specification mini-language（即本文档历史版本描述的那一套），额外支持 `z`、
+>   `=` 对齐、数值分组与 `%`，但不支持 `{0}` 与嵌套 `{}`。
+>
+> **工程内调用点只使用下面这个公共子集**（标注了「仅…后端」的除外，其余两套后端一致）：
 
 ```text
 {}             默认格式
@@ -173,10 +184,10 @@ console.println("value = {}", 42);
 {:^10}         宽度为 10，居中
 {:<10}         宽度为 10，左对齐
 {:>10}         宽度为 10，右对齐
-{:.2f}         保留 2 位小数
+{:.3s}         字符串取前 3 个字符（仅 ETL 后端）
 {:#x}          十六进制并显示前缀
-{:,d}          十进制使用逗号分组
-{:_x}          十六进制使用下划线分组
+{:,d}          十进制使用逗号分组（仅旧后端）
+{:_x}          十六进制使用下划线分组（仅旧后端）
 ```
 
 组合示例：
@@ -184,18 +195,30 @@ console.println("value = {}", 42);
 ```cpp
 console.println("{:^12}", "hello");
 console.println("{:08X}", 0x2A);
-console.println("{:.2f}", 3.14159);
 ```
 
-所有可解包类型有内置格式化配置（*可解包类型指所有在 C++17 及以上标准中可以使用结构化绑定的类型*）
+> **浮点小数位**：ETL 后端的浮点格式化器忽略 `precision`（`{:.2f}`、`{:.0f}`、`{:.4f}`
+> 输出完全相同，都是 6 位小数）——这是 ETL 上游未实现的功能，不是用法问题。
+> 需要固定小数位时请用定点包装类型 `EMBMartin::fixed<N>`，两套后端输出一致：
+>
+> ```cpp
+> console.println("Dist: {}m", EMBMartin::fixed<2>{distance});   // "Dist: 1.23m"
+> console.println("Dist: {:8.3}m", EMBMartin::fixed<2>{distance});// 说明符 precision 覆盖 N
+> ```
 
-例如，二元类型的内置格式化方式如下：
+所有可解包类型（*C++17 及以上标准中可以使用结构化绑定的类型*）都有内置格式化配置。
+例如二元类型的默认格式化输出 `x, y`：
 
 ```cpp
-console.println("coor: {::#X;:#b}", Coordinate<int>(0xff, 0b101010));
+console.println("coor: {}", Coordinate<int>(0xff, 0b101010));   // "255, 42"
 ```
 
-自定义格式化的方式同 C++23 标准库。可解包类型的格式化器可特化。
+两套后端都额外支持广义 pair 的**元素级**说明符：`{:(x规格)}`、`{:[:x规格,,y规格]}`，
+子说明符按所选后端的语法解释；旧后端另支持 `<...>` 括号与 `;` 分隔（`{::#X;:#b}`），
+ETL 后端不支持这两种写法（`<` 会与 ETL 的对齐符冲突）。默认分隔符为 `, `。
+
+自定义格式化的方式：ETL 后端特化 `etl::formatter<T>`，旧后端特化
+`EMBMartin::legacy_fmt::formatter<T>`（两者 parse / format 签名不同）。
 
 **格式化功能依赖大量的模板实例化，不加节制的使用会导致代码体积增大**。
 

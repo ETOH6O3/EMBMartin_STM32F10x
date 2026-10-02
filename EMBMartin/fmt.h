@@ -2,7 +2,7 @@
  ******************************************************************************
  * @file    fmt.h
  * @author  孙鸣淼
- * @brief   EMBMartin 内置仿 C++23 风格格式化字符串库
+ * @brief   EMBMartin 格式化字符串组件（旧核心 / ETL 双后端）
  ******************************************************************************
  * @attention
  * 1. 至少需要的 C++ 标准： C++17
@@ -10,21 +10,530 @@
  * 3. 本模块的程序存储器开销较为严重，需要谨慎使用；若用于嵌入式系统，建议将编译器优化调至 -O3 或 -Oz
  * 4. 本模块对于浮点数的处理过于面向结果，性能甚至远不及 printf ，建议谨慎使用
  ******************************************************************************
+ *
+ * ============================== 双后端与命名空间设计 ==============================
+ *
+ * 本组件同时存在两套底层实现，由 `EMBMARTIN_FMT_USE_ETL`（定义见 macro.h，可由预定义宏覆盖）
+ * 选择哪一个是**内联命名空间**：
+ *
+ *   +---------------------------+---------------------------------------------------------------------------------+
+ *   | EMBMARTIN_FMT_USE_ETL = 1 | `embmartin::etl_fmt` 内联；底层直转发第三方库 ETL 的 format                    |
+ *   | EMBMARTIN_FMT_USE_ETL = 0 | `embmartin::legacy_fmt` 内联；底层为本库既有的旧格式化核心（原样保留）          |
+ *   +---------------------------+---------------------------------------------------------------------------------+
+ *
+ * 命名空间分层（`embmartin` 即 `EMBMartin`）：
+ *
+ *   EMBMartin
+ *   ├── etl_fmt        ETL 直转发后端。宏为 1 时它是内联命名空间
+ *   ├── legacy_fmt     旧格式化核心 + ETL 风格接口适配。宏为 0 时它是内联命名空间
+ *   └── pair_spec      两套后端共用的「广义 pair 说明符」切分工具
+ *
+ * @note `EMBMARTIN_FMT_USE_ETL` 只决定哪一个命名空间内联，**不取消**另一个的定义：两套实现
+ *       始终都被编译，因此始终可以写出 `EMBMartin::legacy_fmt::...` 或 `EMBMartin::etl_fmt::...`
+ *       来显式指定后端。任何时刻都恰好只有一个内联命名空间，故 `EMBMartin::format_to(...)`
+ *       这类写法不会二义。
+ *
+ * @note 两套后端都对外的**同一套 ETL 风格接口**（见下），所以调用方不需要用宏切换写法：
+ *         format_to / format_to_n / vformat_to / formatted_size
+ *       外加 ETL 类型别名 formatter / format_context / format_parse_context / format_string /
+ *       format_args / basic_format_arg / make_format_args 。
+ *
+ * ---------------------------------------- 错误处理 ----------------------------------------
+ *
+ * 与 ETL 一致的**风格**：非法格式串、无法满足的格式说明符**不返回错误码**，而是断言。
+ * 两套后端共用一个上报点 `EMBMARTIN_FMT_ASSERT`（默认 `assert`），因此对外语义完全相同。
+ *
+ * @note 为什么默认是 `assert` 而不是直接用 ETL 的 `ETL_ASSERT`？
+ *       本工程使用 `TPL/my_etl_profile.h`，其中定义了 `ETL_NO_EXCEPTIONS` 且没有定义
+ *       `ETL_DEBUG` / `ETL_LOG_ERRORS` / `ETL_USE_ASSERT_FUNCTION`，于是 ETL 的
+ *       `ETL_ASSERT(b, e)` 在 error_handler.h 里落到 `static_cast<void>(sizeof(b))`
+ *       ——**整条检查会被编译掉**。若把本组件的断言也改成 `ETL_ASSERT`，两套后端在发布构建里
+ *       都会静默放过非法格式串。为保持「新旧后端行为一致且可控」，这里默认用 `assert`；
+ *       想改成走 ETL 的错误处理器，预定义
+ *       `EMBMARTIN_FMT_ASSERT(_EXPR) ETL_ASSERT(_EXPR, ETL_ERROR(etl::bad_format_string_exception))`
+ *       即可。
+ *
+ * @warning `assert` 在 `NDEBUG` 下同样会被移除。需要运行时保护请覆盖 `EMBMARTIN_FMT_ASSERT`
+ *          （例如改走自定义的错误处理器），或使用旧接口的 `FormatError` 错误码（仅 `legacy_fmt`）。
+ *
+ * ---------------------------------------- 旧接口兼容层 ----------------------------------------
+ *
+ * `legacy_fmt` 内部**原样保留**旧实现及其旧接口，供仍需 `FormatError` 错误码的代码使用：
+ *
+ *   FormatError / FormatContext / FormatParseContext / FormatString<N> / FormatLex<T> /
+ *   formatter<T>（旧签名的自定义点：parse(FormatParseContext&) -> int、
+ *                 format(const T&, FormatContext&) -> int）
+ *   旧的 int format_to(char *buffer, size_t capacity, const FormatString<N> &, const Args &...)
+ *
+ * @note 这不是新接口，不随 `EMBMARTIN_FMT_USE_ETL` 变化；使用它必须写 `EMBMartin::legacy_fmt::`。
+ *
+ * ---------------------------------------- 语法差异 ----------------------------------------
+ *
+ * ETL 后端完全遵循 ETL / C++20 std::format 语法：对齐只有 `<` `>` `^`（**没有** `=`），
+ * 支持 `+` `-` ` ` `#` `0` `L`、`{}` 形式的嵌套动态宽度与精度、`{0}` 手动参数索引，
+ * 表示类型为 `s ? b B c d o x X a A e E f F g G p P`；**不支持** `z`、数值分组（`,` / `_`）、
+ * `%`。旧后端的旧语法（`z`、`=` 对齐、数值分组、`%` 等）原样保留。
+ *
+ * 两套后端都可用的公共子集（仓库内调用点只使用这个子集）：`{}`、`{:d}`、`{:x}`、`{:X}`、`{:#x}`、
+ * `{:b}`、`{:o}`、`{:c}`、`{:s}`、`{:N}`、`{:>N}`、`{:<N}`、`{:^N}`、`{:*^N}`、`{:0N}`、`{:+}`、`{: }`。
+ *
+ * 只有一侧支持的语法（用错后端会断言，不会静默出错）：
+ *   - 仅 ETL 后端：`{:?}`、`{:p}`、`B`/`A` 等表示类型、`{0}` 手动索引、`{}` 嵌套宽度/精度、
+ *     字符串 precision `{:.Ns}`、指针形参。
+ *   - 仅旧后端：`z`、`=` 对齐、数值分组（`,` / `_`）、`%`、`{::x规格;y规格}` 与 `<...>` 括号的
+ *     pair 元素级说明符。
+ *
+ * ---------------------------------------- 浮点小数位（重要） ----------------------------------------
+ *
+ * **ETL 后端无法控制浮点的小数位数**：ETL 20.49.0 的三个浮点格式化函数
+ * （`format_floating_default` / `format_floating_f` / `format_floating_e`）都把小数位数硬编码为 6，
+ * 从不读取 `spec.precision`；`{:.2f}`、`{:.0f}`、`{:.4f}` 的输出因此完全相同。
+ * 这是 ETL 上游**至今未实现**的功能（已核对 master 分支，代码里仍写着
+ * `const size_t fractional_decimals = 6; // default`），不是配置问题。
+ *
+ * 需要固定小数位时请使用 @ref EMBMartin::fixed "EMBMartin::fixed<N>"：
+ *
+ * @code
+ *   oled.println("Dist: {}m", EMBMartin::fixed<2>{distance});   // "Dist: 1.23m"
+ * @endcode
+ *
+ * `fixed<N>` 用整数运算渲染，**两套后端输出逐字符一致**，也不受旧核心 `long double` 舍入差异影响；
+ * 说明符里的 `.precision` 会覆盖 `N`。详见该类型的文档。
+ *
+ * ---------------------------------------- 已知限制 ----------------------------------------
+ *
+ * - 旧后端没有「只计数」通道，适配层用 `EMBMARTIN_FMT_LEGACY_SCRATCH_SIZE`（默认 512）字节的
+ *   栈缓冲承接一次完整结果；单次格式化结果超过该大小时断言失败。可调大该宏。
+ * - 旧后端不支持 `{0}` 手动索引与 `{}` 嵌套动态宽度/精度（旧核心本身不支持）。
+ * - ETL 20.49.0 的浮点格式化忽略 `precision`（见上一节）。不要在 ETL 后端依赖 `{:.Nf}`；
+ *   要固定小数位就用 `fixed<N>`。
+ * - 旧核心的浮点舍入建立在 `long double` 之上。当被丢弃的部分**恰好以 5 开头**（平局）时，
+ *   结果取决于 `long double` 的有效位数：MinGW/x86-64 为 80 位（进位的概率更高），
+ *   MSVC 与 armclang(ARM) 为 64 位。例如旧后端 `{:.3e}` 对 `1234.5f` 可能是 `1.235e+003`
+ *   也可能是 `1.234e+003`。这是被原样保留的旧实现自身的性质，与本次迁移无关；
+ *   `fixed<N>` 与 ETL 后端的其它路径不受影响。
  */
 #ifndef EMBMARTIN_FORMAT_STRING_H
 #define EMBMARTIN_FORMAT_STRING_H
 
-#include <cstring>
+#include <cassert>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <limits>
+#include <tuple>
 #include <type_traits>
+
+#include <etl/format.h>
+#include <etl/string.h>
 #include <etl/string_view.h>
 
 #include "macro.h"
 #include "meta.h"
 
+// ------------------------------------------错误上报策略--------------------------------------------------
+
+/**
+ * @brief 新版（ETL 风格）接口的错误上报宏
+ *
+ * 与 ETL 的 `ETL_ASSERT` 同构：非法格式串、无法满足的格式说明符直接断言。
+ * 两套后端都用这一个宏，故对外错误语义完全一致。
+ *
+ * @note 默认用 `assert` 而非 `ETL_ASSERT`：本工程的 ETL profile 让 `ETL_ASSERT` 变成空操作
+ *       （详见本文件头部「错误处理」一节的说明）。想接入 ETL 的错误处理器，
+ *       预定义 `EMBMARTIN_FMT_ASSERT(_EXPR) ETL_ASSERT(_EXPR, ETL_ERROR(etl::bad_format_string_exception))`。
+ */
+#ifndef EMBMARTIN_FMT_ASSERT
+#define EMBMARTIN_FMT_ASSERT(_EXPR) assert(_EXPR)
+#endif // EMBMARTIN_FMT_ASSERT
+
+/**
+ * @brief 旧后端适配层承接结果的栈缓冲区大小
+ *
+ * 旧核心只能写入一整块连续缓冲区，且没有「只计数」模式，适配层因此需要一块栈缓冲。
+ * 单次格式化结果超过此大小时断言失败（而不是静默给出错误结果）。
+ */
+#ifndef EMBMARTIN_FMT_LEGACY_SCRATCH_SIZE
+#define EMBMARTIN_FMT_LEGACY_SCRATCH_SIZE 512
+#endif // EMBMARTIN_FMT_LEGACY_SCRATCH_SIZE
+
+// ------------------------------------------内联命名空间选择--------------------------------------------------
+
+/**
+ * @brief 把 `EMBMARTIN_FMT_USE_ETL` 映射成命名空间定义上的 `inline` 限定符
+ *
+ * 用宏而不是在命名空间定义之后写 `inline namespace xxx;`，是为了让两套后端各自只被定义一次
+ * （避免为了实现「只有一个内联」而把两份实现正文重复两遍）。
+ */
+#if EMBMARTIN_FMT_USE_ETL
+#define EMBMARTIN_FMT_INLINE_ETL inline
+#define EMBMARTIN_FMT_INLINE_LEGACY
+#else
+#define EMBMARTIN_FMT_INLINE_ETL
+#define EMBMARTIN_FMT_INLINE_LEGACY inline
+#endif // EMBMARTIN_FMT_USE_ETL
+
 EMBMARTIN_NAMESPACE_BEGIN
+
+// ------------------------------------------前向声明--------------------------------------------------
+
+// String<N> 定义在 mstring.h，其 formatter 特化也定义在 mstring.h 末尾。
+// fmt.h 不包含 mstring.h，以免两个头文件互相包含。
+template <size_t N>
+class String;
+
+// ------------------------------------------广义 pair 说明符（两套后端共用）--------------------------------------------------
+
+/**
+ * @brief 广义 pair（Coordinate / add_result / std::pair / std::tuple ...）说明符的切分工具
+ *
+ * 语法（与旧实现一致）：`[左括号][x 子说明符][,, 或 ;[y 子说明符]][右括号]`
+ *
+ *   left bracket:  `(`  `[`  `<`  或省略（省略时右括号也必须省略）
+ *   sep:           `,,` 或 `;`；不给时 y 沿用 x 的子说明符
+ *   right bracket: `)`  `]`  `>`，必须与左括号配对
+ *
+ * 例（旧语法原文）：`{:(:#X)}`、`{:[:#X,,:#b]}`、`{::#X;:#b}`、`{:[]}`
+ *
+ * @note 这里只做「切分」，不解释子说明符本身——子说明符交给各后端自己的说明符解析器。
+ */
+namespace pair_spec
+{
+	/** @brief 刻意保持不完整：作为「不是可解包 pair」的哨兵，使选择它的特化替换失败 */
+	struct not_a_pair;
+
+	/**
+	 * @brief 判定 `_Pair` 是否为可安全解包的广义 pair
+	 *
+	 * 比 `is_generalized_pair_v` 多排除指针/引用：ETL 在探测 `etl::formatter<T>` 时会代入一些
+	 * 内部类型，若把它们误判成 pair，实例化 `generalized_pair_element_t` 会硬报错。
+	 */
+	template <typename _Pair>
+	using is_decomposable_pair = std::bool_constant<is_generalized_pair_v<_Pair> &&
+													!std::is_pointer_v<_Pair> &&
+													!std::is_reference_v<_Pair>>;
+
+	/** @brief 切分结果 */
+	struct parts
+	{
+		char prefix = '\0';			  ///< 左括号；'\0' 表示无括号
+		char suffix = '\0';			  ///< 右括号；'\0' 表示无括号
+		char sep = ',';				  ///< 元素分隔符
+		etl::string_view x;			  ///< 左元素子说明符（含前导 ':'，可为空）
+		etl::string_view y;			  ///< 右元素子说明符（含前导 ':'，可为空）
+	};
+
+	/**
+	 * @brief 切分广义 pair 的说明符
+	 *
+	 * @param spec 说明符原文，**不含**前导 ':' 与收尾 '}'
+	 * @param out  切分结果
+	 * @return 始终成功；`spec` 为空时 `out.x` / `out.y` 为空（表示两个元素都用默认表示）
+	 */
+	inline bool split(etl::string_view spec, parts &out) noexcept
+	{
+		out.x = etl::string_view();
+		out.y = etl::string_view();
+
+		size_t x_begin = 0;
+		size_t y_end = spec.size();
+
+		if (!spec.empty())
+		{
+			const char pre = spec.front();
+			const char suf = spec.back();
+			if ((pre == '(' && suf == ')') ||
+				(pre == '[' && suf == ']') ||
+				(pre == '<' && suf == '>'))
+			{
+				out.prefix = pre;
+				out.suffix = suf;
+				x_begin = 1;
+				y_end = spec.size() - 1;
+			}
+		}
+
+		size_t x_end = y_end;
+		size_t y_begin = y_end;
+		bool has_sep = false;
+		for (size_t i = x_begin; i < y_end; ++i)
+		{
+			if (spec[i] == ',' && i + 1 < y_end && spec[i + 1] == ',')
+			{
+				x_end = i;
+				y_begin = i + 2;
+				out.sep = ',';
+				has_sep = true;
+			}
+			else if (spec[i] == ';')
+			{
+				x_end = i;
+				y_begin = i + 1;
+				out.sep = ';';
+				has_sep = true;
+			}
+		}
+
+		out.x = spec.substr(x_begin, x_end - x_begin);
+		out.y = has_sep ? spec.substr(y_begin, y_end - y_begin) : out.x;
+		return true;
+	}
+
+	/** @brief 元素级子说明符是否被显式给出（用于决定是否覆盖外层 spec） */
+	inline bool has_element_spec(const parts &p) noexcept
+	{
+		return !p.x.empty() || !p.y.empty();
+	}
+} // namespace pair_spec
+
+// ------------------------------------------定点小数（fixed<N>）--------------------------------------------------
+
+/**
+ * @brief 固定小数位的浮点包装类型
+ *
+ * @c fixed<N> 本身不是格式化器，而是一个**标记类型**：它告诉 fmt 组件「这个值要按
+ * 恰好 N 位小数输出」。为它提供的 formatter 用**整数运算**渲染，因此：
+ *
+ * - 两套后端（ETL / 旧核心）输出完全一致，不受 `EMBMARTIN_FMT_USE_ETL` 影响；
+ * - 不受 ETL 20.49.0 那个「浮点 precision 被忽略、永远 6 位」缺陷的影响
+ *   （该缺陷在 ETL 上游 master 仍未修复，详见 fmt.h 头部说明）；
+ * - 不依赖 `long double`，故不会出现旧核心那种「平局舍入随编译器变」的问题。
+ *
+ * 用法：
+ * @code
+ *   double d = 1.2345;
+ *   s.format("Dist: {}m", EMBMartin::fixed<2>{d});     // "Dist: 1.23m"
+ *   s.format("[{:8.3}]", EMBMartin::fixed<2>{d});      // 说明符里的 precision 覆盖 N → 1.234
+ *   oled.println("Dist: {}m", EMBMartin::fixed<2>{ultrasonic_sensor});
+ * @endcode
+ *
+ * 支持的说明符：`[[fill]align][sign][0][width][.precision][f|F]`
+ *   （align 为 `<` `>` `^`；sign 为 `+` `-`（空格）；`0` 为零填充；precision 覆盖 N）
+ * 不支持 `e` / `E` / `g` / `G` / `a` / `A`：给了会断言失败，不会静默出错。
+ *
+ * @warning 本类型与 `std::fixed`（I/O 操纵符）**同名**。若某个翻译单元里同时有
+ *          `using namespace std;` 与 `using namespace EMBMartin;`，非限定的 `fixed<N>`
+ *          会二义（是否报错取决于标准库是否间接引入了 `<ios>`——armclang 的 libc++ 会，
+ *          MSVC/GCC 在只包含 `<memory>`/`<string_view>` 时不会）。此时请写限定名：
+ *          `EMBMartin::fixed<N>{...}`。
+ *
+ * @tparam N 小数位数，0 ~ 9
+ */
+template <size_t N>
+struct fixed
+{
+	static_assert(N <= 9, "EMBMartin::fixed<N> 的小数位数最多 9 位");
+
+	/** @brief 被包装的值（统一用 double 承载） */
+	double value;
+
+	constexpr fixed(double v = 0.0) noexcept : value(v) {}
+};
+
+/**
+ * @brief fixed<N> 的后端无关渲染实现
+ *
+ * 两套后端的 formatter 只负责把各自的说明符翻译成 @ref spec，渲染全部走这里，
+ * 因此输出必然一致。
+ */
+namespace fixed_detail
+{
+	/** @brief 与后端无关的格式化说明符 */
+	struct spec
+	{
+		char fill = ' ';		///< 填充字符
+		char align = '>';		///< 对齐：`<` `>` `^`
+		int width = 0;			///< 最小字段宽度；0 表示不限
+		char sign = '-';		///< 符号：`+` / `-` / ` `
+		bool zero_fill = false; ///< 是否在符号与数字之间补零
+		bool upper = false;		///< `F`：NAN / INF 用大写
+		int precision = -1;		///< >= 0 时覆盖 fixed<N> 的 N
+	};
+
+	/** @brief 渲染结果所需的最小缓冲区字节数（符号 1 + 整数 20 + '.' + 小数 9 + 余量） */
+	constexpr size_t buffer_size = 48;
+
+	/**
+	 * @brief 把 value 按 `dec` 位小数渲染进 buf
+	 *
+	 * @param buf 输出缓冲，至少 @ref buffer_size 字节
+	 * @param value 被格式化的值
+	 * @param default_decimals 说明符未给 precision 时使用的小数位数
+	 * @param s 说明符
+	 * @return 写入 buf 的字符数（不含结尾 '\\0'）
+	 *
+	 * @note 舍入是「四舍五入、半值进位」，全程 double/整数运算，跨编译器可复现。
+	 */
+	inline size_t render(char *buf, double value, unsigned default_decimals, const spec &s) noexcept
+	{
+		unsigned dec = (s.precision >= 0) ? static_cast<unsigned>(s.precision) : default_decimals;
+		if (dec > 9)
+		{
+			dec = 9;
+		}
+
+		char body[fixed_detail::buffer_size];
+		size_t len = 0;
+
+		bool negative = std::signbit(value) != 0;
+		const double abs_value = negative ? -value : value;
+
+		if (std::isnan(abs_value))
+		{
+			// NaN 的符号位没有意义，不输出符号（x86 上 0.0/0.0 会得到负 NaN）
+			negative = false;
+			const char *text = s.upper ? "NAN" : "nan";
+			while (*text)
+			{
+				body[len++] = *text++;
+			}
+		}
+		else if (std::isinf(abs_value))
+		{
+			const char *text = s.upper ? "INF" : "inf";
+			while (*text)
+			{
+				body[len++] = *text++;
+			}
+		}
+		else
+		{
+			unsigned long long scale = 1ULL;
+			for (unsigned i = 0; i < dec; ++i)
+			{
+				scale *= 10ULL;
+			}
+
+			// 保证 abs_value * scale 落在 unsigned long long 内，避免 UB（极端输入只做截断）
+			const double limit = 9.0e18 / static_cast<double>(scale);
+			const double a = abs_value > limit ? limit : abs_value;
+
+			double integral_d = 0.0;
+			const double fractional = std::modf(a, &integral_d);
+
+			unsigned long long integral = static_cast<unsigned long long>(integral_d);
+			unsigned long long frac =
+				static_cast<unsigned long long>(fractional * static_cast<double>(scale) + 0.5);
+			if (frac >= scale) // 0.999... 进位
+			{
+				frac = 0ULL;
+				++integral;
+			}
+
+			// 整数部分（逆序生成后翻转），至少一位
+			char rev[24];
+			int rn = 0;
+			if (integral == 0ULL)
+			{
+				rev[rn++] = '0';
+			}
+			while (integral != 0ULL)
+			{
+				rev[rn++] = static_cast<char>('0' + static_cast<int>(integral % 10ULL));
+				integral /= 10ULL;
+			}
+			for (int i = rn - 1; i >= 0; --i)
+			{
+				body[len++] = rev[i];
+			}
+
+			// 小数部分，定长补零
+			if (dec > 0)
+			{
+				body[len++] = '.';
+				unsigned long long div = 1ULL;
+				for (unsigned i = 1; i < dec; ++i)
+				{
+					div *= 10ULL;
+				}
+				for (unsigned i = 0; i < dec; ++i)
+				{
+					body[len++] = static_cast<char>('0' + static_cast<int>((frac / div) % 10ULL));
+					div /= 10ULL;
+				}
+			}
+		}
+
+		// 符号
+		char sign_ch = '\0';
+		if (negative)
+		{
+			sign_ch = '-';
+		}
+		else if (s.sign == '+')
+		{
+			sign_ch = '+';
+		}
+		else if (s.sign == ' ')
+		{
+			sign_ch = ' ';
+		}
+
+		const size_t content = len + (sign_ch != '\0' ? 1u : 0u);
+		size_t pad = (s.width > 0 && static_cast<size_t>(s.width) > content)
+						 ? static_cast<size_t>(s.width) - content
+						 : 0u;
+
+		size_t at = 0;
+		if (s.zero_fill && s.align == '>')
+		{
+			// 零填充插在符号与数字之间
+			if (sign_ch != '\0')
+			{
+				buf[at++] = sign_ch;
+			}
+			for (size_t i = 0; i < pad; ++i)
+			{
+				buf[at++] = '0';
+			}
+			for (size_t i = 0; i < len; ++i)
+			{
+				buf[at++] = body[i];
+			}
+		}
+		else
+		{
+			size_t pre = 0;
+			if (s.align == '^')
+			{
+				pre = pad / 2;
+			}
+			else if (s.align == '>')
+			{
+				pre = pad;
+			}
+
+			for (size_t i = 0; i < pre; ++i)
+			{
+				buf[at++] = s.fill;
+			}
+			if (sign_ch != '\0')
+			{
+				buf[at++] = sign_ch;
+			}
+			for (size_t i = 0; i < len; ++i)
+			{
+				buf[at++] = body[i];
+			}
+			for (size_t i = pre; i < pad; ++i)
+			{
+				buf[at++] = s.fill;
+			}
+		}
+
+		buf[at] = '\0';
+		return at;
+	}
+} // namespace fixed_detail
+
+// #################################################################################################
+// #                                                                                               #
+// #   后端一：legacy_fmt —— 旧格式化核心（原样保留） + ETL 风格接口适配                            #
+// #                                                                                               #
+// #################################################################################################
+
+EMBMARTIN_FMT_INLINE_LEGACY namespace legacy_fmt
+{
 
 // ------------------------------------------前向声明--------------------------------------------------
 
@@ -584,7 +1093,8 @@ struct formatter<T, std::enable_if_t<std::is_arithmetic_v<T>>> : public FormatLe
 	int format(T value, FormatContext &ctx) const;
 };
 
-EMBMARTIN_DETAIL_NAMESPACE_BEGIN
+namespace core_detail
+{
 
 int decimal_exponent(long double value) noexcept;
 void round_digits(char *digits, int &length, int keep, char guard) noexcept;
@@ -593,7 +1103,7 @@ void increment_decimal(char *digits) noexcept;
 void make_float_parts(long double value, char type,
 					  int precision, char *integer, char *fraction, char *exponent) noexcept;
 
-EMBMARTIN_DETAIL_NAMESPACE_END
+}
 
 template <typename T>
 int formatter<T, std::enable_if_t<std::is_arithmetic_v<T>>>::format(T value, FormatContext &ctx) const
@@ -774,7 +1284,7 @@ PREFIX_GEN_END:
 				if (temp <= 9)
 					rev_int_digits[i] = temp + '0';
 				else // hex
-					rev_int_digits[i] = temp - 10 + (this->_type == EMBMartin::formatter<T>::Type::HexLower ? 'a' : 'A');
+					rev_int_digits[i] = temp - 10 + (this->_type == BaseType::Type::HexLower ? 'a' : 'A');
 
 				abs_value /= base;
 
@@ -826,7 +1336,7 @@ PREFIX_GEN_END:
 			char fraction_digits[64]{};
 			char exponent_digits[8]{};
 			int precision = this->_prec < 0 ? 0 : this->_prec;
-			detail::make_float_parts(numeric_value, char(this->_type), precision,
+			core_detail::make_float_parts(numeric_value, char(this->_type), precision,
 									 integer_digits, fraction_digits, exponent_digits);
 
 			int ri = 0;
@@ -1148,9 +1658,81 @@ auto formatter<_Pair, std::enable_if_t<is_generalized_pair_v<_Pair>>>::format(co
 
 // TODO:添加更多特化...
 
+// ------------------------------------------定点小数 fixed<N> 的旧核心 formatter--------------------------------------------------
+
+/**
+ * @brief @ref EMBMartin::fixed "fixed<N>" 在旧核心下的格式化器
+ *
+ * 说明符的解析复用旧核心的 @ref FormatLex（fill / align / sign / `0` / width / `.precision`），
+ * 但**渲染走 @ref EMBMartin::fixed_detail::render 的整数运算**，与 ETL 后端共用同一份实现，
+ * 因此两套后端输出逐字符一致，也不会碰到旧核心「平舍入随 long double 位数变化」的坑。
+ *
+ * @note `_prec` 在调用 @ref FormatLex::parse 之前被置为 -1，用来区分「说明符里没写 precision」
+ *       （保持 -1，用 fixed<N> 的 N）与「写了 precision」（≥ 0，覆盖 N）。旧核心自身的算术
+ *       formatter 仍然使用 `default_prec`，不受影响。
+ */
+template <size_t N>
+struct formatter<::EMBMartin::fixed<N>, void> : public FormatLex<::EMBMartin::fixed<N>>
+{
+	using BaseType = FormatLex<::EMBMartin::fixed<N>>;
+
+	int parse(FormatParseContext &ctx)
+	{
+		// fixed<N> 默认按定点小数处理；说明符里给了别的表示类型会在 format 里被拒绝
+		this->_type = BaseType::Type::fFixed;
+		this->_prec = -1; // 哨兵：区分「未给 precision」
+		return BaseType::parse(ctx);
+	}
+
+	int format(const ::EMBMartin::fixed<N> &value, FormatContext &ctx) const
+	{
+		using Type = typename BaseType::Type;
+		if (this->_type != Type::fFixed && this->_type != Type::FFixed)
+		{
+			// 只支持 f / F：e、g、a 等定点以外的表示类型没有意义
+			return static_cast<int>(FormatError::InvalidFormatSpec);
+		}
+		if (this->_int_part_grouping != BaseType::grouping() ||
+			this->_frac_part_grouping != BaseType::grouping() ||
+			this->_prefix || this->_z)
+		{
+			return static_cast<int>(FormatError::InvalidFormatSpec);
+		}
+
+		::EMBMartin::fixed_detail::spec s;
+		s.fill = this->_fill;
+		s.align = char(this->_align);
+		s.width = this->_width;
+		s.zero_fill = this->_zero_fill;
+		s.upper = (this->_type == Type::FFixed);
+		s.precision = this->_prec;
+		switch (this->_sign)
+		{
+		case BaseType::Sign::All:
+			s.sign = '+';
+			break;
+		case BaseType::Sign::SpaceOrSign:
+			s.sign = ' ';
+			break;
+		default:
+			s.sign = '-';
+			break;
+		}
+
+		char buf[::EMBMartin::fixed_detail::buffer_size];
+		const size_t written = ::EMBMartin::fixed_detail::render(buf, value.value, static_cast<unsigned>(N), s);
+		if (!ctx.write_safe(etl::string_view(buf, written)))
+		{
+			return static_cast<int>(FormatError::BufferOverflow);
+		}
+		return static_cast<int>(FormatError::Success);
+	}
+};
+
 // ------------------------------------------实现细节--------------------------------------------------
 
-EMBMARTIN_DETAIL_NAMESPACE_BEGIN
+namespace core_detail
+{
 
 // 编译期计算占位符数量
 constexpr size_t count_placeholders(etl::string_view fmt)
@@ -1292,7 +1874,7 @@ struct FormatImpl<Arg, Rest...>
 	}
 };
 
-EMBMARTIN_DETAIL_NAMESPACE_END
+}
 
 // ------------------------------------------主接口函数--------------------------------------------------
 
@@ -1301,15 +1883,598 @@ int format_to(char *buffer, size_t capacity,
 			  const FormatString<N> &fmt_str, const Args &...args)
 {
 	// 参数数量检查（编译期）
-	// constexpr size_t expected_args = detail::count_placeholders(fmt_str.view());
+	// constexpr size_t expected_args = core_detail::count_placeholders(fmt_str.view());
 	// static_assert(sizeof...(Args) == expected_args,
 	// 	"Number of arguments does not match format string");
 	// TODO:
 
 	FormatContext ctx(buffer, capacity);
-	return detail::FormatImpl<Args...>::format(ctx, fmt_str.view(), args...);
+	return core_detail::FormatImpl<Args...>::format(ctx, fmt_str.view(), args...);
 }
 
+	// ################################################################################################
+	// #                                                                                              #
+	// #   ETL 风格接口适配（旧核心之上）                                                               #
+	// #                                                                                              #
+	// #   目的：让 `EMBMARTIN_FMT_USE_ETL` 为 0 时，仓库里所有使用 ETL 风格接口的调用点无需改动        #
+	// #         即可编译并正确运行。类型别名与函数名和 etl_fmt 完全一致。                               #
+	// #                                                                                              #
+	// #   错误处理：与 ETL 一致，非法格式串走 EMBMARTIN_FMT_ASSERT，不返回错误码。                      #
+	// #             需要错误码的旧代码请直接使用上面那套旧接口（FormatError / int format_to）。          #
+	// #                                                                                              #
+	// #   自定义点：`legacy_fmt::formatter<T>` 仍是**旧签名**的（parse(FormatParseContext&) -> int、   #
+	// #             format(const T&, FormatContext&) -> int）。这与 ETL 的 formatter 签名不同，        #
+	// #             属于两套后端固有的差异（旧实现无法支持 ETL 那套 parse/format 签名）。               #
+	// #                                                                                              #
+	// ################################################################################################
+
+	// ------------------------------------------ETL 类型别名--------------------------------------------------
+
+	using etl::basic_format_arg;
+	using etl::basic_format_args;
+	using etl::basic_format_string;
+	using etl::format_arg;
+	using etl::format_args;
+	using etl::format_string;
+	using etl::make_format_args;
+
+	using basic_format_parse_context = etl::basic_format_parse_context<char>;
+	using format_parse_context = etl::format_parse_context;
+
+	template <typename OutputIt, typename CharT>
+	using basic_format_context = etl::basic_format_context<OutputIt, CharT>;
+
+	template <typename OutputIt>
+	using format_context = etl::format_context<OutputIt>;
+
+	// `formatter` / `is_formattable` / `is_formattable_v` 沿用上面旧核心定义的那一套（旧签名）
+
+	// ------------------------------------------ETL 风格入口--------------------------------------------------
+
+	/**
+	 * @brief 把整串原样逐字符写出（最多 n 个）
+	 *
+	 * 旧核心在**无实参**时走 `FormatImpl<>`，语义就是「把剩余的格式串原样写出、不做 `{{ }}` 转义」。
+	 * 但那条路径是 **all-or-nothing** 的：整串一次 `write_safe` 装不下就一个字符也不写，而且
+	 * 忽略失败、仍返回成功。适配层因此对无实参情形直接做逐字符拷贝 —— 与旧语义完全等价，
+	 * 同时保留了「按容量截断」的契约（旧实现的 `String::_format_impl` 也是这么兜的）。
+	 */
+	template <typename OutputIt>
+	OutputIt _write_plain(OutputIt out, etl::string_view text, size_t n) noexcept
+	{
+		const size_t written = text.size() < n ? text.size() : n;
+		for (size_t i = 0; i < written; ++i)
+		{
+			*out = text[i];
+			++out;
+		}
+		return out;
+	}
+
+	/**
+	 * @brief 运行期格式串 → 输出迭代器
+	 *
+	 * @warning 旧核心没有「只计数」通道，本函数用 EMBMARTIN_FMT_LEGACY_SCRATCH_SIZE 字节栈缓冲
+	 *          承接一次完整结果；超出该大小时断言失败（而不是静默给出错误结果）。
+	 *          无实参时不需要缓冲，直接逐字符拷贝。
+	 */
+	template <typename OutputIt, typename... Args,
+			  typename = std::enable_if_t<!std::is_base_of_v<etl::istring, std::remove_reference_t<OutputIt>>>>
+	OutputIt vformat_to(OutputIt out, etl::string_view fmt_str, const Args &...args)
+	{
+		if constexpr (sizeof...(Args) == 0)
+		{
+			return legacy_fmt::_write_plain(out, fmt_str, static_cast<size_t>(-1));
+		}
+		else
+		{
+			char scratch[EMBMARTIN_FMT_LEGACY_SCRATCH_SIZE];
+			FormatContext ctx(scratch, sizeof(scratch));
+			const int result = core_detail::FormatImpl<Args...>::format(ctx, fmt_str, args...);
+			EMBMARTIN_FMT_ASSERT(result >= 0);
+
+			const size_t produced = ctx.position();
+			for (size_t i = 0; i < produced; ++i)
+			{
+				*out = scratch[i];
+				++out;
+			}
+			return out;
+		}
+	}
+
+	/** @brief 运行期格式串 → 输出迭代器（`vformat_to` 的别名，便于与 ETL 名字对齐） */
+	template <typename OutputIt, typename... Args,
+			  typename = std::enable_if_t<!std::is_base_of_v<etl::istring, std::remove_reference_t<OutputIt>>>>
+	OutputIt format_to(OutputIt out, etl::string_view fmt_str, const Args &...args)
+	{
+		return legacy_fmt::vformat_to(out, fmt_str, args...);
+	}
+
+	/** @brief 字面量格式串 → 输出迭代器 */
+	template <typename OutputIt, size_t N, typename... Args,
+			  typename = std::enable_if_t<!std::is_base_of_v<etl::istring, std::remove_reference_t<OutputIt>>>>
+	OutputIt format_to(OutputIt out, const char (&fmt_str)[N], const Args &...args)
+	{
+		return legacy_fmt::vformat_to(out, etl::string_view(fmt_str, N - 1), args...);
+	}
+
+	/**
+	 * @brief 最多写 n 个字符；返回已推进的输出迭代器
+	 *
+	 * @note 返回类型与 ETL 的 `etl::format_to_n` 一致（裸迭代器），不是 format_to_n_result。
+	 *       需要「本应写入多少字符」请用 `formatted_size`。
+	 */
+	template <typename OutputIt, typename... Args,
+			  typename = std::enable_if_t<!std::is_base_of_v<etl::istring, std::remove_reference_t<OutputIt>>>>
+	OutputIt format_to_n(OutputIt out, size_t n, etl::string_view fmt_str, const Args &...args)
+	{
+		if constexpr (sizeof...(Args) == 0)
+		{
+			// 见 _write_plain 的说明：无实参时不需要缓冲，且旧核心那条路径是 all-or-nothing 的
+			return legacy_fmt::_write_plain(out, fmt_str, n);
+		}
+		else
+		{
+			/*
+			 * 栈缓冲取 min(n + 1, SCRATCH)：只要能确认「真实长度 >= n + 1」就足以判定发生了截断。
+			 * 这样在 n 不超过 SCRATCH 时本函数与 ETL 后端的语义完全一致（既不漏报也不误报）。
+			 */
+			const size_t scratch_size =
+				(n + 1 < static_cast<size_t>(EMBMARTIN_FMT_LEGACY_SCRATCH_SIZE))
+					? (n + 1)
+					: static_cast<size_t>(EMBMARTIN_FMT_LEGACY_SCRATCH_SIZE);
+
+			char scratch[EMBMARTIN_FMT_LEGACY_SCRATCH_SIZE];
+			FormatContext ctx(scratch, scratch_size);
+			const int result = core_detail::FormatImpl<Args...>::format(ctx, fmt_str, args...);
+
+			const size_t produced = ctx.position();
+			// 缓冲被写满 ⇒ 只是截断（预期）；否则 result 必须 >= 0，负值说明格式串非法
+			EMBMARTIN_FMT_ASSERT(result >= 0 || produced == scratch_size);
+
+			const size_t written = produced < n ? produced : n;
+			for (size_t i = 0; i < written; ++i)
+			{
+				*out = scratch[i];
+				++out;
+			}
+			return out;
+		}
+	}
+
+	/** @brief 字面量格式串的最多 n 字符版本 */
+	template <typename OutputIt, size_t N, typename... Args,
+			  typename = std::enable_if_t<!std::is_base_of_v<etl::istring, std::remove_reference_t<OutputIt>>>>
+	OutputIt format_to_n(OutputIt out, size_t n, const char (&fmt_str)[N], const Args &...args)
+	{
+		return legacy_fmt::format_to_n(out, n, etl::string_view(fmt_str, N - 1), args...);
+	}
+
+	/** @brief 写入 etl::istring（与 ETL 的非标准重载同名同义） */
+	template <typename... Args>
+	etl::istring::iterator format_to(etl::istring &out, etl::string_view fmt_str, const Args &...args)
+	{
+		etl::istring::iterator result = legacy_fmt::format_to_n(out.begin(), out.max_size(), fmt_str, args...);
+		out.uninitialized_resize(static_cast<size_t>(result - out.begin()));
+		return result;
+	}
+
+	/** @brief 写入 etl::istring，格式串为字符串字面量 */
+	template <size_t N, typename... Args>
+	etl::istring::iterator format_to(etl::istring &out, const char (&fmt_str)[N], const Args &...args)
+	{
+		return legacy_fmt::format_to(out, etl::string_view(fmt_str, N - 1), args...);
+	}
+
+	/** @brief 只计算所需字符数 */
+	template <typename... Args>
+	size_t formatted_size(etl::string_view fmt_str, const Args &...args)
+	{
+		if constexpr (sizeof...(Args) == 0)
+		{
+			// 无实参：旧核心把整串原样写出，长度就是格式串长度（见 _write_plain 的说明）
+			return fmt_str.size();
+		}
+		else
+		{
+			char scratch[EMBMARTIN_FMT_LEGACY_SCRATCH_SIZE];
+			FormatContext ctx(scratch, sizeof(scratch));
+			const int result = core_detail::FormatImpl<Args...>::format(ctx, fmt_str, args...);
+			EMBMARTIN_FMT_ASSERT(result >= 0);
+			return ctx.position();
+		}
+	}
+
+	/** @brief 只计算所需字符数（字面量格式串） */
+	template <size_t N, typename... Args>
+	size_t formatted_size(const char (&fmt_str)[N], const Args &...args)
+	{
+		return legacy_fmt::formatted_size(etl::string_view(fmt_str, N - 1), args...);
+	}
+
+	// `is_formattable` / `is_formattable_v` 由上面的旧核心提供（旧签名自定义点的探测），此处不重复定义。
+} // namespace legacy_fmt
+
+// #################################################################################################
+// #                                                                                               #
+// #   后端二：etl_fmt —— 直转发第三方库 ETL 的 format                                              #
+// #                                                                                               #
+// #   本后端不实现任何格式化核心：说明符解析、参数存储、各类型的格式化全部由 ETL 完成。             #
+// #   这里只做三件事：                                                                             #
+// #     1. 把「字面量 / 运行期 string_view」两种格式串入口收敛到 ETL 的 vformat_to；                #
+// #     2. 用 ETL 的 args_mask 把本次调用不可能命中的分支裁掉，避免无谓的代码膨胀；                 #
+// #     3. 把 ETL 的类型别名搬到本命名空间，使两套后端的对外名字一致。                              #
+// #                                                                                               #
+// #################################################################################################
+
+EMBMARTIN_FMT_INLINE_ETL namespace etl_fmt
+{
+	// ------------------------------------------ETL 类型别名--------------------------------------------------
+
+	using etl::basic_format_arg;
+	using etl::basic_format_args;
+	using etl::basic_format_string;
+	using etl::format_arg;
+	using etl::format_args;
+	using etl::format_string;
+	using etl::formatter;
+	using etl::make_format_args;
+
+	using basic_format_parse_context = etl::basic_format_parse_context<char>;
+	using format_parse_context = etl::format_parse_context;
+
+	template <typename OutputIt, typename CharT>
+	using basic_format_context = etl::basic_format_context<OutputIt, CharT>;
+
+	template <typename OutputIt>
+	using format_context = etl::format_context<OutputIt>;
+
+	/** @brief 与 ETL 内部同源的「可格式化」探测（要求 etl::formatter<T> 同时提供 parse 与 format） */
+	using etl::private_format::is_formattable;
+
+	template <typename T>
+	constexpr bool is_formattable_v = is_formattable<T>::value;
+
+	// ------------------------------------------ETL 风格入口--------------------------------------------------
+
+	/**
+	 * @brief 运行期格式串 → 输出迭代器
+	 *
+	 * @note 格式串是运行期值，无法走 ETL 的 `format_string`（consteval 构造），
+	 *       故直接调用 `etl::vformat_to`。
+	 */
+	template <typename OutputIt, typename... Args>
+	OutputIt vformat_to(OutputIt out, etl::string_view fmt_str, const Args &...args)
+	{
+		auto store = etl::make_format_args<OutputIt>(args...);
+		return etl::vformat_to<OutputIt, etl::private_format::args_mask<Args...>::value>(
+			out, fmt_str, etl::format_args<OutputIt>(store));
+	}
+
+	/** @brief 运行期格式串 → 输出迭代器 */
+	template <typename OutputIt, typename... Args,
+			  typename = std::enable_if_t<!std::is_base_of_v<etl::istring, std::remove_reference_t<OutputIt>>>>
+	OutputIt format_to(OutputIt out, etl::string_view fmt_str, const Args &...args)
+	{
+		return etl_fmt::vformat_to(out, fmt_str, args...);
+	}
+
+	/**
+	 * @brief 字面量格式串 → 输出迭代器
+	 *
+	 * @note C++20 下额外构造 `etl::format_string` 以启用 ETL 的编译期格式串检查；
+	 *       C++17 下 `basic_format_string` 不做检查（ETL 的 `ETL_CONSTEVAL` 为空）。
+	 */
+	template <typename OutputIt, size_t N, typename... Args,
+			  typename = std::enable_if_t<!std::is_base_of_v<etl::istring, std::remove_reference_t<OutputIt>>>>
+	OutputIt format_to(OutputIt out, const char (&fmt_str)[N], const Args &...args)
+	{
+#if ETL_USING_CPP20
+		etl::format_string<std::remove_cv_t<Args>...> checked(fmt_str);
+		(void)checked;
+#endif
+		return etl_fmt::vformat_to(out, etl::string_view(fmt_str, N - 1), args...);
+	}
+
+	/** @brief 最多写 n 个字符；返回已推进的输出迭代器（与 ETL 的 `etl::format_to_n` 一致） */
+	template <typename OutputIt, typename... Args,
+			  typename = std::enable_if_t<!std::is_base_of_v<etl::istring, std::remove_reference_t<OutputIt>>>>
+	OutputIt format_to_n(OutputIt out, size_t n, etl::string_view fmt_str, const Args &...args)
+	{
+		using wrapper_iterator = etl::private_format::limit_iterator<OutputIt>;
+		auto store = etl::make_format_args<wrapper_iterator>(args...);
+		return etl::vformat_to<wrapper_iterator, etl::private_format::args_mask<Args...>::value>(
+				   wrapper_iterator(out, n), fmt_str, etl::format_args<wrapper_iterator>(store))
+			.get();
+	}
+
+	/** @brief 字面量格式串的最多 n 字符版本 */
+	template <typename OutputIt, size_t N, typename... Args,
+			  typename = std::enable_if_t<!std::is_base_of_v<etl::istring, std::remove_reference_t<OutputIt>>>>
+	OutputIt format_to_n(OutputIt out, size_t n, const char (&fmt_str)[N], const Args &...args)
+	{
+		return etl_fmt::format_to_n(out, n, etl::string_view(fmt_str, N - 1), args...);
+	}
+
+	/** @brief 写入 etl::istring（与 ETL 的非标准重载同名同义） */
+	template <typename... Args>
+	etl::istring::iterator format_to(etl::istring &out, etl::string_view fmt_str, const Args &...args)
+	{
+		etl::istring::iterator result = etl_fmt::format_to_n(out.begin(), out.max_size(), fmt_str, args...);
+		out.uninitialized_resize(static_cast<size_t>(result - out.begin()));
+		return result;
+	}
+
+	/** @brief 写入 etl::istring，格式串为字符串字面量 */
+	template <size_t N, typename... Args>
+	etl::istring::iterator format_to(etl::istring &out, const char (&fmt_str)[N], const Args &...args)
+	{
+		return etl_fmt::format_to(out, etl::string_view(fmt_str, N - 1), args...);
+	}
+
+	/** @brief 只计算所需字符数（ETL 的 `formatted_size` 对应物） */
+	template <typename... Args>
+	size_t formatted_size(etl::string_view fmt_str, const Args &...args)
+	{
+		etl::private_format::counter_iterator it;
+		it = etl_fmt::vformat_to(it, fmt_str, args...);
+		return it.value();
+	}
+
+	/** @brief 只计算所需字符数（字面量格式串） */
+	template <size_t N, typename... Args>
+	size_t formatted_size(const char (&fmt_str)[N], const Args &...args)
+	{
+		return etl_fmt::formatted_size(etl::string_view(fmt_str, N - 1), args...);
+	}
+} // namespace etl_fmt
+
+// #################################################################################################
+// #                                                                                               #
+// #   自定义格式化器迁移：广义 pair 的 `etl::formatter<T>` 特化                                    #
+// #                                                                                               #
+// #   为什么必须写在**全局** `etl` 命名空间里：                                                     #
+// #     - ETL 后端：ETL 的格式化核心只通过 `etl::formatter<T>` 识别自定义类型；                      #
+// #     - 若写在 `EMBMartin` 内部，`etl` 会被 `EMBMartin` 作用域内的名字遮挡，特化落到错误的命名空间。#
+// #                                                                                               #
+// #   旧后端的同名自定义点仍然是 `legacy_fmt::formatter<T>`（旧签名），由上面的旧核心提供，不受影响。  #
+// #                                                                                               #
+// #   ETL 的 `vformat_to` 流程是「先由 ETL 的 parse_format_spec 吃掉认识的标准片段，再把剩余部分交给   #
+// #   自定义 formatter 的 parse」。本特化因此：                                                      #
+// #     1. parse：把 ETL 吃剩的文本当成广义 pair 说明符解释，并整体消费到收尾 '}'；                   #
+// #     2. 每个元素的子说明符复用 ETL 自己的 parse_format_spec，不重写任何说明符解析；                #
+// #     3. format：分别调用元素类型自己的 `etl::formatter<Tx/Ty>`，把结果拼成 `[x, y]`。              #
+// #                                                                                               #
+// #   @note 语法差异（ETL 后端）：`<...>` 括号形式会与 ETL 的对齐符 `<` 冲突，故 ETL 后端下只能用     #
+// #         `(...)` 与 `[...]` 两种括号；无括号形式的 `{::#X;:#b}` 也不可用（':' 已被 ETL 消费）。     #
+// #         需要完整旧语法时请用 `EMBMARTIN_FMT_USE_ETL=0`，旧后端的 pair 语法与旧实现完全一致。      #
+// #                                                                                               #
+// #################################################################################################
+
 EMBMARTIN_NAMESPACE_END
+
+namespace etl
+{
+	/**
+	 * @brief 广义 pair 的 ETL 自定义格式化器
+	 *
+	 * @note 关于特化的写法：`etl::formatter` 的第二个模板参数是**字符类型**（默认 `char`），
+	 *       不是 `std::enable_if` 的落点。实测（armclang 6.24）：
+	 *         - `formatter<T, char>`            → 能匹配，但无法约束；
+	 *         - `formatter<T, enable_if_t<...>>`→ 落点是 `void`，**永远匹配不上**（ETL 只用 char）；
+	 *         - `formatter<T, conditional_t<cond, char, 不完整类型>>` → 既能匹配又能约束。
+	 *       故这里用第三种：条件成立时槽位是 `char`，否则替换失败（SFINAE）。
+	 */
+	template <typename _Pair>
+	struct formatter<_Pair,
+					 etl::conditional_t<::EMBMartin::pair_spec::is_decomposable_pair<_Pair>::value,
+										char,
+										::EMBMartin::pair_spec::not_a_pair>>
+	{
+		using _Tx = ::EMBMartin::generalized_pair_element_t<0, _Pair>;
+		using _Ty = ::EMBMartin::generalized_pair_element_t<1, _Pair>;
+
+		using _Spec = etl::private_format::format_spec_t;
+
+		::EMBMartin::pair_spec::parts _parts{};
+		_Spec _spec_x{};
+		_Spec _spec_y{};
+		bool _has_element_spec = false;
+
+		etl::format_parse_context::iterator parse(etl::format_parse_context &parse_ctx)
+		{
+			// 本替换字段的收尾 '}'（广义 pair 说明符里不会出现嵌套的 {} ）
+			auto begin = parse_ctx.begin();
+			auto end = parse_ctx.end();
+			auto close = begin;
+			while (close != end && *close != '}')
+			{
+				++close;
+			}
+
+			// 切分广义 pair 说明符
+			::EMBMartin::pair_spec::parts parts;
+			::EMBMartin::pair_spec::split(etl::string_view(begin, static_cast<size_t>(close - begin)), parts);
+			_parts = parts;
+			_has_element_spec = ::EMBMartin::pair_spec::has_element_spec(parts);
+
+			// 元素子说明符：复用 ETL 的说明符解析器 + 元素自己的 formatter
+			if (_has_element_spec)
+			{
+				_parse_element(parts.x, _spec_x, _formatter_x);
+				_parse_element(parts.y, _spec_y, _formatter_y);
+			}
+			// 没有元素级说明符时不需要 _spec_x/_spec_y：format 里直接用外层说明符
+
+			return close;
+		}
+
+		template <typename OutputIt>
+		typename etl::format_context<OutputIt>::iterator
+		format(const _Pair &value, etl::format_context<OutputIt> &fmt_ctx)
+		{
+			const auto &[x, y] = value;
+			const _Spec outer = fmt_ctx.format_spec;
+			OutputIt out = fmt_ctx.out();
+
+			if (_parts.prefix != '\0')
+			{
+				*out = _parts.prefix;
+				++out;
+				fmt_ctx.advance_to(out);
+			}
+
+			fmt_ctx.format_spec = _has_element_spec ? _spec_x : outer;
+			out = _formatter_x.format(x, fmt_ctx);
+			fmt_ctx.advance_to(out);
+
+			*out = _parts.sep;
+			++out;
+			*out = ' ';
+			++out;
+			fmt_ctx.advance_to(out);
+
+			fmt_ctx.format_spec = _has_element_spec ? _spec_y : outer;
+			out = _formatter_y.format(y, fmt_ctx);
+			fmt_ctx.advance_to(out);
+
+			if (_parts.suffix != '\0')
+			{
+				*out = _parts.suffix;
+				++out;
+				fmt_ctx.advance_to(out);
+			}
+
+			fmt_ctx.format_spec = outer;
+			return out;
+		}
+
+	private:
+		etl::formatter<_Tx> _formatter_x{};
+		etl::formatter<_Ty> _formatter_y{};
+
+		/**
+		 * @brief 解析一个元素子说明符
+		 *
+		 * 完全照搬 ETL 的顺序：先用 ETL 自己的 `parse_format_spec` 吃掉标准片段，
+		 * 再把剩余部分交给元素自己的 formatter（内置 formatter 的 parse 是空操作）。
+		 */
+		template <typename Formatter>
+		static void _parse_element(etl::string_view spec, _Spec &out, Formatter &element_formatter)
+		{
+			etl::format_parse_context sub_ctx(spec, 1);
+			etl::private_format::parse_format_spec(sub_ctx, out);
+			element_formatter.parse(sub_ctx);
+		}
+	};
+
+	/**
+	 * @brief @ref EMBMartin::fixed "fixed<N>" 的 ETL 自定义格式化器
+	 *
+	 * ETL 已经把它认识的说明符片段解析进 `fmt_ctx.format_spec`（fill / align / sign / `0` /
+	 * width / precision / type），这里只把这些字段翻译成 @ref EMBMartin::fixed_detail::spec，
+	 * 渲染交给与旧后端共用的整数运算实现——所以 ETL 那个「浮点 precision 被忽略」的缺陷
+	 * 不会影响 `fixed<N>`。
+	 */
+	template <size_t N>
+	struct formatter<::EMBMartin::fixed<N>, char>
+	{
+		etl::format_parse_context::iterator parse(etl::format_parse_context &parse_ctx)
+		{
+			// fixed<N> 没有自己的额外说明符语法，把 ETL 吃剩的部分整体消费到收尾 '}' 即可。
+			// 若用户给了 e / g / a 之类定点以外的表示类型，统一在 format 里断言拒绝。
+			auto it = parse_ctx.begin();
+			while (it != parse_ctx.end() && *it != '}')
+			{
+				++it;
+			}
+			return it;
+		}
+
+		template <typename OutputIt>
+		typename format_context<OutputIt>::iterator format(const ::EMBMartin::fixed<N> &value,
+														   format_context<OutputIt> &fmt_ctx)
+		{
+			using spec_t = etl::private_format::format_spec_t;
+
+			const spec_t &fs = fmt_ctx.format_spec;
+
+			if (fs.type.has_value() && fs.type.value() != 'f' && fs.type.value() != 'F')
+			{
+				// 只支持 f / F
+				EMBMARTIN_FMT_ASSERT(fs.type.value() == 'f' || fs.type.value() == 'F');
+			}
+
+			::EMBMartin::fixed_detail::spec s;
+			s.fill = fs.fill;
+			s.zero_fill = fs.zero;
+			s.upper = fs.type.has_value() && fs.type.value() == 'F';
+			s.precision = fs.precision.has_value() ? static_cast<int>(fs.precision.value()) : -1;
+			s.width = fs.width.has_value() ? static_cast<int>(fs.width.value()) : 0;
+
+			switch (fs.align)
+			{
+			case etl::private_format::spec_align_t::START:
+				s.align = '<';
+				break;
+			case etl::private_format::spec_align_t::CENTER:
+				s.align = '^';
+				break;
+			default: // END / NONE：数字默认右对齐
+				s.align = '>';
+				break;
+			}
+			switch (fs.sign)
+			{
+			case etl::private_format::spec_sign_t::PLUS:
+				s.sign = '+';
+				break;
+			case etl::private_format::spec_sign_t::SPACE:
+				s.sign = ' ';
+				break;
+			default:
+				s.sign = '-';
+				break;
+			}
+
+			char buf[::EMBMartin::fixed_detail::buffer_size];
+			const size_t written = ::EMBMartin::fixed_detail::render(buf, value.value, static_cast<unsigned>(N), s);
+
+			OutputIt out = fmt_ctx.out();
+			for (size_t i = 0; i < written; ++i)
+			{
+				*out = buf[i];
+				++out;
+			}
+			fmt_ctx.advance_to(out);
+			return out;
+		}
+	};
+
+	namespace private_format
+	{
+		/**
+		 * @brief 告诉 ETL：`fixed<N>` 只会以 `basic_format_arg::handle` 的形式出现
+		 *
+		 * ETL 的 `arg_type_mask` 主模板对「不认识的类型」保守地返回 `mask_all`，于是
+		 * `format_visitor<OutputIt, mask_all>` 会把**所有**内置分支的 formatter 都实例化出来
+		 * （含整条浮点链），代码体积会凭空涨十几 KB。自定义类型实际只走 `handle` 那条
+		 * 非模板重载，与内置分支的掩码无关，因此这里把它的掩码收窄到 `mask_monostate`
+		 *（掩码递归的下界，等价于「没有内置分支需要实例化」）。
+		 *
+		 * 这是 ETL 内部类型，但对**我们自己的类型**做特化是安全的：只影响本类型的调用。
+		 */
+		template <size_t N>
+		struct arg_type_mask<::EMBMartin::fixed<N>, void>
+		{
+			static constexpr arg_mask_t value = mask_monostate;
+		};
+	} // namespace private_format
+} // namespace etl
+
+// 注：EMBMARTIN_FMT_INLINE_ETL / EMBMARTIN_FMT_INLINE_LEGACY 这两个内部宏**故意不 #undef**，
+// 因为 fmt.cpp 需要用同样的内联性重新打开对应的命名空间
+//（否则 clang 会报 -Winline-namespace-reopened-noninline）。
 
 #endif // EMBMARTIN_FORMAT_STRING_H
