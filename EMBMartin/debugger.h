@@ -109,7 +109,7 @@ private:
      *
      * @param pkg_content 数据包内的内容（不含 [] ）
      */
-    void __parse_pkg_content(const std::string_view &pkg_content) noexcept;
+    String<32> __parse_pkg_content(const std::string_view &pkg_content) noexcept;
 
 public:
     template <typename... Args>
@@ -242,10 +242,14 @@ void EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
 
 template <std::uint8_t FONT_SIZE, std::uint16_t SCREEN_X_PIXELS, std::uint16_t SCREEN_Y_PIXELS,
           uint8_t SLIDER_NUM, typename SLIDER_PARAM_T, typename JOYSTICK_PARAM_T, std::size_t buffer_size>
-void EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
+EMBMartin::String<32> EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
                                  SLIDER_NUM, SLIDER_PARAM_T, JOYSTICK_PARAM_T, buffer_size>::__parse_pkg_content(const std::string_view &pkg_content) noexcept
 {
     const auto class_name_end_pos = pkg_content.find(',');
+    if (class_name_end_pos == String<32>::npos)
+    {
+        return EMBMartin::String<8>("[") + pkg_content + ']'; // 退回
+    }
     const auto class_name = pkg_content.substr(0, class_name_end_pos);
 
     if (class_name == "slider")
@@ -261,6 +265,8 @@ void EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
         {
             __slider_params[slider_index] = slider_value;
         }
+
+        return "";
     }
     else if (class_name == "joystick")
     {
@@ -282,7 +288,14 @@ void EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
         __joysticks_params.first.second = left_y;
         __joysticks_params.second.first = right_x;
         __joysticks_params.second.second = right_y;
+
+        return "";
+    } 
+    else
+    {
+        return EMBMartin::String<8>("[") + pkg_content + ']'; // 退回
     }
+    
 }
 
 template <std::uint8_t FONT_SIZE, std::uint16_t SCREEN_X_PIXELS, std::uint16_t SCREEN_Y_PIXELS,
@@ -312,7 +325,7 @@ auto EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
                 break;
             }
             const auto pkg_content = line.substr(i + 1, pkg_end_pos - i - 1);
-            this->__parse_pkg_content(pkg_content);
+            common_content += this->__parse_pkg_content(pkg_content);
             i = pkg_end_pos;
         }
     }
