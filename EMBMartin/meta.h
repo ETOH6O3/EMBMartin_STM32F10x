@@ -15,6 +15,7 @@
 #include <type_traits>
 #include <tuple>
 #include <string_view>
+#include <etl/string_view.h>
 
 #include "macro.h"
 
@@ -143,7 +144,8 @@ constexpr bool is_character_array_v = is_character_array<T>::value;
 template <typename T>
 struct is_string_like
 {
-	static constexpr bool value = std::is_constructible_v<std::string_view, T>;
+	static constexpr bool value = std::is_constructible_v<std::string_view, T> ||
+		std::is_constructible_v<etl::string_view, T>;
 };
 
 template <typename T>

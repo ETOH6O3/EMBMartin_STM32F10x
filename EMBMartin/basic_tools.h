@@ -17,7 +17,6 @@
 
 #include <stddef.h>
 #include <numeric>
-#include <bit>
 
 #include "macro.h"
 #include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)

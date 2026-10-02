@@ -3,7 +3,6 @@
 
 #include <cstdint>
 #include <utility>
-#include <algorithm>
 
 #include "macro.h"
 #include "mmath.h"

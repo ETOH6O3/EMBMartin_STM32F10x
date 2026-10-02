@@ -1,6 +1,5 @@
 #include "PID.h"
 
-#include <algorithm>
 #include <cmath>
 
 EMBMARTIN_STM32F10X_NAMESPACE_BEGIN

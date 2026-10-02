@@ -1,8 +1,6 @@
 #ifndef EMBMARTIN_PID_H
 #define EMBMARTIN_PID_H
 
-#include <algorithm>
-
 #include "macro.h"
 #include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)
 #include "basic_tools.h"
