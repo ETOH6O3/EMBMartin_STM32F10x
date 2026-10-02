@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include <etl/unordered_map.h>
+
 #include "stream.h"
 #include "inspect.h"
 #include "coordinate.h"
@@ -73,7 +75,7 @@ template <size_t buffer_size = 128>
 using Debugger = MartinDebugger<buffer_size>;
 
 template <uint8_t FONT_SIZE = 18, uint16_t SCREEN_X_PIXELS = 300, uint16_t SCREEN_Y_PIXELS = 200,
-          uint8_t SLIDER_NUM = 3, typename SLIDER_PARAM_T = int8_t, typename JOYSTICK_PARAM_T = int8_t, size_t buffer_size = 128>
+          uint8_t MAX_SLIDER_IDX = 32, typename SLIDER_PARAM_T = int8_t, typename JOYSTICK_PARAM_T = int8_t, size_t buffer_size = 128>
 class JiangXieDebugger : public IOStream<buffer_size>
 {
 private:
@@ -85,7 +87,10 @@ private:
 
     Coordinate<uint8_t, 0, __MAX_X_COORD - 1, 0, __MAX_Y_COORD - 1> __coord = {0u, 0u};
 
-    SLIDER_PARAM_T __slider_params[SLIDER_NUM] = {[0 ... SLIDER_NUM - 1] = 100}; // 需开启 C99 扩展支持
+    String<buffer_size> common_content = {};
+
+    // SLIDER_PARAM_T __slider_params[MAX_SLIDER_IDX] = {[0 ... MAX_SLIDER_IDX - 1] = 100}; // 需开启 C99 扩展支持
+    etl::unordered_map<String<32>, SLIDER_PARAM_T, MAX_SLIDER_IDX, MAX_SLIDER_IDX, std::hash<std::string_view>> __slider_params = {};
 
     using __JOYSTICK_PARAMS_T = std::pair<JOYSTICK_PARAM_T, JOYSTICK_PARAM_T>;
     std::pair<__JOYSTICK_PARAMS_T, __JOYSTICK_PARAMS_T> __joysticks_params;
@@ -145,7 +150,7 @@ public:
 
     /**
      * @brief 解析数据包，更新滑块和摇杆参数
-     * 
+     *
      * @return auto 标准库元组，普通值 + 当前滑块参数数组 + 当前摇杆参数对
      */
     auto parse() noexcept;
@@ -187,10 +192,10 @@ void EMBMartin::MartinDebugger<buffer_size>::send_struct(
 }
 
 template <std::uint8_t FONT_SIZE, std::uint16_t SCREEN_X_PIXELS, std::uint16_t SCREEN_Y_PIXELS,
-          uint8_t SLIDER_NUM, typename SLIDER_PARAM_T, typename JOYSTICK_PARAM_T, std::size_t buffer_size>
+          uint8_t MAX_SLIDER_IDX, typename SLIDER_PARAM_T, typename JOYSTICK_PARAM_T, std::size_t buffer_size>
 template <class... Args>
 void EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
-                                 SLIDER_NUM, SLIDER_PARAM_T, JOYSTICK_PARAM_T, buffer_size>::display(Args &&...args) noexcept
+                                 MAX_SLIDER_IDX, SLIDER_PARAM_T, JOYSTICK_PARAM_T, buffer_size>::display(Args &&...args) noexcept
 {
     String<buffer_size> str;
     str.format(std::forward<decltype(args)>(args)...);
@@ -241,9 +246,9 @@ void EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
 }
 
 template <std::uint8_t FONT_SIZE, std::uint16_t SCREEN_X_PIXELS, std::uint16_t SCREEN_Y_PIXELS,
-          uint8_t SLIDER_NUM, typename SLIDER_PARAM_T, typename JOYSTICK_PARAM_T, std::size_t buffer_size>
+          uint8_t MAX_SLIDER_IDX, typename SLIDER_PARAM_T, typename JOYSTICK_PARAM_T, std::size_t buffer_size>
 EMBMartin::String<32> EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
-                                 SLIDER_NUM, SLIDER_PARAM_T, JOYSTICK_PARAM_T, buffer_size>::__parse_pkg_content(const std::string_view &pkg_content) noexcept
+                                                  MAX_SLIDER_IDX, SLIDER_PARAM_T, JOYSTICK_PARAM_T, buffer_size>::__parse_pkg_content(const std::string_view &pkg_content) noexcept
 {
     const auto class_name_end_pos = pkg_content.find(',');
     if (class_name_end_pos == String<32>::npos)
@@ -256,15 +261,11 @@ EMBMartin::String<32> EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SC
     {
         const auto slider_index_end_pos = pkg_content.find(',', class_name_end_pos + 1);
         const auto slider_index_str = pkg_content.substr(class_name_end_pos + 1, slider_index_end_pos - class_name_end_pos - 1);
-        const auto slider_index = static_cast<size_t>(atoi(slider_index_str));
 
         const auto slider_value_str = pkg_content.substr(slider_index_end_pos + 1);
         const auto slider_value = static_cast<SLIDER_PARAM_T>(atoi(slider_value_str));
 
-        if (slider_index < SLIDER_NUM)
-        {
-            __slider_params[slider_index] = slider_value;
-        }
+        __slider_params[slider_index_str] = slider_value;
 
         return "";
     }
@@ -290,22 +291,20 @@ EMBMartin::String<32> EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SC
         __joysticks_params.second.second = right_y;
 
         return "";
-    } 
+    }
     else
     {
         return EMBMartin::String<8>("[") + pkg_content + ']'; // 退回
     }
-    
 }
 
 template <std::uint8_t FONT_SIZE, std::uint16_t SCREEN_X_PIXELS, std::uint16_t SCREEN_Y_PIXELS,
-          uint8_t SLIDER_NUM, typename SLIDER_PARAM_T, typename JOYSTICK_PARAM_T, std::size_t buffer_size>
+          uint8_t MAX_SLIDER_IDX, typename SLIDER_PARAM_T, typename JOYSTICK_PARAM_T, std::size_t buffer_size>
 auto EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
-                                 SLIDER_NUM, SLIDER_PARAM_T, JOYSTICK_PARAM_T, buffer_size>::parse() noexcept
+                                 MAX_SLIDER_IDX, SLIDER_PARAM_T, JOYSTICK_PARAM_T, buffer_size>::parse() noexcept
 {
     const String<buffer_size> line = InStream<buffer_size>::getline();
-
-    String<buffer_size> common_content;
+    this->common_content.clear();
 
     for (size_t i = 0; i < line.size(); i++)
     {
@@ -330,5 +329,5 @@ auto EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
         }
     }
 
-    return std::make_tuple(common_content, __slider_params, __joysticks_params);
+    return std::forward_as_tuple(std::as_const(common_content), std::as_const(__slider_params), std::as_const(__joysticks_params));
 }
