@@ -16,6 +16,7 @@
 #define EMBMARTIN_TOOLS_H
 
 #include "basic_tools.h"
+#include "mstring.h"
 #include "outpin.h"
 #include "inpin.h"
 #include "EXTI.h"

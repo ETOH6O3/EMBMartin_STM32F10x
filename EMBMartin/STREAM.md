@@ -253,28 +253,18 @@ console.showln("y = ", y);
 char line[128]{};
 console.getline(line);
 console.showln("input: ", line);
+// 或：
+auto fixed_str1 = console.getline(); // 返回自实现的定长字符串
 ```
 
 ## IOStream
 
-`IOStream` 同时提供输入和输出能力，包含以下便捷接口：
-
-- 输出后读取：`input(prompt, target)`
-- 输出提示后等待输入：`input(prompt)`
-
-### `input`
-
-仿 python 风格的输入函数，输出提示后读取输入到字符串。
-
-读取到字符数组
+`IOStream` 同时提供输入和输出能力。继承自 `InStream` 和 `OutStream`，可以同时使用输入和输出接口。
 
 ```cpp
-char name[32]{};
-console.input("name: ", name);
-```
-
-不关心用户输入
-
-```cpp
-console.input("press Enter to continue: ");
+char line[128]{};
+console.input("input: ", line);
+console.showln("you input: ", line);
+// 或：
+auto fixed_str2 = console.input("input: "); // 返回自实现的定长字符串
 ```

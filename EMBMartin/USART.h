@@ -42,7 +42,7 @@ public:
     friend void ::USART3_IRQHandler(void);
 };
 
-template <typename BaseStream = Debugger<128>>
+template <typename BaseStream = MartinDebugger<128>>
 class USBConsole : public BaseStream, public EMBMartin::STM32::USART
 {
 public:
@@ -79,7 +79,7 @@ void USBConsole<BaseStream>::read() noexcept
     *in_p = '\0';
 }
 
-template <typename BaseStream = Debugger<128>>
+template <typename BaseStream = JiangXieDebugger<>>
 using BluetoothConsole = USBConsole<BaseStream>;
 
 EMBMARTIN_STM32F10X_NAMESPACE_END
