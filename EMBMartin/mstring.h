@@ -26,13 +26,12 @@
 
 #include <array>
 #include <cstddef>
-#include <charconv>
-#include <etl/string_view.h>
 #include <type_traits>
 #include <utility>
 
-#include <etl/string.h>
+#include <etl/to_arithmetic.h>
 #include <etl/string_view.h>
+#include <etl/string.h>
 
 #include "macro.h"
 #include "meta.h"
@@ -51,7 +50,7 @@ EMBMARTIN_NAMESPACE_BEGIN
  *
  * 溢出时返回 INT_MAX / INT_MIN（比标准 atoi 的 UB 更安全）。
  *
- * @note 无内存分配、不抛异常、constexpr 友好（C++20 起 from_chars 可为 constexpr）。
+ * @note 无内存分配、不抛异常
  */
 int atoi(const etl::string_view& sv) noexcept;
 
