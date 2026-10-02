@@ -2,7 +2,7 @@
 
 EMBMARTIN_NAMESPACE_BEGIN
 
-int atoi(const std::string_view& sv) noexcept
+int atoi(const etl::string_view& sv) noexcept
 {
     // 1. 跳过前导空白（与 isspace 的六个字符一致）
     std::size_t i = 0;

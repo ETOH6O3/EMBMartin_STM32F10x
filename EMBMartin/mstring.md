@@ -119,7 +119,7 @@ int main()
 | `String()` | 构造空串 |
 | `String(const char *text)` | 从 C 字符串构造 |
 | `template <size_t M> String(const char (&text)[M])` | 从字符数组（字面量）构造，长度取到首个 `'\0'` 。若存在溢出的可能，必须显式转换。 |
-| `String(const std::string_view &text)` | 从字符串视图构造 |
+| `String(const etl::string_view &text)` | 从字符串视图构造 |
 | `template <size_t M> String(const String<M> &text)` | 从另一个定长字符串构造，容量不同亦可 |
 | `template <typename TEXT> explicit String(TEXT &&text)` | 从其它“字符串类”类型构造，例如 `std::string` |
 | `String(size_type count, char c)` | 构造 `count` 个字符 `c` |
@@ -128,7 +128,7 @@ int main()
 ```cpp
 String<16> a;                        // 空串
 String<16> b{"hello"};               // 4 个字符
-String<16> c{std::string_view("hi")};
+String<16> c{etl::string_view("hi")};
 String<16> d{3, 'x'};                // "xxx"
 String<16> e{b};                     // 跨容量复制
 String<16> f{std::string("std")};    // 显式
@@ -197,9 +197,9 @@ for (char c : text) { console.show(c); }
 
 | 接口 | 说明 |
 | --- | --- |
-| `std::string_view view()` | 长度为 `size()` 的内容视图 |
-| `std::string_view buffer()` | 长度为 `N` 的整个缓冲区视图 |
-| `operator std::string_view()` | 隐式转换，使既有流接口可直接使用 |
+| `etl::string_view view()` | 长度为 `size()` 的内容视图 |
+| `etl::string_view buffer()` | 长度为 `N` 的整个缓冲区视图 |
+| `operator etl::string_view()` | 隐式转换，使既有流接口可直接使用 |
 
 因为存在隐式转换，`console.show(text)`、`console.println("{}", text)` 等可以直接工作，
 无需为本模块改动 `stream.h`。
@@ -218,24 +218,24 @@ for (char c : text) { console.show(c); }
 | `String &append(size_type count, char c)` | 追加 `count` 个字符 `c` |
 | `String &append(const char *text)` | 追加 C 字符串 |
 | `template <size_t M> String &append(const char (&text)[M])` | 追加字符数组 |
-| `String &append(const std::string_view &text)` | 追加字符串视图 |
+| `String &append(const etl::string_view &text)` | 追加字符串视图 |
 | `template <size_t M> String &append(const String<M> &text)` | 追加另一个定长字符串 |
 | `template <typename TEXT> String &append(TEXT &&text)` | 追加其它“字符串类”类型 |
 | `String &operator+=(...)` | 接受字符、C 字符串、字符串视图、定长字符串 |
 | `String &insert(size_type position, size_type count, char c)` | 在 `position` 处插入 `count` 个字符 `c` |
 | `String &insert(size_type position, const char *text)` | 插入 C 字符串 |
 | `template <size_t M> String &insert(size_type position, const char (&text)[M])` | 插入字符数组 |
-| `String &insert(size_type position, const std::string_view &text)` | 插入字符串视图 |
+| `String &insert(size_type position, const etl::string_view &text)` | 插入字符串视图 |
 | `template <size_t M> String &insert(size_type position, const String<M> &text)` | 插入定长字符串 |
 | `iterator insert(const_iterator position, char c)` | 插入单个字符，返回插入位置 |
 | `String &erase(size_type position = 0, size_type count = npos)` | 删除 `[position, position + count)` |
 | `iterator erase(const_iterator position)` | 删除单个字符，返回该位置 |
 | `String &replace(size_type position, size_type count, size_type count_replacement, char c)` | 用 `count_replacement` 个 `c` 替换区间 |
-| `String &replace(size_type position, size_type count, const std::string_view &text)` | 用字符串视图替换区间 |
+| `String &replace(size_type position, size_type count, const etl::string_view &text)` | 用字符串视图替换区间 |
 | `String &replace(size_type position, size_type count, const char *text)` | 用 C 字符串替换区间 |
 | `template <size_t M> String &replace(size_type position, size_type count, const char (&text)[M])` | 用字符数组替换区间 |
 | `template <size_t M> String &replace(size_type position, size_type count, const String<M> &text)` | 用定长字符串替换区间 |
-| `size_type replace(const std::string_view &old_text, const std::string_view &new_text)` | 替换**全部** `old_text`，返回替换次数 |
+| `size_type replace(const etl::string_view &old_text, const etl::string_view &new_text)` | 替换**全部** `old_text`，返回替换次数 |
 | `void swap(String &other)` | 交换两个同型字符串的内容（含截断状态） |
 
 `insert` / `erase` / `replace` 的 `position` 越界属于调用方错误，
@@ -254,15 +254,15 @@ s.replace("de", "!");      // 返回 1，结果 "aZZZ!"
 
 | 接口 | 说明 |
 | --- | --- |
-| `int compare(const std::string_view &other)` | 按字典序比较，返回 `-1` / `0` / `1` |
+| `int compare(const etl::string_view &other)` | 按字典序比较，返回 `-1` / `0` / `1` |
 | `int compare(const char *other)` | 同上 |
 | `template <size_t M> int compare(const String<M> &other)` | 同上 |
-| `bool starts_with(const std::string_view &prefix)` | 是否以 `prefix` 开头 |
-| `bool ends_with(const std::string_view &suffix)` | 是否以 `suffix` 结尾 |
-| `bool contains(const std::string_view &needle)` | 是否包含 `needle` |
+| `bool starts_with(const etl::string_view &prefix)` | 是否以 `prefix` 开头 |
+| `bool ends_with(const etl::string_view &suffix)` | 是否以 `suffix` 结尾 |
+| `bool contains(const etl::string_view &needle)` | 是否包含 `needle` |
 
 同时提供全套比较运算符：`==`、`!=`、`<`、`>`、`<=`、`>=`，
-左右操作数可以是 `String<N>`、`std::string_view`、C 字符串，且两侧类型可不同容量：
+左右操作数可以是 `String<N>`、`etl::string_view`、C 字符串，且两侧类型可不同容量：
 
 ```cpp
 String<8>  a{"abc"};
@@ -270,7 +270,7 @@ String<32> b{"abc"};
 a == b;                       // true
 a == "abc";                   // true
 "abc" == a;                   // true
-a == std::string_view("abc");  // true
+a == etl::string_view("abc");  // true
 a < "abd";                    // true
 ```
 
@@ -280,16 +280,16 @@ a < "abd";                    // true
 
 | 接口 | 说明 |
 | --- | --- |
-| `size_type find(const std::string_view &needle, size_type position = 0)` | 由前向后查找子串 |
+| `size_type find(const etl::string_view &needle, size_type position = 0)` | 由前向后查找子串 |
 | `size_type find(char c, size_type position = 0)` | 由前向后查找字符 |
 | `size_type find(const char *needle, size_type position = 0)` | 由前向后查找 C 字符串 |
-| `size_type rfind(const std::string_view &needle, size_type position = npos)` | 由后向前查找子串 |
+| `size_type rfind(const etl::string_view &needle, size_type position = npos)` | 由后向前查找子串 |
 | `size_type rfind(char c, size_type position = npos)` | 由后向前查找字符 |
-| `size_type find_first_of(const std::string_view &set, size_type position = 0)` | 集合中任一字符首次出现的位置 |
-| `size_type find_first_not_of(const std::string_view &set, size_type position = 0)` | 不属于集合的字符首次出现的位置 |
-| `size_type find_last_of(const std::string_view &set, size_type position = npos)` | 集合中任一字符末次出现的位置 |
-| `size_type find_last_not_of(const std::string_view &set, size_type position = npos)` | 不属于集合的字符末次出现的位置 |
-| `size_type count(const std::string_view &needle, size_type position = 0, bool overlap = false)` | 统计出现次数；`overlap` 为真时统计可重叠次数 |
+| `size_type find_first_of(const etl::string_view &set, size_type position = 0)` | 集合中任一字符首次出现的位置 |
+| `size_type find_first_not_of(const etl::string_view &set, size_type position = 0)` | 不属于集合的字符首次出现的位置 |
+| `size_type find_last_of(const etl::string_view &set, size_type position = npos)` | 集合中任一字符末次出现的位置 |
+| `size_type find_last_not_of(const etl::string_view &set, size_type position = npos)` | 不属于集合的字符末次出现的位置 |
+| `size_type count(const etl::string_view &needle, size_type position = 0, bool overlap = false)` | 统计出现次数；`overlap` 为真时统计可重叠次数 |
 | `size_type count(char c, size_type position = 0)` | 统计字符出现次数 |
 | `String substr(size_type position = 0, size_type count = npos)` | 截取子串 |
 | `size_type copy(char *destination, size_type count, size_type position = 0)` | 拷贝到外部缓冲区，返回拷贝的字符个数 |
@@ -362,11 +362,11 @@ s.format(runtime_fmt, 7);            // 运行期格式串亦可
 | 接口 | 对应 Python |
 | --- | --- |
 | `String strip()` | `str.strip()`，去除首尾空白 |
-| `String strip(const std::string_view &characters)` | `str.strip(chars)` |
+| `String strip(const etl::string_view &characters)` | `str.strip(chars)` |
 | `String lstrip()` | `str.lstrip()` |
-| `String lstrip(const std::string_view &characters)` | `str.lstrip(chars)` |
+| `String lstrip(const etl::string_view &characters)` | `str.lstrip(chars)` |
 | `String rstrip()` | `str.rstrip()` |
-| `String rstrip(const std::string_view &characters)` | `str.rstrip(chars)` |
+| `String rstrip(const etl::string_view &characters)` | `str.rstrip(chars)` |
 
 ### 判定
 
@@ -401,7 +401,7 @@ if (result) { console.println("{}", result.value); }
 | 接口 | 说明 |
 | --- | --- |
 | `template <size_t N, size_t M> String<N + M> operator+(const String<N> &, const String<M> &)` | 结果缓冲区长度为两者之和 |
-| `String<N + 1> operator+(const String<N> &, const std::string_view &)` | 与视图拼接 |
+| `String<N + 1> operator+(const String<N> &, const etl::string_view &)` | 与视图拼接 |
 | `String<N + 1> operator+(const String<N> &, const char *)` | 与 C 字符串拼接 |
 | `String<N + 1> operator+(const String<N> &, char)` | 与字符拼接 |
 
@@ -438,15 +438,15 @@ String<16> v = a + '!';      // "ab!"
 | `size_type overflow_count()` | 溢出次数，非 0 表示有元素未能压入 |
 | `void clear()` | 清空 |
 | `void push_back(const String<N> &element)` | 压入一个元素 |
-| `void push_back(const std::string_view &element)` | 压入一个视图 |
+| `void push_back(const etl::string_view &element)` | 压入一个视图 |
 | `reference operator[](size_type index)` | 访问元素 |
 | `begin()` / `end()` / `cbegin()` / `cend()` | 迭代器，可用于范围 for |
 
 ### `StringViewArray<M>`
 
-字符串切分结果视图：元素是指向源字符串内部的 `std::string_view`，**不持有内容**，
+字符串切分结果视图：元素是指向源字符串内部的 `etl::string_view`，**不持有内容**，
 只要源字符串仍存活结果即可用，适合零拷贝地遍历字段。`M` 为元素个数上限。
-接口与 `StringArray` 一致（`value_type` 为 `std::string_view`）。
+接口与 `StringArray` 一致（`value_type` 为 `etl::string_view`）。
 
 压入超过上限的元素记为溢出：此时数组内容被**清空**（`size()` 为 0），
 溢出次数由 `overflow_count()` 报告。
@@ -455,16 +455,16 @@ String<16> v = a + '!';      // "ab!"
 
 | 接口 | 对应 Python |
 | --- | --- |
-| `size_t split(std::string_view source, CONTAINER &container, const std::string_view &separator, int limit = -1)` | `str.split(sep, maxsplit)` |
-| `size_t split_whitespace(std::string_view source, CONTAINER &container)` | 无参 `str.split()` |
-| `template <size_t N, typename CONTAINER> String<N> join(const std::string_view &separator, const CONTAINER &container)` | `separator.join(container)` |
+| `size_t split(etl::string_view source, CONTAINER &container, const etl::string_view &separator, int limit = -1)` | `str.split(sep, maxsplit)` |
+| `size_t split_whitespace(etl::string_view source, CONTAINER &container)` | 无参 `str.split()` |
+| `template <size_t N, typename CONTAINER> String<N> join(const etl::string_view &separator, const CONTAINER &container)` | `separator.join(container)` |
 | `template <size_t N, typename CONTAINER> String<N> join(const char *separator, const CONTAINER &container)` | 同上，分隔符为 C 字符串 |
 
-`container` 需支持 `clear()`、`push_back(std::string_view)` 与 `size()`，
+`container` 需支持 `clear()`、`push_back(etl::string_view)` 与 `size()`，
 例如 `StringViewArray<M>`；`limit` 为负表示不限制切分次数。
 **相邻分隔符之间会产生空字段**（`"a,,b"` 切分为 3 个元素），与 Python 一致。
 
-`join` 的容器元素需可构造 `std::string_view`，且必须显式给出结果容量：
+`join` 的容器元素需可构造 `etl::string_view`，且必须显式给出结果容量：
 
 ```cpp
 String<16> text{"a,bb,,ccc"};
@@ -473,7 +473,7 @@ StringViewArray<15> fields;                            // 元素上限取源串�
 const size_t n = split(text.view(), fields, ",");      // 4
 // fields[0] = "a", fields[1] = "bb", fields[2] = "", fields[3] = "ccc"
 
-for (const std::string_view field : fields)
+for (const etl::string_view field : fields)
 {
     console.println("[{}]", field);
 }
@@ -481,7 +481,7 @@ for (const std::string_view field : fields)
 StringArray<8, 4> parts;
 parts.push_back(String<8>("ab"));
 parts.push_back(String<8>("cd"));
-String<16> joined = join<16>(std::string_view("-"), parts);   // "ab-cd"
+String<16> joined = join<16>(etl::string_view("-"), parts);   // "ab-cd"
 
 String<16> spaced{"  a   bb c  "};
 StringViewArray<8> words;

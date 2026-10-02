@@ -27,7 +27,7 @@
 #include <array>
 #include <cstddef>
 #include <charconv>
-#include <string_view>
+#include <etl/string_view.h>
 #include <type_traits>
 #include <utility>
 
@@ -41,7 +41,7 @@
 EMBMARTIN_NAMESPACE_BEGIN
 
 /**
- * @brief std::atoi 的 std::string_view 版本
+ * @brief std::atoi 的 etl::string_view 版本
  *
  * 语义与 atoi 一致：
  *   - 跳过前导空白字符
@@ -53,7 +53,7 @@ EMBMARTIN_NAMESPACE_BEGIN
  *
  * @note 无内存分配、不抛异常、constexpr 友好（C++20 起 from_chars 可为 constexpr）。
  */
-int atoi(const std::string_view& sv) noexcept;
+int atoi(const etl::string_view& sv) noexcept;
 
 /**
  * @brief 只匹配“真正的指针”的形参类型，用于把 const char * 与 const char[N] 两个重载区分开
@@ -91,12 +91,12 @@ constexpr size_t string_literal_length(const char *str) noexcept
 }
 
 /**
- * @brief 把 std::string_view 转成 etl::string_view
+ * @brief 把 etl::string_view 转成 etl::string_view
  *
- * 本模块的公共接口统一使用 std::string_view ，而 etl::string 的成员接受 etl::string_view ，
+ * 本模块的公共接口统一使用 etl::string_view ，而 etl::string 的成员接受 etl::string_view ，
  * 因此所有转发都在这里集中完成类型转换
  */
-inline etl::string_view to_etl_view(const std::string_view &view) noexcept
+inline etl::string_view to_etl_view(const etl::string_view &view) noexcept
 {
 	return etl::string_view(view.data(), view.size());
 }
@@ -207,7 +207,7 @@ public:
 	using reverse_iterator = std::reverse_iterator<iterator>;
 	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-	static constexpr size_type npos = std::string_view::npos;
+	static constexpr size_type npos = etl::string_view::npos;
 
 private:
 	// ------------------------------------------数据成员--------------------------------------------------
@@ -265,7 +265,7 @@ private:
 	 * @param format_string 被解析的格式串
 	 */
 	template <typename... ARGS>
-	String &_format_impl(const std::string_view &format_string, const ARGS &...args) noexcept
+	String &_format_impl(const etl::string_view &format_string, const ARGS &...args) noexcept
 	{
 		/*
 		 * 先把底层缓冲区整体放开，再交给 fmt.h 直接写入。
@@ -291,7 +291,7 @@ private:
 		 * 无参数时 fmt.h 整串一次性写出：容量不足会一个字符都不写。
 		 * 截断契约要求保留能写下的部分，故这里退化为逐字符写入
 		 */
-		if (overflowed && std::string_view::npos == format_string.find('{'))
+		if (overflowed && etl::string_view::npos == format_string.find('{'))
 		{
 			const size_type capacity = this->capacity();
 			const size_type copied = format_string.size() < capacity ? format_string.size() : capacity;
@@ -344,7 +344,7 @@ private:
 			cropped[length] = format_string[length];
 			++length;
 		}
-		return this->_format_impl(std::string_view(cropped, length), args...);
+		return this->_format_impl(etl::string_view(cropped, length), args...);
 	}
 
 public:
@@ -369,7 +369,7 @@ public:
 	}
 
 	/** @brief 从字符串视图构造；超出容量时按 ETL 契约截断 */
-	String(const std::string_view &text) noexcept
+	String(const etl::string_view &text) noexcept
 	{
 		this->_data.assign(detail::to_etl_view(text));
 	}
@@ -393,7 +393,7 @@ public:
 										  !std::is_same_v<remove_cvref_t<TEXT>, String>>>
 	explicit String(TEXT &&text) noexcept
 	{
-		const std::string_view view{std::forward<TEXT>(text)};
+		const etl::string_view view{std::forward<TEXT>(text)};
 		this->_data.assign(detail::to_etl_view(view));
 	}
 
@@ -414,7 +414,7 @@ public:
 		return *this;
 	}
 
-	String &operator=(const std::string_view &text) noexcept
+	String &operator=(const etl::string_view &text) noexcept
 	{
 		this->_data.assign(detail::to_etl_view(text));
 		return *this;
@@ -425,7 +425,7 @@ public:
 										  !std::is_same_v<remove_cvref_t<TEXT>, String>>>
 	String &operator=(TEXT &&text) noexcept
 	{
-		const std::string_view view{std::forward<TEXT>(text)};
+		const etl::string_view view{std::forward<TEXT>(text)};
 		this->_data.assign(detail::to_etl_view(view));
 		return *this;
 	}
@@ -606,9 +606,9 @@ public:
 	// ------------------------------------------视图与转换--------------------------------------------------
 
 	/** @brief 内容视图，长度为 size() */
-	std::string_view view() const noexcept
+	etl::string_view view() const noexcept
 	{
-		return std::string_view(this->_data.data(), this->_data.size());
+		return etl::string_view(this->_data.data(), this->_data.size());
 	}
 
 	/**
@@ -616,13 +616,13 @@ public:
 	 *
 	 * 长度恒为 N ，便于把整个缓冲区交给需要定长缓冲区的接口
 	 */
-	std::string_view buffer() const noexcept
+	etl::string_view buffer() const noexcept
 	{
-		return std::string_view(this->_data.data(), N);
+		return etl::string_view(this->_data.data(), N);
 	}
 
 	/** @brief 隐式转换为字符串视图，使得 OutStream::show / println 等既有接口可直接使用 */
-	operator std::string_view() const noexcept
+	operator etl::string_view() const noexcept
 	{
 		return this->view();
 	}
@@ -684,7 +684,7 @@ public:
 	}
 
 	/** @brief 追加字符串视图 */
-	String &append(const std::string_view &text) noexcept
+	String &append(const etl::string_view &text) noexcept
 	{
 		this->_data.append(detail::to_etl_view(text));
 		return *this;
@@ -704,12 +704,12 @@ public:
 										  !std::is_same_v<remove_cvref_t<TEXT>, String>>>
 	String &append(TEXT &&text) noexcept
 	{
-		const std::string_view view{std::forward<TEXT>(text)};
+		const etl::string_view view{std::forward<TEXT>(text)};
 		return this->append(view);
 	}
 
 	/** @brief 拼接并返回自身，语义同 std::string::operator+= */
-	String &operator+=(const std::string_view &text) noexcept
+	String &operator+=(const etl::string_view &text) noexcept
 	{
 		return this->append(text);
 	}
@@ -748,12 +748,12 @@ public:
 	template <size_t M>
 	String &insert(const size_type position, const char (&text)[M]) noexcept
 	{
-		this->_data.insert(position, detail::to_etl_view(std::string_view(text)));
+		this->_data.insert(position, detail::to_etl_view(etl::string_view(text)));
 		return *this;
 	}
 
 	/** @brief 在 position 处插入字符串视图 */
-	String &insert(const size_type position, const std::string_view &text) noexcept
+	String &insert(const size_type position, const etl::string_view &text) noexcept
 	{
 		this->_data.insert(position, detail::to_etl_view(text));
 		return *this;
@@ -794,7 +794,7 @@ public:
 	}
 
 	/** @brief 用字符串视图替换 [position, position + count) 范围 */
-	String &replace(const size_type position, const size_type count, const std::string_view &text) noexcept
+	String &replace(const size_type position, const size_type count, const etl::string_view &text) noexcept
 	{
 		this->_data.replace(position, count, detail::to_etl_view(text));
 		return *this;
@@ -827,7 +827,7 @@ public:
 	 *
 	 * @return 实际替换的次数
 	 */
-	size_type replace(const std::string_view &old_text, const std::string_view &new_text) noexcept
+	size_type replace(const etl::string_view &old_text, const etl::string_view &new_text) noexcept
 	{
 		if (old_text.empty())
 		{
@@ -856,7 +856,7 @@ public:
 	// ------------------------------------------比较--------------------------------------------------
 
 	/** @brief 按字典序比较，返回值含义同 std::string::compare */
-	int compare(const std::string_view &other) const noexcept
+	int compare(const etl::string_view &other) const noexcept
 	{
 		const int result = this->_data.compare(detail::to_etl_view(other));
 		return result < 0 ? -1 : (result > 0 ? 1 : 0);
@@ -864,7 +864,7 @@ public:
 
 	int compare(const char *other) const noexcept
 	{
-		return this->compare(std::string_view(other, detail::string_literal_length(other)));
+		return this->compare(etl::string_view(other, detail::string_literal_length(other)));
 	}
 
 	template <size_t M>
@@ -874,19 +874,19 @@ public:
 	}
 
 	/** @brief 是否以 prefix 开头 */
-	bool starts_with(const std::string_view &prefix) const noexcept
+	bool starts_with(const etl::string_view &prefix) const noexcept
 	{
 		return this->_data.starts_with(detail::to_etl_view(prefix));
 	}
 
 	/** @brief 是否以 suffix 结尾 */
-	bool ends_with(const std::string_view &suffix) const noexcept
+	bool ends_with(const etl::string_view &suffix) const noexcept
 	{
 		return this->_data.ends_with(detail::to_etl_view(suffix));
 	}
 
 	/** @brief 是否包含 needle */
-	bool contains(const std::string_view &needle) const noexcept
+	bool contains(const etl::string_view &needle) const noexcept
 	{
 		return this->_data.contains(detail::to_etl_view(needle));
 	}
@@ -894,7 +894,7 @@ public:
 	// ------------------------------------------查找--------------------------------------------------
 
 	/** @brief 由前向后查找 needle ，失败返回 npos */
-	size_type find(const std::string_view &needle, const size_type position = 0) const noexcept
+	size_type find(const etl::string_view &needle, const size_type position = 0) const noexcept
 	{
 		return this->_data.find(detail::to_etl_view(needle), position);
 	}
@@ -906,11 +906,11 @@ public:
 
 	size_type find(const char *needle, const size_type position = 0) const noexcept
 	{
-		return this->find(std::string_view(needle, detail::string_literal_length(needle)), position);
+		return this->find(etl::string_view(needle, detail::string_literal_length(needle)), position);
 	}
 
 	/** @brief 由后向前查找 needle ，失败返回 npos */
-	size_type rfind(const std::string_view &needle, const size_type position = npos) const noexcept
+	size_type rfind(const etl::string_view &needle, const size_type position = npos) const noexcept
 	{
 		return this->_data.rfind(detail::to_etl_view(needle), position);
 	}
@@ -921,25 +921,25 @@ public:
 	}
 
 	/** @brief 查找集合 set 中任意字符首次出现的位置 */
-	size_type find_first_of(const std::string_view &set, const size_type position = 0) const noexcept
+	size_type find_first_of(const etl::string_view &set, const size_type position = 0) const noexcept
 	{
 		return this->_data.find_first_of(detail::to_etl_view(set), position);
 	}
 
 	/** @brief 查找不属于集合 set 的字符首次出现的位置 */
-	size_type find_first_not_of(const std::string_view &set, const size_type position = 0) const noexcept
+	size_type find_first_not_of(const etl::string_view &set, const size_type position = 0) const noexcept
 	{
 		return this->_data.find_first_not_of(detail::to_etl_view(set), position);
 	}
 
 	/** @brief 查找集合 set 中任意字符末次出现的位置 */
-	size_type find_last_of(const std::string_view &set, const size_type position = npos) const noexcept
+	size_type find_last_of(const etl::string_view &set, const size_type position = npos) const noexcept
 	{
 		return this->_data.find_last_of(detail::to_etl_view(set), position);
 	}
 
 	/** @brief 查找不属于集合 set 的字符末次出现的位置 */
-	size_type find_last_not_of(const std::string_view &set, const size_type position = npos) const noexcept
+	size_type find_last_not_of(const etl::string_view &set, const size_type position = npos) const noexcept
 	{
 		return this->_data.find_last_not_of(detail::to_etl_view(set), position);
 	}
@@ -950,7 +950,7 @@ public:
 	 * @param overlap 为 true 时统计可重叠的出现次数，例如 "aaa" 中的 "aa" 计 2 次；
 	 *                为 false 时统计不重叠的贪心匹配次数，与 Python 的 str.count 一致
 	 */
-	size_type count(const std::string_view &needle, const size_type position = 0, const bool overlap = false) const noexcept
+	size_type count(const etl::string_view &needle, const size_type position = 0, const bool overlap = false) const noexcept
 	{
 		if (needle.empty())
 		{
@@ -997,7 +997,7 @@ public:
 	String substr(const size_type position = 0, const size_type count = npos) const noexcept
 	{
 		const etl::string<N - 1> part = this->_data.substr(position, count);
-		return String(std::string_view(part.data(), part.size()));
+		return String(etl::string_view(part.data(), part.size()));
 	}
 
 	/** @brief 拷贝 [position, position + count) 到 destination ，返回拷贝的字符个数 */
@@ -1073,11 +1073,11 @@ public:
 	/** @brief 去掉首尾的空白字符，语义同 Python 的 str.strip */
 	String strip() const noexcept
 	{
-		return this->strip(std::string_view(" \t\n\v\f\r"));
+		return this->strip(etl::string_view(" \t\n\v\f\r"));
 	}
 
 	/** @brief 去掉首尾出现在 characters 中的字符，语义同 Python 的 str.strip(chars) */
-	String strip(const std::string_view &characters) const noexcept
+	String strip(const etl::string_view &characters) const noexcept
 	{
 		const size_type first = this->find_first_not_of(characters);
 		if (first == npos)
@@ -1091,11 +1091,11 @@ public:
 	/** @brief 去掉首部空白字符，语义同 Python 的 str.lstrip */
 	String lstrip() const noexcept
 	{
-		return this->lstrip(std::string_view(" \t\n\v\f\r"));
+		return this->lstrip(etl::string_view(" \t\n\v\f\r"));
 	}
 
 	/** @brief 去掉首部出现在 characters 中的字符，语义同 Python 的 str.lstrip(chars) */
-	String lstrip(const std::string_view &characters) const noexcept
+	String lstrip(const etl::string_view &characters) const noexcept
 	{
 		const size_type first = this->find_first_not_of(characters);
 		return first == npos ? String() : this->substr(first);
@@ -1104,11 +1104,11 @@ public:
 	/** @brief 去掉尾部空白字符，语义同 Python 的 str.rstrip */
 	String rstrip() const noexcept
 	{
-		return this->rstrip(std::string_view(" \t\n\v\f\r"));
+		return this->rstrip(etl::string_view(" \t\n\v\f\r"));
 	}
 
 	/** @brief 去掉尾部出现在 characters 中的字符，语义同 Python 的 str.rstrip(chars) */
-	String rstrip(const std::string_view &characters) const noexcept
+	String rstrip(const etl::string_view &characters) const noexcept
 	{
 		const size_type last = this->find_last_not_of(characters);
 		return last == npos ? String() : this->substr(0, last + 1);
@@ -1401,7 +1401,7 @@ public:
 	}
 
 	/** @brief 压入一个字符串视图 */
-	void push_back(const std::string_view &element) noexcept
+	void push_back(const etl::string_view &element) noexcept
 	{
 		this->push_back(String<N>(element));
 	}
@@ -1450,7 +1450,7 @@ public:
 /**
  * @brief 字符串切分结果视图
  *
- * 元素是指向源字符串内部的 std::string_view ，不持有内容；只要源字符串仍存活，结果即可用，
+ * 元素是指向源字符串内部的 etl::string_view ，不持有内容；只要源字符串仍存活，结果即可用，
  * 适合零拷贝地遍历各个字段。切分结果的最大元素个数由模板参数给出。
  *
  * 溢出时的处理与 StringArray 一致：清空结果并累计 overflow_count()
@@ -1459,16 +1459,16 @@ template <size_t M>
 class StringViewArray
 {
 public:
-	using value_type = std::string_view;
+	using value_type = etl::string_view;
 	using size_type = std::size_t;
 	using difference_type = std::ptrdiff_t;
-	using reference = std::string_view &;
-	using const_reference = const std::string_view &;
-	using iterator = typename std::array<std::string_view, M>::iterator;
-	using const_iterator = typename std::array<std::string_view, M>::const_iterator;
+	using reference = etl::string_view &;
+	using const_reference = const etl::string_view &;
+	using iterator = typename std::array<etl::string_view, M>::iterator;
+	using const_iterator = typename std::array<etl::string_view, M>::const_iterator;
 
 private:
-	std::array<std::string_view, M> _elements{};
+	std::array<etl::string_view, M> _elements{};
 	size_type _count = 0;
 	size_type _overflow_count = 0;
 
@@ -1499,7 +1499,7 @@ public:
 		this->_overflow_count = 0;
 	}
 
-	void push_back(const std::string_view &element) noexcept
+	void push_back(const etl::string_view &element) noexcept
 	{
 		if (this->_overflow_count != 0)
 		{
@@ -1561,7 +1561,7 @@ public:
  * @brief 按分隔符切分，语义同 Python 的 str.split
  *
  * @param source 待切分的字符串
- * @param container 结果容器，需支持 clear() 、push_back(std::string_view) 与 size() ，
+ * @param container 结果容器，需支持 clear() 、push_back(etl::string_view) 与 size() ，
  *                  例如 StringViewArray<N> ；典型用法是令元素个数上限等于源串容量
  * @param separator 分隔符，不可为空
  * @param limit 最大切分次数，负值表示不限制；语义同 Python 的 str.split(sep, maxsplit)
@@ -1570,8 +1570,8 @@ public:
  * @note 相邻分隔符之间产生空字段，"a,,b" 切分为 3 个元素，与 Python 一致
  */
 template <typename CONTAINER>
-size_t split(const std::string_view source, CONTAINER &container,
-			 const std::string_view &separator, const int limit = -1) noexcept
+size_t split(const etl::string_view source, CONTAINER &container,
+			 const etl::string_view &separator, const int limit = -1) noexcept
 {
 	container.clear();
 	if (separator.empty())
@@ -1579,12 +1579,12 @@ size_t split(const std::string_view source, CONTAINER &container,
 		return 0;
 	}
 
-	std::string_view rest = source;
+	etl::string_view rest = source;
 	int splits = 0;
 	while (limit < 0 || splits < limit)
 	{
 		const size_t position = rest.find(separator);
-		if (position == std::string_view::npos)
+		if (position == etl::string_view::npos)
 		{
 			break;
 		}
@@ -1606,7 +1606,7 @@ size_t split(const std::string_view source, CONTAINER &container,
  * @return 写入 container 的元素个数
  */
 template <typename CONTAINER>
-size_t split_whitespace(const std::string_view source, CONTAINER &container) noexcept
+size_t split_whitespace(const etl::string_view source, CONTAINER &container) noexcept
 {
 	container.clear();
 	size_t cursor = 0;
@@ -1633,15 +1633,15 @@ size_t split_whitespace(const std::string_view source, CONTAINER &container) noe
  * @brief 以 separator 拼接容器内的所有元素，语义同 Python 的 str.join
  *
  * @param separator 元素之间的分隔符
- * @param container 元素容器，元素需可构造 std::string_view ，例如 StringArray<N, M> 或 StringViewArray<M>
+ * @param container 元素容器，元素需可构造 etl::string_view ，例如 StringArray<N, M> 或 StringViewArray<M>
  * @return 拼接结果；超出目标容量时结果为截断后的内容
  */
 template <size_t N, typename CONTAINER>
-String<N> join(const std::string_view &separator, const CONTAINER &container) noexcept
+String<N> join(const etl::string_view &separator, const CONTAINER &container) noexcept
 {
 	using element_type = typename CONTAINER::value_type;
-	static_assert(std::is_constructible_v<std::string_view, element_type>,
-				  "join 的容器元素必须可构造 std::string_view");
+	static_assert(std::is_constructible_v<etl::string_view, element_type>,
+				  "join 的容器元素必须可构造 etl::string_view");
 
 	String<N> result;
 	for (typename CONTAINER::size_type i = 0; i < container.size(); ++i)
@@ -1650,7 +1650,7 @@ String<N> join(const std::string_view &separator, const CONTAINER &container) no
 		{
 			result.append(separator);
 		}
-		result.append(std::string_view(container[i]));
+		result.append(etl::string_view(container[i]));
 	}
 	return result;
 }
@@ -1659,7 +1659,7 @@ String<N> join(const std::string_view &separator, const CONTAINER &container) no
 template <size_t N, typename CONTAINER>
 String<N> join(const char *separator, const CONTAINER &container) noexcept
 {
-	return join<N>(std::string_view(separator, detail::string_literal_length(separator)), container);
+	return join<N>(etl::string_view(separator, detail::string_literal_length(separator)), container);
 }
 
 // ------------------------------------------比较运算符--------------------------------------------------
@@ -1702,73 +1702,73 @@ bool operator>=(const String<N> &left, const String<M> &right) noexcept
 
 /** @brief 与字符串视图比较；字符串字面量与 C 字符串经隐式转换同样可用 */
 template <size_t N>
-bool operator==(const String<N> &left, const std::string_view &right) noexcept
+bool operator==(const String<N> &left, const etl::string_view &right) noexcept
 {
 	return left.view() == right;
 }
 
 template <size_t N>
-bool operator==(const std::string_view &left, const String<N> &right) noexcept
+bool operator==(const etl::string_view &left, const String<N> &right) noexcept
 {
 	return left == right.view();
 }
 
 template <size_t N>
-bool operator!=(const String<N> &left, const std::string_view &right) noexcept
+bool operator!=(const String<N> &left, const etl::string_view &right) noexcept
 {
 	return left.view() != right;
 }
 
 template <size_t N>
-bool operator!=(const std::string_view &left, const String<N> &right) noexcept
+bool operator!=(const etl::string_view &left, const String<N> &right) noexcept
 {
 	return left != right.view();
 }
 
 template <size_t N>
-bool operator<(const String<N> &left, const std::string_view &right) noexcept
+bool operator<(const String<N> &left, const etl::string_view &right) noexcept
 {
 	return left.view() < right;
 }
 
 template <size_t N>
-bool operator<(const std::string_view &left, const String<N> &right) noexcept
+bool operator<(const etl::string_view &left, const String<N> &right) noexcept
 {
 	return left < right.view();
 }
 
 template <size_t N>
-bool operator>(const String<N> &left, const std::string_view &right) noexcept
+bool operator>(const String<N> &left, const etl::string_view &right) noexcept
 {
 	return left.view() > right;
 }
 
 template <size_t N>
-bool operator>(const std::string_view &left, const String<N> &right) noexcept
+bool operator>(const etl::string_view &left, const String<N> &right) noexcept
 {
 	return left > right.view();
 }
 
 template <size_t N>
-bool operator<=(const String<N> &left, const std::string_view &right) noexcept
+bool operator<=(const String<N> &left, const etl::string_view &right) noexcept
 {
 	return left.view() <= right;
 }
 
 template <size_t N>
-bool operator<=(const std::string_view &left, const String<N> &right) noexcept
+bool operator<=(const etl::string_view &left, const String<N> &right) noexcept
 {
 	return left <= right.view();
 }
 
 template <size_t N>
-bool operator>=(const String<N> &left, const std::string_view &right) noexcept
+bool operator>=(const String<N> &left, const etl::string_view &right) noexcept
 {
 	return left.view() >= right;
 }
 
 template <size_t N>
-bool operator>=(const std::string_view &left, const String<N> &right) noexcept
+bool operator>=(const etl::string_view &left, const String<N> &right) noexcept
 {
 	return left >= right.view();
 }
@@ -1787,7 +1787,7 @@ String<N + M> operator+(const String<N> &left, const String<M> &right) noexcept
 
 /** @brief 定长字符串与字符串视图拼接 */
 template <size_t N>
-String<N + 1> operator+(const String<N> &left, const std::string_view &right) noexcept
+String<N + 1> operator+(const String<N> &left, const etl::string_view &right) noexcept
 {
 	String<N + 1> result;
 	result.append(left);
@@ -1796,7 +1796,7 @@ String<N + 1> operator+(const String<N> &left, const std::string_view &right) no
 }
 
 template <size_t N>
-String<N + 1> operator+(const std::string_view &left, const String<N> &right) noexcept
+String<N + 1> operator+(const etl::string_view &left, const String<N> &right) noexcept
 {
 	String<N + 1> result;
 	result.append(left);
@@ -1845,7 +1845,7 @@ EMBMARTIN_NAMESPACE_END
 
 // ------------------------------------------与库内流设施的对接--------------------------------------------------
 // 不提供 operator<< ：库内暂未实现流运算符。
-// OutStream 已有 show(std::string_view) 重载，而 String 可隐式转换为 std::string_view ，
+// OutStream 已有 show(etl::string_view) 重载，而 String 可隐式转换为 etl::string_view ，
 // 因此 console.show(str) / console.println("{}", str) 无需任何额外改动即可工作。
 
 #endif // EMBMARTIN_MSTRING_H

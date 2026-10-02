@@ -120,7 +120,7 @@ public:
         this->flush();
     }
 
-    inline void show(const std::string_view &str) noexcept
+    inline void show(const etl::string_view &str) noexcept
     {
         const size_t length = str.size() < _buffer_size - 1 ? str.size() : _buffer_size - 1;
         memcpy(this->buffer, str.data(), length);
@@ -284,7 +284,7 @@ public:
      * @param args 参数包
      */
     template <typename... Args>
-    void print(std::string_view fmt, Args &&...args) noexcept;
+    void print(etl::string_view fmt, Args &&...args) noexcept;
 
     /**
      * @brief C++23风格格式化输出，支持字符串字面量
@@ -303,7 +303,7 @@ public:
      * @param args 参数包
      */
     template <typename... Args>
-    void println(std::string_view fmt, Args &&...args) noexcept;
+    void println(etl::string_view fmt, Args &&...args) noexcept;
 
     /**
      * @brief C++23风格格式化输出并换行，支持字符串字面量
@@ -527,7 +527,7 @@ void OutStream<buffer_size>::showsep(const T &first, const Args &...args) noexce
 
 template <size_t buffer_size>
 template <typename... Args>
-void OutStream<buffer_size>::print(std::string_view fmt, Args &&...args) noexcept
+void OutStream<buffer_size>::print(etl::string_view fmt, Args &&...args) noexcept
 {
     // 创建临时字符串用于构造FormatString
     char temp[256];
@@ -579,7 +579,7 @@ void OutStream<buffer_size>::print(const char (&fmt)[N], Args &&...args) noexcep
 
 template <size_t buffer_size>
 template <typename... Args>
-void OutStream<buffer_size>::println(std::string_view fmt, Args &&...args) noexcept
+void OutStream<buffer_size>::println(etl::string_view fmt, Args &&...args) noexcept
 {
     this->print(fmt, std::forward<Args>(args)...);
     this->show('\n');

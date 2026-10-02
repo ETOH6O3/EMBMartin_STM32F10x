@@ -136,10 +136,10 @@ constexpr bool is_character_array_v = is_character_array<T>::value;
 /**
  * @brief 判断 T 是否为“字符串类”类型
  *
- * 判据是 std::string_view 能否由 T 构造得到，因此 const char* / char* / char[N] /
- * std::string / std::string_view 等类型均为真。
- * 注意方向：不能写成 std::is_constructible_v<T, std::string_view>，
- * 因为 std::string_view 不能隐式转换为 const char*，那样 const char* 会被判为假。
+ * 判据是 string_view 能否由 T 构造得到，因此 const char* / char* / char[N] /
+ * string / string_view 等类型均为真。
+ * 注意方向：不能写成 is_constructible_v<T, string_view>，
+ * 因为 string_view 不能隐式转换为 const char*，那样 const char* 会被判为假。
  */
 template <typename T>
 struct is_string_like

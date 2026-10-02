@@ -90,13 +90,13 @@ private:
     String<buffer_size> common_content = {};
 
     // SLIDER_PARAM_T __slider_params[MAX_SLIDER_IDX] = {[0 ... MAX_SLIDER_IDX - 1] = 100}; // 需开启 C99 扩展支持
-    etl::unordered_map<String<32>, SLIDER_PARAM_T, MAX_SLIDER_IDX, MAX_SLIDER_IDX, std::hash<std::string_view>> __slider_params = {};
+    etl::unordered_map<String<32>, SLIDER_PARAM_T, MAX_SLIDER_IDX, MAX_SLIDER_IDX, etl::hash<etl::string_view>> __slider_params = {};
 
     using __JOYSTICK_PARAMS_T = std::pair<JOYSTICK_PARAM_T, JOYSTICK_PARAM_T>;
     std::pair<__JOYSTICK_PARAMS_T, __JOYSTICK_PARAMS_T> __joysticks_params;
 
     template <typename... Args>
-    inline void _display(uint16_t x, uint16_t y, const std::string_view &str) noexcept
+    inline void _display(uint16_t x, uint16_t y, const etl::string_view &str) noexcept
     {
         this->show("[display,");
         this->show(x);
@@ -114,7 +114,7 @@ private:
      *
      * @param pkg_content 数据包内的内容（不含 [] ）
      */
-    String<32> __parse_pkg_content(const std::string_view &pkg_content) noexcept;
+    String<32> __parse_pkg_content(const etl::string_view &pkg_content) noexcept;
 
 public:
     template <typename... Args>
@@ -186,7 +186,7 @@ void EMBMartin::MartinDebugger<buffer_size>::send_struct(
     this->show("][");
     this->show(var_name);
     this->show("][");
-    std::string_view sv(reinterpret_cast<const char *>(&data), sizeof(data));
+    etl::string_view sv(reinterpret_cast<const char *>(&data), sizeof(data));
     this->print("{:s}", sv);
     this->show("]\n");
 }
@@ -211,7 +211,7 @@ void EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
             {
                 this->_display(coord_temp.x * __FONT_WIDTH,
                                coord_temp.y * __FONT_HEIGHT,
-                               std::string_view(begin_it, it - begin_it));
+                               etl::string_view(begin_it, it - begin_it));
             }
 
             if (*it == '\n')
@@ -241,14 +241,14 @@ void EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
     {
         this->_display(coord_temp.x * __FONT_WIDTH,
                        coord_temp.y * __FONT_HEIGHT,
-                       std::string_view(begin_it, str.end() - begin_it));
+                       etl::string_view(begin_it, str.end() - begin_it));
     }
 }
 
 template <std::uint8_t FONT_SIZE, std::uint16_t SCREEN_X_PIXELS, std::uint16_t SCREEN_Y_PIXELS,
           uint8_t MAX_SLIDER_IDX, typename SLIDER_PARAM_T, typename JOYSTICK_PARAM_T, std::size_t buffer_size>
 EMBMartin::String<32> EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
-                                                  MAX_SLIDER_IDX, SLIDER_PARAM_T, JOYSTICK_PARAM_T, buffer_size>::__parse_pkg_content(const std::string_view &pkg_content) noexcept
+                                                  MAX_SLIDER_IDX, SLIDER_PARAM_T, JOYSTICK_PARAM_T, buffer_size>::__parse_pkg_content(const etl::string_view &pkg_content) noexcept
 {
     const auto class_name_end_pos = pkg_content.find(',');
     if (class_name_end_pos == String<32>::npos)

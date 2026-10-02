@@ -19,7 +19,7 @@
 #include <cstdint>
 #include <limits>
 #include <type_traits>
-#include <string_view>
+#include <etl/string_view.h>
 
 #include "macro.h"
 #include "meta.h"
@@ -61,7 +61,7 @@ public:
 	}
 
 	// 防止溢出
-	bool write_safe(std::string_view str)
+	bool write_safe(etl::string_view str)
 	{
 		if (position_ + str.size() > capacity_)
 		{
@@ -94,9 +94,9 @@ public:
 	}
 
 	// 获取已写入数据
-	std::string_view view() const
+	etl::string_view view() const
 	{
-		return std::string_view(buffer_, position_);
+		return etl::string_view(buffer_, position_);
 	}
 
 	// 获取当前位置
@@ -117,11 +117,11 @@ public:
 // 轻量级解析上下文
 class FormatParseContext
 {
-	std::string_view spec_;
+	etl::string_view spec_;
 	size_t pos_;
 
 public:
-	FormatParseContext(const std::string_view &spec)
+	FormatParseContext(const etl::string_view &spec)
 		: spec_(spec), pos_(0)
 	{
 	}
@@ -157,7 +157,7 @@ public:
 	}
 
 	// 获取剩余的格式说明符
-	std::string_view remainder() const
+	etl::string_view remainder() const
 	{
 		return spec_.substr(pos_);
 	}
@@ -187,9 +187,9 @@ public:
 	}
 
 	// 获取原始字符串
-	constexpr std::string_view view() const
+	constexpr etl::string_view view() const
 	{
-		return std::string_view(str_, N - 1);
+		return etl::string_view(str_, N - 1);
 	}
 
 	// 转换为C字符串
@@ -934,8 +934,8 @@ PREFIX_GEN_END:
 }
 
 // 字符串类型格式化器
-// 注意：这里判断的是“能否由 T 构造出 std::string_view”（即 T 是字符串类对象/字符指针/字符数组），
-// 而不是“能否由 std::string_view 构造出 T”。后者对 const char* 恒为 false，
+// 注意：这里判断的是“能否由 T 构造出 etl::string_view”（即 T 是字符串类对象/字符指针/字符数组），
+// 而不是“能否由 etl::string_view 构造出 T”。后者对 const char* 恒为 false，
 // 会导致 const char* 匹配不到本特化而回退到空的主模板。
 template <typename T>
 struct formatter<T, std::enable_if_t<is_string_like_v<T> || is_character_array_v<T>>>
@@ -963,7 +963,7 @@ int formatter<T, std::enable_if_t<is_string_like_v<T> || is_character_array_v<T>
 	}
 
 	// 填充计算
-	auto s = std::string_view(value);
+	auto s = etl::string_view(value);
 	int l = s.length();
 	int fill_num = this->_width - l;
 
@@ -1088,7 +1088,7 @@ auto formatter<_Pair, std::enable_if_t<is_generalized_pair_v<_Pair>>>::parse(For
 	// 而不要拿 string_view 的迭代器去构造 string_view。各标准库中
 	// string_view::iterator 的具体类型不同（MSVC 上并非裸指针，
 	// 且 _HAS_CXX23 在 C++17 模式下也会被定义为 0，使原先的 #if 分支判断失效）。
-	const std::string_view spec = ctx.remainder();
+	const etl::string_view spec = ctx.remainder();
 
 	std::tie(this->_prefix, this->_suffix) = bracket(spec.front(), spec.back());
 
@@ -1153,7 +1153,7 @@ auto formatter<_Pair, std::enable_if_t<is_generalized_pair_v<_Pair>>>::format(co
 EMBMARTIN_DETAIL_NAMESPACE_BEGIN
 
 // 编译期计算占位符数量
-constexpr size_t count_placeholders(std::string_view fmt)
+constexpr size_t count_placeholders(etl::string_view fmt)
 {
 	size_t count = 0;
 	bool in_brace = false;
@@ -1186,7 +1186,7 @@ constexpr size_t count_placeholders(std::string_view fmt)
 
 // 解析格式字符串中的一个部分
 template <typename Arg>
-int format_arg(FormatContext &ctx, std::string_view fmt_spec, const Arg &arg)
+int format_arg(FormatContext &ctx, etl::string_view fmt_spec, const Arg &arg)
 {
 	// 创建格式化器
 	formatter<Arg> fmt;
@@ -1212,7 +1212,7 @@ struct FormatImpl;
 template <>
 struct FormatImpl<>
 {
-	static int format(FormatContext &ctx, std::string_view fmt)
+	static int format(FormatContext &ctx, etl::string_view fmt)
 	{
 		// 直接输出剩余的格式字符串
 		ctx.write_safe(fmt);
@@ -1224,7 +1224,7 @@ struct FormatImpl<>
 template <typename Arg, typename... Rest>
 struct FormatImpl<Arg, Rest...>
 {
-	static int format(FormatContext &ctx, std::string_view fmt,
+	static int format(FormatContext &ctx, etl::string_view fmt,
 					  const Arg &arg, const Rest &...rest)
 	{
 
@@ -1271,7 +1271,7 @@ struct FormatImpl<Arg, Rest...>
 				}
 
 				// 提取格式说明符
-				std::string_view spec = fmt.substr(pos + 1, end - pos - 1);
+				etl::string_view spec = fmt.substr(pos + 1, end - pos - 1);
 
 				// 格式化当前参数
 				int result = format_arg(ctx, spec, arg);
@@ -1281,7 +1281,7 @@ struct FormatImpl<Arg, Rest...>
 				}
 
 				// 继续处理剩余的格式字符串和参数
-				std::string_view remaining_fmt = fmt.substr(end + 1);
+				etl::string_view remaining_fmt = fmt.substr(end + 1);
 				return FormatImpl<Rest...>::format(ctx, remaining_fmt, rest...);
 			}
 			++pos;
