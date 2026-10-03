@@ -1,0 +1,229 @@
+classDiagram
+class GPIOPin {
+  +port
+  +pin
+  +read() bool
+  +set() void
+  +reset() void
+}
+
+class USARTPins {
+  +tx : GPIOPin
+  +rx : GPIOPin
+  +ck : GPIOPin
+  +cts : GPIOPin
+  +rts : GPIOPin
+}
+
+class OutPin {
+  -pin : GPIOPin
+  -current_level : bool
+  +set() void
+  +reset() void
+  +toggle() void
+  +get_level() bool
+}
+
+class Inpin {
+  -pin : GPIOPin
+  +get() bool
+  +get_pin() GPIOPin
+}
+
+class LED {
+  -output : OutPin
+  +on() void
+  +off() void
+  +toggle() void
+}
+
+class Buzzer {
+  -output : OutPin
+  +beep() void
+  +on() void
+  +off() void
+}
+
+class Key {
+  -input : Inpin
+  +is_pressed() bool
+}
+
+class Sensor {
+  -input : Inpin
+  +get() bool
+}
+
+class UltrasonicSensor {
+  -_echo : Inpin
+  -_trig : OutPin
+  +trig() void
+  +update() void
+  +get_distance() double
+}
+
+class EXTIManager {
+  -__EXTI_pin : Inpin
+  -__operate : Callback
+  +set_operate() void
+  +software_trig() void
+}
+
+class EXTIRotaryEncoder {
+  -exti_a : EXTIManager
+  -exti_b : EXTIManager
+  +get_count() int16_t
+  +get_speed() int16_t
+}
+
+class CounterSensor {
+  -pin : GPIOPin
+  -edge : bool
+}
+
+class RotaryEncoder {
+  +get() int16_t
+}
+
+class InnerTimer {
+  +open() void
+  +close() void
+}
+
+class TIMCounter {
+  +get_count() uint16_t
+  +handler() void
+}
+
+class PWM {
+  -_TIMX
+  -_CHn : int
+  -_Duty_permillage : int
+  +set_duty(int) void
+  +get_duty() int
+}
+
+class BreathingLED {
+  +breathe(int) void
+}
+
+class SteeringEngine {
+  +set_degree(double) void
+  +clockwise_rotate(double) void
+  +anticlockwise_rotate(double) void
+}
+
+class DCMotorDriver {
+  +PWMA : PWM
+  +PWMB : PWM
+  +AIN1 : OutPin
+  +AIN2 : OutPin
+  +BIN1 : OutPin
+  +BIN2 : OutPin
+  +STBY : OutPin
+  +set_speed(int16_t, uint8_t) void
+  +get_speed(uint8_t) int16_t
+  +standby() void
+  +work() void
+}
+
+class I2C {
+  -_SCL : GPIOPin
+  -_SDA : GPIOPin
+  #_addr : uint8_t
+  +read_reg(uint8_t) uint8_t
+  +write_reg() void
+}
+
+class MPU6050 {
+  +awake() void
+  +sleep() void
+  +get_data() MPU6050_Data
+  +get_id() uint8_t
+}
+
+class MPU6050_Data {
+  +acc_x : int16_t
+  +acc_y : int16_t
+  +acc_z : int16_t
+  +gyro_x : int16_t
+  +gyro_y : int16_t
+  +gyro_z : int16_t
+}
+
+class USART {
+  -_USARTx
+  +send_byte(uint8_t) void
+  +read_halfword() uint16_t
+}
+
+class USBConsole {
+  +output_char(char) void
+  +read() void
+}
+
+class OLEDBase {
+  +clear() void
+  #set_coordinate(uint8_t, uint8_t) void
+  #write_cmd(uint8_t) void
+  #write_data(uint8_t) void
+}
+
+class OLEDConsole {
+  +clear() void
+  +output_char(char) void
+  +set_coordinate(uint8_t, uint8_t) void
+}
+
+class OLEDPlayerBase {
+  +clear(bool) void
+  +show_pic() void
+  +update() void
+}
+
+class OLEDBitMap {
+  +col_num : uint8_t
+  +row_num : uint8_t
+}
+
+%% 基础 GPIO 聚合
+USARTPins o-- GPIOPin : tx/rx/ck/cts/rts
+OutPin o-- GPIOPin : pin
+Inpin o-- GPIOPin : pin
+
+%% 常用输入输出
+LED o-- OutPin : output
+Buzzer o-- OutPin : output
+Key o-- Inpin : input
+Sensor o-- Inpin : input
+UltrasonicSensor o-- Inpin : _echo
+UltrasonicSensor o-- OutPin : _trig
+
+%% 中断与编码器
+EXTIManager o-- Inpin : __EXTI_pin
+EXTIManager --> EXTIManager : __instances
+EXTIRotaryEncoder o-- EXTIManager : exti_a/exti_b
+CounterSensor o-- GPIOPin : pin
+
+%% 定时器
+InnerTimer <|-- TIMCounter
+
+%% PWM 与电机/舵机
+PWM <|-- BreathingLED
+PWM <|-- SteeringEngine
+DCMotorDriver o-- PWM : PWMA/PWMB
+DCMotorDriver o-- OutPin : AIN1/AIN2/BIN1/BIN2/STBY
+
+%% I2C 与传感器/OLED
+I2C o-- GPIOPin : SCL/SDA
+I2C <|-- MPU6050
+I2C <|-- OLEDBase
+MPU6050 ..> MPU6050_Data
+OLEDBase ..> OLEDBitMap
+OLEDPlayerBase ..> OLEDBitMap
+
+%% 串口与 USB 控制台
+USART <|-- USBConsole
+
+note for USBConsole "依赖语言支持图：MartinDebugger / IOStream"
+note for OLEDConsole "依赖语言支持图：OutStream"
