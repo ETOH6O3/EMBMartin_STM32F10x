@@ -1,8 +1,19 @@
 #include "fmt.h"
 
-EMBMARTIN_NAMESPACE_BEGIN
+// 旧格式化核心的浮点辅助实现（decimal_exponent / round_digits / increment_decimal /
+// make_float_parts）。
+//
+// 这些函数是旧格式化核心的一部分，随旧核心一起搬进 EMBMartin::legacy_fmt，
+// 因此这里只能用作用域限定名 EMBMartin::legacy_fmt::core_detail::X 引用。
 
-EMBMARTIN_DETAIL_NAMESPACE_BEGIN
+namespace EMBMartin
+{
+	// 必须与 fmt.h 中 legacy_fmt 的**内联性**保持一致，否则 clang 会报
+	// -Winline-namespace-reopened-noninline。EMBMARTIN_FMT_INLINE_LEGACY 由 fmt.h 提供。
+	EMBMARTIN_FMT_INLINE_LEGACY namespace legacy_fmt
+	{
+		namespace core_detail
+		{
 int decimal_exponent(long double value) noexcept
 {
     int exponent = 0;
@@ -178,7 +189,6 @@ void make_float_parts(
     else
         exponent[0] = '\0';
 }
-
-EMBMARTIN_DETAIL_NAMESPACE_END
-
-EMBMARTIN_NAMESPACE_END
+		} // namespace core_detail
+	} // namespace legacy_fmt
+} // namespace EMBMartin

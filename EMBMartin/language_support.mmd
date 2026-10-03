@@ -1,0 +1,128 @@
+classDiagram
+class String {
+  +append() void
+  +format() void
+  +c_str() char*
+  +to_float() FloatingResult
+}
+
+class StringArray {
+  +push_back() void
+  +operator[]()
+}
+
+class StringViewArray {
+  +push_back() void
+  +operator[]()
+}
+
+class OutStream {
+  <<abstract>>
+  #output_char(char)
+  +print() void
+  +println() void
+  +show() void
+}
+
+class InStream {
+  <<abstract>>
+  #read()
+  +getline() String
+  +scanf() void
+}
+
+class IOStream {
+  +input() String
+}
+
+class MartinDebugger {
+  +send_log() void
+  +send_struct() void
+  +send_to_console() void
+  +set_params() void
+}
+
+class JiangXieDebugger {
+  +display() void
+  +display_clear() void
+  +plot() void
+  +plot_clear() void
+  +parse()
+}
+
+class Coordinate {
+  +x
+  +y
+  +operator++()
+  +operator+=()
+}
+
+class Slice {
+  +start
+  +stop
+  +step
+  +begin()
+  +end()
+}
+
+class IterableUInt {
+  +begin()
+  +end()
+  +operator[]()
+}
+
+class IterableUInt_Bit {
+  +operator=(bool)
+  +operator bool()
+}
+
+class IterableUInt_ConstBit {
+  +operator bool()
+}
+
+class TupleView {
+  +get()
+  +materialize()
+}
+
+class TupleInsertView {
+  +get()
+  +materialize()
+}
+
+class TupleUnpackView {
+  +get()
+  +materialize()
+}
+
+class FloatingResult {
+  +ok : bool
+  +value : float
+}
+
+%% 字符串容器
+StringArray o-- String
+String ..> FloatingResult
+
+%% 流体系
+OutStream <|-- IOStream
+InStream <|-- IOStream
+IOStream <|-- MartinDebugger
+IOStream <|-- JiangXieDebugger
+
+%% 调试器依赖
+JiangXieDebugger ..> Coordinate
+JiangXieDebugger ..> String
+JiangXieDebugger ..> StringArray
+JiangXieDebugger ..> StringViewArray
+
+%% 位迭代与模板工具
+IterableUInt ..> IterableUInt_Bit
+IterableUInt ..> IterableUInt_ConstBit
+
+TupleView ..> IterableUInt
+TupleInsertView ..> IterableUInt
+TupleUnpackView ..> IterableUInt
+
+note for MartinDebugger "硬件图中 USBConsole 默认 BaseStream 使用它"
+note for IOStream "多重继承 OutStream + InStream"

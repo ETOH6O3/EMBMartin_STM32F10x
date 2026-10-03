@@ -1,6 +1,5 @@
 #include "PWM.h"
 
-#include <algorithm>
 #include <cmath>
 
 extern uint32_t SystemCoreClock;

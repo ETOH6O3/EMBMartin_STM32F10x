@@ -3,7 +3,6 @@
 
 #include <cstdio>
 #include <stdint.h>
-#include <algorithm>
 
 #include "macro.h"
 #include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)

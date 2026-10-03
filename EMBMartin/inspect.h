@@ -12,7 +12,7 @@
 #pragma once
 
 #include <array>
-#include <string_view>
+#include <etl/string_view.h>
 #include <typeinfo>
 #include <memory>
 #include <cstdlib>
@@ -49,7 +49,7 @@ constexpr std::size_t cstrlen(const char *s)
     return n;
 }
 
-// constexpr 查找子串，返回起始索引，找不到返回 std::string_view::npos
+// constexpr 查找子串，返回起始索引，找不到返回 etl::string_view::npos
 constexpr std::size_t find_substr(const char *str, std::size_t str_len,
                                   const char *sub, std::size_t sub_len,
                                   std::size_t start = 0)
@@ -57,7 +57,7 @@ constexpr std::size_t find_substr(const char *str, std::size_t str_len,
     if (sub_len == 0)
         return start;
     if (start >= str_len)
-        return std::string_view::npos;
+        return etl::string_view::npos;
     for (std::size_t i = start; i + sub_len <= str_len; ++i)
     {
         bool match = true;
@@ -72,7 +72,7 @@ constexpr std::size_t find_substr(const char *str, std::size_t str_len,
         if (match)
             return i;
     }
-    return std::string_view::npos;
+    return etl::string_view::npos;
 }
 
 template <typename F>
@@ -159,15 +159,15 @@ EMBMARTIN_DETAIL_NAMESPACE_END
 
 // 编译期类型名提取（依赖编译器宏）
 template <typename T>
-constexpr std::string_view type_name()
+constexpr etl::string_view type_name()
 {
 #if defined(__clang__)
     constexpr const char *func = __PRETTY_FUNCTION__;
-    constexpr std::string_view prefix = "[T = ";
+    constexpr etl::string_view prefix = "[T = ";
     constexpr std::size_t func_len = detail::cstrlen(func);
     constexpr std::size_t prefix_len = prefix.size();
     constexpr std::size_t start = detail::find_substr(func, func_len, prefix.data(), prefix_len);
-    if (start == std::string_view::npos)
+    if (start == etl::string_view::npos)
         return {};
     constexpr std::size_t type_start = start + prefix_len;
     // 从后向前找最后一个 ']'，它标志函数签名结束
@@ -180,15 +180,15 @@ constexpr std::string_view type_name()
     {
         --end; // 去掉结尾的 ']'
     }
-    return std::string_view(func + type_start, end - type_start);
+    return etl::string_view(func + type_start, end - type_start);
 
 #elif defined(__GNUC__)
     constexpr const char *func = __PRETTY_FUNCTION__;
-    constexpr std::string_view prefix = "with T = ";
+    constexpr etl::string_view prefix = "with T = ";
     constexpr std::size_t func_len = detail::cstrlen(func);
     constexpr std::size_t prefix_len = prefix.size();
     constexpr std::size_t start = detail::find_substr(func, func_len, prefix.data(), prefix_len);
-    if (start == std::string_view::npos)
+    if (start == etl::string_view::npos)
         return {};
     constexpr std::size_t type_start = start + prefix_len;
     // 先找分号，若找到则类型名到分号前
@@ -210,10 +210,10 @@ constexpr std::string_view type_name()
             --end;
         }
     }
-    std::string_view type_name_result(func + type_start, end - type_start);
-    constexpr std::string_view tag_struct = "struct ";
-    constexpr std::string_view tag_class = "class ";
-    constexpr std::string_view tag_enum = "enum ";
+    etl::string_view type_name_result(func + type_start, end - type_start);
+    constexpr etl::string_view tag_struct = "struct ";
+    constexpr etl::string_view tag_class = "class ";
+    constexpr etl::string_view tag_enum = "enum ";
     if (type_name_result.size() >= tag_struct.size() &&
         type_name_result.substr(0, tag_struct.size()) == tag_struct)
         return type_name_result.substr(tag_struct.size());
@@ -227,22 +227,22 @@ constexpr std::string_view type_name()
 
 #elif defined(_MSC_VER)
     constexpr const char *func = __FUNCSIG__;
-    constexpr std::string_view prefix = "type_name<";
-    constexpr std::string_view suffix = ">(void)";
+    constexpr etl::string_view prefix = "type_name<";
+    constexpr etl::string_view suffix = ">(void)";
     constexpr std::size_t func_len = detail::cstrlen(func);
     constexpr std::size_t prefix_len = prefix.size();
     constexpr std::size_t suffix_len = suffix.size();
     constexpr std::size_t start = detail::find_substr(func, func_len, prefix.data(), prefix_len);
-    if (start == std::string_view::npos)
+    if (start == etl::string_view::npos)
         return {};
     constexpr std::size_t type_start = start + prefix_len;
     constexpr std::size_t end = detail::find_substr(func, func_len, suffix.data(), suffix_len, type_start);
-    if (end == std::string_view::npos)
+    if (end == etl::string_view::npos)
         return {};
-    std::string_view type_name_result(func + type_start, end - type_start);
-    constexpr std::string_view tag_struct = "struct ";
-    constexpr std::string_view tag_class = "class ";
-    constexpr std::string_view tag_enum = "enum ";
+    etl::string_view type_name_result(func + type_start, end - type_start);
+    constexpr etl::string_view tag_struct = "struct ";
+    constexpr etl::string_view tag_class = "class ";
+    constexpr etl::string_view tag_enum = "enum ";
     if (type_name_result.size() >= tag_struct.size() &&
         type_name_result.substr(0, tag_struct.size()) == tag_struct)
         return type_name_result.substr(tag_struct.size());
@@ -266,10 +266,10 @@ constexpr std::string_view type_name()
  * @brief 编译期获取函数签名
  * 
  * @tparam F 函数指针
- * @return constexpr std::string_view 
+ * @return constexpr etl::string_view 
  */
 template <typename F>
-constexpr std::string_view signature()
+constexpr etl::string_view signature()
 {
     return type_name<detail::function_signature_type_t<F>>();
 }
@@ -278,16 +278,16 @@ constexpr std::string_view signature()
  * @brief 编译期获取函数名称
  * 
  * @tparam F 函数指针
- * @return constexpr std::string_view 
+ * @return constexpr etl::string_view 
  */
 template <auto F>
-constexpr std::string_view function_name()
+constexpr etl::string_view function_name()
 {
     (void)F;
 #if defined(_MSC_VER)
-    constexpr std::string_view raw = __FUNCSIG__;
+    constexpr etl::string_view raw = __FUNCSIG__;
 #else
-    constexpr std::string_view raw = __PRETTY_FUNCTION__;
+    constexpr etl::string_view raw = __PRETTY_FUNCTION__;
 #endif
     constexpr std::size_t len = raw.size();
 
@@ -312,10 +312,10 @@ constexpr std::string_view function_name()
     }
     return raw.substr(start, end - start);
 #else
-    constexpr std::string_view prefix = "F = ";
+    constexpr etl::string_view prefix = "F = ";
     constexpr std::size_t prefix_pos = detail::find_substr(raw.data(), len,
                                                             prefix.data(), prefix.size());
-    if (prefix_pos == std::string_view::npos)
+    if (prefix_pos == etl::string_view::npos)
         return {};
     std::size_t start = prefix_pos + prefix.size();
     std::size_t end = start;
@@ -342,8 +342,8 @@ template <auto F>
 struct function_signature_storage
 {
     using function_type = detail::function_signature_type_t<decltype(F)>;
-    static constexpr std::string_view type = type_name<function_type>();
-    static constexpr std::string_view name = function_name<F>();
+    static constexpr etl::string_view type = type_name<function_type>();
+    static constexpr etl::string_view name = function_name<F>();
     static constexpr bool is_member = detail::function_owner<decltype(F)>::is_member;
     static constexpr std::size_t open = detail::find_substr(
         type.data(), type.size(), "(", 1);
@@ -381,13 +381,13 @@ struct function_signature_storage
  * @brief 编译期获取带函数名的完整函数签名
  *
  * @tparam F 函数指针或成员函数指针值
- * @return constexpr std::string_view
+ * @return constexpr etl::string_view
  */
 template <auto F>
-constexpr std::string_view signature()
+constexpr etl::string_view signature()
 {
     constexpr auto &value = function_signature_storage<F>::value;
-    return std::string_view(value.data(), value.size());
+    return etl::string_view(value.data(), value.size());
 }
 
 // ------------------------------------------获取枚举名--------------------------------------------------
@@ -414,14 +414,14 @@ inline constexpr Slice<size_t> default_enum_range{
 // - MSVC : "... enum_name_impl<enum LogLevel,LogLevel::INFO>(void)"
 // 未命名值（如 (LogLevel)5）返回空 string_view
 template <typename E, auto V>
-constexpr std::string_view enum_name_impl()
+constexpr etl::string_view enum_name_impl()
 {
     static_assert(std::is_same_v<std::decay_t<decltype(V)>, E>,
                   "enum_name_impl: V must be of enum type E");
 #if defined(_MSC_VER)
-    constexpr std::string_view raw = __FUNCSIG__;
+    constexpr etl::string_view raw = __FUNCSIG__;
 #else
-    constexpr std::string_view raw = __PRETTY_FUNCTION__;
+    constexpr etl::string_view raw = __PRETTY_FUNCTION__;
 #endif
     constexpr std::size_t len = raw.size();
 
@@ -429,32 +429,32 @@ constexpr std::string_view enum_name_impl()
     constexpr const char *prefix = "enum_name_impl<";
     constexpr std::size_t prefix_len = 16;
     constexpr std::size_t p = find_substr(raw.data(), len, prefix, prefix_len);
-    if (p == std::string_view::npos)
+    if (p == etl::string_view::npos)
         return {};
     constexpr std::size_t value_start = p + prefix_len;
     constexpr std::size_t comma =
         find_substr(raw.data() + value_start, len - value_start, ",", 1);
-    if (comma == std::string_view::npos)
+    if (comma == etl::string_view::npos)
         return {};
     constexpr std::size_t name_start = value_start + comma + 1;
     constexpr const char *suffix = ">(void)";
     constexpr std::size_t suffix_len = 7;
     constexpr std::size_t e =
         find_substr(raw.data() + name_start, len - name_start, suffix, suffix_len);
-    if (e == std::string_view::npos)
+    if (e == etl::string_view::npos)
         return {};
-    const std::string_view value_str = raw.substr(name_start, e);
+    const etl::string_view value_str = raw.substr(name_start, e);
 #else
     constexpr const char *prefix = "V = ";
     constexpr std::size_t prefix_len = 4;
     constexpr std::size_t p = find_substr(raw.data(), len, prefix, prefix_len);
-    if (p == std::string_view::npos)
+    if (p == etl::string_view::npos)
         return {};
     constexpr std::size_t value_start = p + prefix_len;
     std::size_t end = value_start;
     while (end < len && raw[end] != ']' && raw[end] != ';' && raw[end] != '>')
         ++end;
-    const std::string_view value_str = raw.substr(value_start, end - value_start);
+    const etl::string_view value_str = raw.substr(value_start, end - value_start);
 #endif
 
     // 未命名值判定：形如 "(LogLevel)5" 的整型常量
@@ -463,11 +463,11 @@ constexpr std::string_view enum_name_impl()
             return {};
 
     // 取最后一个 "::" 之后的标识符
-    std::size_t pos = std::string_view::npos;
+    std::size_t pos = etl::string_view::npos;
     for (std::size_t i = 0; i + 2 <= value_str.size(); ++i)
         if (value_str[i] == ':' && value_str[i + 1] == ':')
             pos = i;
-    return (pos == std::string_view::npos) ? value_str : value_str.substr(pos + 2);
+    return (pos == etl::string_view::npos) ? value_str : value_str.substr(pos + 2);
 }
 
 // 单个 Slice 范围对应的名字表
@@ -484,7 +484,7 @@ struct enum_range_table
                               std::size_t{0};
 
     template <std::size_t... Is>
-    static constexpr std::array<std::string_view, N>
+    static constexpr std::array<etl::string_view, N>
     make(std::index_sequence<Is...>)
     {
         return {
@@ -498,7 +498,7 @@ struct enum_range_table
 
 // 在单个 Slice 范围内按值查找
 template <typename E, auto Range>
-constexpr std::string_view search_by_value(std::underlying_type_t<E> v)
+constexpr etl::string_view search_by_value(std::underlying_type_t<E> v)
 {
     constexpr auto &tbl = enum_range_table<E, Range>::value;
     constexpr long long lo = static_cast<long long>(Range.start);
@@ -515,7 +515,7 @@ constexpr std::string_view search_by_value(std::underlying_type_t<E> v)
 
 // 在单个 Slice 范围内按名字查找
 template <typename E, auto Range>
-constexpr std::pair<bool, E> search_by_name(std::string_view name)
+constexpr std::pair<bool, E> search_by_name(etl::string_view name)
 {
     constexpr auto &tbl = enum_range_table<E, Range>::value;
     constexpr long long lo = static_cast<long long>(Range.start);
@@ -531,7 +531,7 @@ constexpr std::pair<bool, E> search_by_name(std::string_view name)
 
 // 折叠辅助：找到就停
 template <typename E, auto Range>
-constexpr bool try_name(E value, std::string_view &out)
+constexpr bool try_name(E value, etl::string_view &out)
 {
     auto n = search_by_value<E, Range>(
         static_cast<std::underlying_type_t<E>>(value));
@@ -544,7 +544,7 @@ constexpr bool try_name(E value, std::string_view &out)
 }
 
 template <typename E, std::size_t... Is>
-constexpr bool try_default_name_impl(E value, std::string_view &out,
+constexpr bool try_default_name_impl(E value, etl::string_view &out,
                                      std::index_sequence<Is...>)
 {
     bool found = false;
@@ -559,7 +559,7 @@ constexpr bool try_default_name_impl(E value, std::string_view &out,
 }
 
 template <typename E>
-constexpr bool try_default_name(E value, std::string_view &out)
+constexpr bool try_default_name(E value, etl::string_view &out)
 {
     return try_default_name_impl<E>(
         value, out, std::make_index_sequence<
@@ -568,7 +568,7 @@ constexpr bool try_default_name(E value, std::string_view &out)
 }
 
 template <typename E, auto Range>
-constexpr bool try_cast(std::string_view name, E &out)
+constexpr bool try_cast(etl::string_view name, E &out)
 {
     auto r = search_by_name<E, Range>(name);
     if (r.first)
@@ -580,7 +580,7 @@ constexpr bool try_cast(std::string_view name, E &out)
 }
 
 template <typename E, std::size_t... Is>
-constexpr bool try_default_cast_impl(std::string_view name, E &out,
+constexpr bool try_default_cast_impl(etl::string_view name, E &out,
                                      std::index_sequence<Is...>)
 {
     bool found = false;
@@ -593,7 +593,7 @@ constexpr bool try_default_cast_impl(std::string_view name, E &out,
 }
 
 template <typename E>
-constexpr bool try_default_cast(std::string_view name, E &out)
+constexpr bool try_default_cast(etl::string_view name, E &out)
 {
     return try_default_cast_impl<E>(
         name, out, std::make_index_sequence<
@@ -602,7 +602,7 @@ constexpr bool try_default_cast(std::string_view name, E &out)
 }
 
 template <typename E, long long Start, long long Stop, std::size_t... Is>
-constexpr bool try_integer_range_impl(E value, std::string_view &out,
+constexpr bool try_integer_range_impl(E value, etl::string_view &out,
                                       std::index_sequence<Is...>)
 {
     bool found = false;
@@ -615,7 +615,7 @@ constexpr bool try_integer_range_impl(E value, std::string_view &out,
 }
 
 template <typename E, long long Start, long long Stop>
-constexpr bool try_integer_range(E value, std::string_view &out)
+constexpr bool try_integer_range(E value, etl::string_view &out)
 {
     static_assert(Stop >= Start, "enum_name range stop must not be less than start");
     return try_integer_range_impl<E, Start, Stop>(
@@ -628,7 +628,7 @@ struct integer_range_search;
 template <typename E>
 struct integer_range_search<E>
 {
-    static constexpr bool find(E, std::string_view &)
+    static constexpr bool find(E, etl::string_view &)
     {
         return false;
     }
@@ -637,7 +637,7 @@ struct integer_range_search<E>
 template <typename E, auto Start, auto Stop, auto... Rest>
 struct integer_range_search<E, Start, Stop, Rest...>
 {
-    static constexpr bool find(E value, std::string_view &out)
+    static constexpr bool find(E value, etl::string_view &out)
     {
         if (try_integer_range<E, static_cast<long long>(Start),
                               static_cast<long long>(Stop)>(value, out))
@@ -657,16 +657,16 @@ EMBMARTIN_DETAIL_NAMESPACE_END
  * @tparam Bounds  零个或多个整数，每两个整数表示一个半开区间 [start, stop)。
  *                 不传时使用 EMBMARTIN_ENUM_DEFAULT_MIN/MAX 指定的默认范围。
  * @param  value   枚举值
- * @return constexpr std::string_view  未找到返回空视图
+ * @return constexpr etl::string_view  未找到返回空视图
  */
 template <auto... Bounds, typename E>
-constexpr std::string_view enum_name(E value)
+constexpr etl::string_view enum_name(E value)
 {
     static_assert(std::is_enum_v<E>, "enum_name: E must be an enum type");
     static_assert(sizeof...(Bounds) % 2 == 0,
                   "enum_name bounds must contain start/stop pairs");
 
-    std::string_view result;
+    etl::string_view result;
     if constexpr (sizeof...(Bounds) == 0)
         (void)detail::try_default_name<E>(value, result);
     else
@@ -684,7 +684,7 @@ constexpr std::string_view enum_name(E value)
  * @param  default_value 未找到时返回该值
  */
 template <auto... Ranges, typename E>
-constexpr E enum_cast(std::string_view name,
+constexpr E enum_cast(etl::string_view name,
                       E default_value = static_cast<E>(0))
 {
     static_assert(std::is_enum_v<E>, "enum_cast: E must be an enum type");
@@ -701,7 +701,7 @@ constexpr E enum_cast(std::string_view name,
  * @brief 判断名字是否在给定范围内存在；不传范围时使用默认范围
  */
 template <auto... Ranges, typename E>
-constexpr bool enum_contains(std::string_view name)
+constexpr bool enum_contains(etl::string_view name)
 {
     static_assert(std::is_enum_v<E>, "enum_contains: E must be an enum type");
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <functional>
+#include <etl/inplace_function.h>
 
 #include "inpin.h"
 #include "outpin.h"
@@ -23,7 +23,8 @@ class EXTIManager
 {
 public:
     /// 单个 EXTI line 的回调类型
-    using Callback = std::function<void(void)>;
+    // 回调捕获对象的内部缓冲区为 32 字节；超过该大小的回调无法用于此接口。
+    using Callback = etl::inplace_function<void(void), 32>;
 
 private:
     inline static EXTIManager *__instances[16] = {};

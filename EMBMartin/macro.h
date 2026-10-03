@@ -163,6 +163,20 @@
 #define EMBMARTIN_USING_OLD_OLED_VERSION 0
 #define EMBMARTIN_ENCODING_UTF8 1
 
+/**
+ * @brief fmt 组件底层实现选择
+ *
+ * - 1：使用第三方库 ETL 的 format 实现（embmartin::etl_fmt 为内联命名空间）
+ * - 0：使用本库旧格式化核心（embmartin::legacy_fmt 为内联命名空间）
+ *
+ * 可由预定义宏覆盖，例如在 Keil 的 Define 栏中加入 EMBMARTIN_FMT_USE_ETL=0 。
+ * 两套实现始终同时存在，只切换哪一个作为内联命名空间对外暴露，
+ * 因此切换本宏不会造成同一个头文件在不同翻译单元里定义不同实体。
+ */
+#ifndef EMBMARTIN_FMT_USE_ETL
+#define EMBMARTIN_FMT_USE_ETL 1
+#endif // EMBMARTIN_FMT_USE_ETL
+
 // ------------------------------------------其它--------------------------------------------------
 
 #ifndef STM32_DEVICE_HEADER             // 未使用预定义宏

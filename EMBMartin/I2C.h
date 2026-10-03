@@ -3,7 +3,6 @@
 
 #include <array>
 #include <cstddef>
-#include <type_traits>
 
 #include "macro.h"
 #include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)

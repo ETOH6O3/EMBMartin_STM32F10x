@@ -19,7 +19,6 @@
 #ifndef EMBMARTIN_FUNCTIONAL_PROGRAMMING_H
 #define EMBMARTIN_FUNCTIONAL_PROGRAMMING_H
 
-#include <functional>
 #include <tuple>
 #include <utility>
 
