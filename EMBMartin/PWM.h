@@ -122,7 +122,7 @@ class SteeringEngine : public PWM
 {
 private:
     const static int duty_min = 30;                          //!< 占空比最小值（左闭）
-    const static int duty_max = 130;                         //!< 占空比最大值（右开）
+    const static int duty_max = 120;                         //!< 占空比最大值（右开）
     const static int delta_duty = duty_max - duty_min;       //!< 占空比上下界差值
     const static int degree_min = 0;                         //!< 百分度最小值（左闭）
     const static int degree_max = 200;                       //!< 百分度最大值（右开）
@@ -132,13 +132,19 @@ private:
 
     inline static int16_t truncate_degree_gon(int16_t degree_gon) noexcept
     {
-        return std::abs(degree_gon) % degree_max + degree_min;
+        // return std::abs(degree_gon) % degree_max + degree_min;
+        return std::clamp<int>(degree_gon, degree_min, degree_max);
     }
 
 public:
     inline SteeringEngine(TIM_TypeDef *TIMX, int CHn, uint8_t TIMx_REMAP = 0b00) noexcept
         : PWM(TIMX, CHn, TIMx_REMAP, duty_min, 50, 10), __degree_gon(0) {};
 
+    /**
+     * @brief 设置舵机角度（百分度）
+     *
+     * @param degree_gon 百分度（1 百分度 = 0.9 度）
+     */
     inline void set_degree_gon(int16_t degree_gon) noexcept
     {
         this->__degree_gon = degree_gon;

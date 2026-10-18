@@ -68,7 +68,7 @@ struct GPIOPin
         GPIO_WriteBit(this->port, this->pin, Bit_RESET);
     }
 
-    inline bool read() noexcept // 读取模式和开漏输出模式可用
+    inline bool read() const noexcept // 读取模式和开漏输出模式可用
     {
         return GPIO_ReadInputDataBit(this->port, this->pin);
     }

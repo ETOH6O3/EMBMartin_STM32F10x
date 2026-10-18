@@ -85,9 +85,14 @@ class RotaryEncoder {
   +get() int16_t
 }
 
-class InnerTimer {
+class InnerTimerManager {
+  +Callback
+  +Handle
   +open() void
   +close() void
+  +add(TIMx, Callback) Handle
+  +remove(Handle) void
+  +count(TIMx) size_t
 }
 
 class TIMCounter {
@@ -206,7 +211,7 @@ EXTIRotaryEncoder o-- EXTIManager : exti_a/exti_b
 CounterSensor o-- GPIOPin : pin
 
 %% 定时器
-InnerTimer <|-- TIMCounter
+InnerTimerManager <|-- TIMCounter
 
 %% PWM 与电机/舵机
 PWM <|-- BreathingLED

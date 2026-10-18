@@ -516,7 +516,7 @@ void OutStream<buffer_size>::showsep(const T &first, const Args &...args) noexce
     if constexpr (sizeof...(args) >= 1)
     {
         show(sep);
-        showsep(args...);
+        showsep<sep>(args...);
     }
 }
 
