@@ -18,6 +18,7 @@
 #include <stdint.h>
 #include <array>
 #include <initializer_list>
+#include <new>
 
 #include <etl/inplace_function.h>
 
@@ -104,8 +105,27 @@ public:
     };
 
 private:
-    /// 4 条独立队列；静态存储先零初始化，vtable 为空即表示该槽位未使用
-    inline static std::array<std::array<Callback, MAX_CALLBACKS>, 4> __queues = {};
+    /**
+     * @brief 一个回调槽位
+     *
+     * 这里刻意**不**直接存 `Callback` 数组：`etl::inplace_function` 有非平凡的析构函数，
+     * 其默认构造也非平凡，`std::array<Callback, N> obj{}` 因此无法常量初始化，编译器会在
+     * `.init_array` 里生成一步「清零 + 逐个默认构造」。而全局对象的构造顺序由链接器决定，
+     * 一旦这一步排在别的翻译单元的全局对象之后，别的对象在构造期注册进来的回调就会被
+     * 整块清掉——中断照跑，但队列永远是空的。
+     *
+     * 改成「裸存储 + 使用标志」的平凡聚合体后，全零就是合法初态（所有槽位均空闲），
+     * 静态存储期变量直接常量初始化，上述动态初始化不再存在。
+     * 注意：不要给这两个成员加默认成员初始化器，否则又会让它变回非平凡默认构造。
+     */
+    struct Slot
+    {
+        alignas(Callback) unsigned char storage[sizeof(Callback)]; //!< 回调对象的就地存储
+        bool used;                                                 //!< storage 里是否已构造了对象
+    };
+
+    /// 4 条独立队列；全零即全部空闲，可常量初始化，不参与 .init_array
+    inline static std::array<std::array<Slot, MAX_CALLBACKS>, 4> __queues = {};
 
     /// 各定时器的更新周期（秒），由构造函数按实际装载的周期写入
     inline static std::array<double, 4> __periods = {};
@@ -118,6 +138,28 @@ private:
     std::array<Handle, MAX_CALLBACKS> __handles = {}; //!< 构造期注册的初始队列句柄
     uint8_t __handle_count = 0;                       //!< 已登记的句柄数量
 
+    /// 取出槽位里的回调对象（仅当 used 为 true 时有效）
+    [[nodiscard]] inline static Callback &at(Slot &__slot) noexcept
+    {
+        return *std::launder(reinterpret_cast<Callback *>(__slot.storage));
+    }
+
+    /// 在槽位里就地构造回调对象
+    inline static void construct(Slot &__slot, const Callback &__callback) noexcept
+    {
+        ::new (static_cast<void *>(__slot.storage)) Callback(__callback);
+        __slot.used = true;
+    }
+
+    /// 析构槽位里的回调对象并置为空闲
+    inline static void destroy(Slot &__slot) noexcept
+    {
+        if (!__slot.used)
+            return;
+        at(__slot).~Callback();
+        __slot.used = false;
+    }
+
     /**
      * @brief 执行某个定时器的整条队列（中断服务函数使用）
      * @param __idx 定时器序号（0~3）
@@ -126,10 +168,10 @@ private:
     {
         if (__idx >= __queues.size())
             return;
-        for (auto &__callback : __queues[__idx])
+        for (auto &__slot : __queues[__idx])
         {
-            if (__callback)
-                __callback();
+            if (__slot.used)
+                at(__slot)();
         }
     }
 

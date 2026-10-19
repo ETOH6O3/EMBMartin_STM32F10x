@@ -39,15 +39,15 @@ public:
 class SingleLoopPID
 {
 private:
-    const double kp;             //!< 比例系数
-    const double ki;             //!< 积分系数
-    const double kd;             //!< 微分系数
-    const double integral_limit; //!< 积分限幅值, 小于=0表示不限制
-    const double output_limit;   //!< 输出限幅值，小于=0表示不限制
-    const double alpha;          //!< 误差滤波系数
+    double kp;             //!< 比例系数
+    double ki;             //!< 积分系数
+    double kd;             //!< 微分系数
+    double integral_limit; //!< 积分限幅值, 小于=0表示不限制
+    double output_limit;   //!< 输出限幅值，小于=0表示不限制
+    double alpha;          //!< 误差滤波系数
 
     const double &current; //!< 当前值引用
-    const double dt;       //!< 采样时间间隔（秒）
+    double dt;             //!< 采样时间间隔（秒）
 
     const int16_t* d_current; // 可选：直接使用现成的微分值
 
@@ -58,8 +58,10 @@ public:
     inline SingleLoopPID(
         double _kp, double _ki, double _kd, double &_current, double _dt,
         double _integral_limit, double _output_limit, double _alpha = 0.0 /*默认不滤波*/, const int16_t* _d_current = nullptr) noexcept
-        : kp(_kp), ki(_ki), kd(_kd), current(_current), dt(_dt),
-          integral_limit(_integral_limit), output_limit(_output_limit), alpha(std::clamp(_alpha, 0.0, 1.0)), d_current(_d_current) {};
+        : kp(_kp), ki(_ki), kd(_kd),
+          integral_limit(_integral_limit), output_limit(_output_limit), alpha(std::clamp(_alpha, 0.0, 1.0)),
+          current(_current), dt(_dt),
+          d_current(_d_current) {};
 
     double compute(double target) noexcept; // 中断函数中调用
 
@@ -68,6 +70,76 @@ public:
         this->previous_error = 0;
         this->integral = 0;
     }
+
+    /**
+     * @brief 重新设置全部可调参数（运行时在线调参用）
+     *
+     * 只改参数，**不清积分、不动上次误差**，因此可以在一段连续控制过程中随时调用，
+     * 控制量不会因为清零而跳变。需要同时清空积分请再调用 reinit()。
+     *
+     * @param _kp 比例系数
+     * @param _ki 积分系数
+     * @param _kd 微分系数
+     * @param _dt 采样时间间隔（秒），必须是正数
+     * @param _integral_limit 积分限幅值，小于等于 0 表示不限制
+     * @param _output_limit 输出限幅值，小于等于 0 表示不限制
+     * @param _alpha 误差滤波系数，内部夹到 [0, 1]
+     * @param _d_current 可选的现成微分值来源，默认 nullptr 表示自行差分
+     */
+    inline void set(
+        double _kp, double _ki, double _kd, double _dt,
+        double _integral_limit, double _output_limit,
+        double _alpha = 0.0, const int16_t* _d_current = nullptr) noexcept
+    {
+        set_gains(_kp, _ki, _kd);
+        set_dt(_dt);
+        set_limits(_integral_limit, _output_limit);
+        set_alpha(_alpha);
+        set_d_current(_d_current);
+    }
+
+    /// 只改三个增益（最常用的调参入口）
+    inline void set_gains(double _kp, double _ki, double _kd) noexcept
+    {
+        this->kp = _kp;
+        this->ki = _ki;
+        this->kd = _kd;
+    }
+
+    /// 改采样时间间隔（秒）；非正数会被忽略，保留原值
+    inline void set_dt(double _dt) noexcept
+    {
+        if (_dt > 0.0)
+            this->dt = _dt;
+    }
+
+    /// 改限幅值；小于等于 0 表示不限制
+    inline void set_limits(double _integral_limit, double _output_limit) noexcept
+    {
+        this->integral_limit = _integral_limit;
+        this->output_limit = _output_limit;
+    }
+
+    /// 改误差滤波系数，内部夹到 [0, 1]
+    inline void set_alpha(double _alpha) noexcept
+    {
+        this->alpha = std::clamp(_alpha, 0.0, 1.0);
+    }
+
+    /// 改微分值来源；传 nullptr 表示恢复自行差分
+    inline void set_d_current(const int16_t* _d_current) noexcept
+    {
+        this->d_current = _d_current;
+    }
+
+    inline double get_kp() const noexcept { return kp; }
+    inline double get_ki() const noexcept { return ki; }
+    inline double get_kd() const noexcept { return kd; }
+    inline double get_dt() const noexcept { return dt; }
+    inline double get_integral_limit() const noexcept { return integral_limit; }
+    inline double get_output_limit() const noexcept { return output_limit; }
+    inline double get_alpha() const noexcept { return alpha; }
+    inline double get_integral() const noexcept { return integral; }
 };
 
 struct PIDParams

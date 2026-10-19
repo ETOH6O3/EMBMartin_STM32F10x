@@ -203,20 +203,12 @@ public:
     inline int16_t get_count() const noexcept { return count; }
 
     /**
-     * @brief 获取速度（上一个采样周期内的计数增量）
-     *
-     * 绑定了定时器时由中断按拍自动锁存，本函数只读不清零，可以反复调用；
-     * 未绑定时退化为「读取并清零」的按需采样。
+     * @brief 获取速度
      *
      * @return int16_t 当前速度
      */
     inline int16_t get_speed() noexcept
     {
-        if (!__speed_handle.valid())
-        {
-            speed = count;
-            count = 0;
-        }
         return speed;
     }
 };

@@ -75,7 +75,7 @@ template <size_t buffer_size = 128>
 using Debugger = MartinDebugger<buffer_size>;
 
 template <uint8_t FONT_SIZE = 18, uint16_t SCREEN_X_PIXELS = 300, uint16_t SCREEN_Y_PIXELS = 200,
-          uint8_t MAX_SLIDER_IDX = 32, typename SLIDER_PARAM_T = int8_t, typename JOYSTICK_PARAM_T = int8_t, size_t buffer_size = 128>
+          uint8_t MAX_SLIDER_IDX = 32, typename SLIDER_PARAM_T = float, typename JOYSTICK_PARAM_T = int8_t, size_t buffer_size = 128>
 class JiangXieDebugger : public IOStream<buffer_size>
 {
 private:
@@ -263,9 +263,16 @@ EMBMartin::String<32> EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SC
         const auto slider_index_str = pkg_content.substr(class_name_end_pos + 1, slider_index_end_pos - class_name_end_pos - 1);
 
         const auto slider_value_str = pkg_content.substr(slider_index_end_pos + 1);
-        const auto slider_value = static_cast<SLIDER_PARAM_T>(atoi(slider_value_str));
 
-        __slider_params[slider_index_str] = slider_value;
+        // 滑杆值允许小数（如 0.05）。这里用库自带的 String::to_float() 解析：
+        // 它接受首尾空白、正负号、小数点与指数，非法输入由 ok 标记失败。
+        const FloatingResult slider_parsed = String<32>(slider_value_str).to_float();
+        if (!slider_parsed)
+        {
+            return ""; // 非法数值：忽略本包，不改动已有参数
+        }
+
+        __slider_params[slider_index_str] = static_cast<SLIDER_PARAM_T>(slider_parsed.value);
 
         return "";
     }

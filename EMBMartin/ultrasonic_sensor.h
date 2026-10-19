@@ -22,11 +22,12 @@ private:
     sys::InnerTimerManager::Handle __trig_handle = {};   //!< 测距触发在慢拍定时器队列里的句柄
 
     // 互补滤波：本次输出 = α · 本次测量 + (1 - α) · 上次输出
-    static constexpr double FILTER_ALPHA = 0.8; //!< 新测量的权重
+    static constexpr double FILTER_ALPHA = 0.6; //!< 新测量的权重
 
     mutable double filtered_distance = 0.0; //!< 滤波后的距离
     mutable uint16_t filtered_cnt = 0;      //!< 上次参与滤波的回波计数
     mutable bool filtered_valid = false;    //!< 是否已有滤波输出
+    volatile bool measured = false;         //!< 是否至少收到过一次回波（中断写，主循环读）
 
 public:
     /**
@@ -87,9 +88,21 @@ public:
             if (_echo_last == 1) {
                 cnt = __cnt;
                 __cnt = 0;
+                measured = true; // 收到一个完整回波，测距结果有效
             }
         }  
         _echo_last = _echo;
+    }
+
+    /**
+     * @brief 是否已收到过至少一个完整回波
+     *
+     * 上电后到第一个回波之间 `cnt` 恒为 0，`get_distance()` 会算出 0 米，
+     * 这**不代表**正前方贴脸有障碍物。用本函数区分「没测到」与「测到 0 米」。
+     */
+    [[nodiscard]] inline bool has_measurement() const noexcept
+    {
+        return measured;
     }
 
     /**
@@ -98,6 +111,8 @@ public:
      * 互补滤波：d = α · d_测量 + (1 - α) · d_上次输出，α = FILTER_ALPHA。
      * 只在收到新的回波测量（cnt 变化）时更新一次，重复调用不会重复滤波，
      * 因此可以被主循环与中断同时读取而不变形。
+     *
+     * @note 尚未收到任何回波时返回 0，调用前可用 has_measurement() 判断。
      */
     inline double get_distance() const noexcept
     {

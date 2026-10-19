@@ -30,5 +30,6 @@
 #include "USART.h"
 #include "ultrasonic_sensor.h"
 #include "obstacle_avoiding_car.h"
+#include "car.h"
 
 #endif // EMBMARTIN_TOOLS_H

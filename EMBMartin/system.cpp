@@ -80,9 +80,9 @@ InnerTimerManager::Handle InnerTimerManager::__add(uint8_t __idx, const Callback
 
     for (uint8_t __i = 0; __i < MAX_CALLBACKS; ++__i)
     {
-        if (!__queues[__idx][__i])
+        if (!__queues[__idx][__i].used)
         {
-            __queues[__idx][__i] = __callback;
+            construct(__queues[__idx][__i], __callback);
             return {__idx, __i};
         }
     }
@@ -96,7 +96,7 @@ void InnerTimerManager::remove(const Handle &__handle) noexcept
         return;
 
     IRQGuard __guard; // 先关中断再销毁回调对象
-    __queues[__handle.timer][__handle.slot] = nullptr;
+    destroy(__queues[__handle.timer][__handle.slot]);
 }
 
 double InnerTimerManager::period(TIM_TypeDef *TIMX) noexcept
@@ -118,9 +118,9 @@ size_t InnerTimerManager::count(TIM_TypeDef *TIMX) noexcept
         return 0;
 
     size_t __total = 0;
-    for (const auto &__callback : __queues[__idx])
+    for (const auto &__slot : __queues[__idx])
     {
-        if (__callback)
+        if (__slot.used)
             ++__total;
     }
     return __total;

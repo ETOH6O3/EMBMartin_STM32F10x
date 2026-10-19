@@ -121,12 +121,12 @@ public:
 class SteeringEngine : public PWM
 {
 private:
-    const static int duty_min = 30;                          //!< 占空比最小值（左闭）
-    const static int duty_max = 120;                         //!< 占空比最大值（右开）
-    const static int delta_duty = duty_max - duty_min;       //!< 占空比上下界差值
-    const static int degree_min = 0;                         //!< 百分度最小值（左闭）
-    const static int degree_max = 200;                       //!< 百分度最大值（右开）
-    const static int delta_degree = degree_max - degree_min; //!< 百分度上下界差值
+    constexpr static int duty_min = 30;                          //!< 占空比最小值（左闭）
+    constexpr static int duty_max = 120;                         //!< 占空比最大值（右开）
+    constexpr static int delta_duty = duty_max - duty_min;       //!< 占空比上下界差值
+    constexpr static int degree_min = 0;                         //!< 百分度最小值（左闭）
+    constexpr static int degree_max = 200;                       //!< 百分度最大值（右开）
+    constexpr static int delta_degree = degree_max - degree_min; //!< 百分度上下界差值
 
     int16_t __degree_gon; //!< 角度（格恩 / 百分度 / 0.9 度）
 
