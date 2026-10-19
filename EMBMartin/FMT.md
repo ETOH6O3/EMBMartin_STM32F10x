@@ -352,6 +352,34 @@ namespace EMBMartin { namespace legacy_fmt
 
 > 已经在 ETL 里实现好的类型（整数、浮点、字符、字符串、指针、`bool` 等）不用迁移，直接用。
 
+#### ⚠ 自定义类型与代码体积（ETL 后端）
+
+写自定义 `formatter` 时有一个必须知道的副作用：**只要一次格式化调用里出现自定义类型，
+ETL 默认会把全部 21 个内建类型的 formatter 都实例化一遍。**
+
+原因是 ETL 用 `arg_type_mask<T>` 在编译期推断「本次调用可能出现哪些内建候选」，
+推断不出来时保守返回 `mask_all`；而它只为 21 个内建类型和 `etl::ibasic_string` 派生类
+写了推断规则。自定义类型落到主模板 → `mask_all` → 整条浮点格式化链连同
+`pow` / `log` 等数学库被一起链接进来，**实测多出约 22 KB**。
+
+本组件已经在 [`fmt.h`](fmt.h) 里统一处理好了：对「提供了 `etl::formatter<T>` 特化的类型」
+自动把掩码收窄到 `mask_monostate`（自定义类型实际走 `handle` 槽，与内建分支无关，
+所以收窄不改变任何输出）。**你按上面的样子写 formatter 即可，不需要额外做什么。**
+
+若你自己在别处直接用 `etl::format_to`（不经过本组件），这个开销依然存在，
+可在该处补一份同样的特化：
+
+```cpp
+namespace etl { namespace private_format
+{
+    template <typename T>
+    struct arg_type_mask<T, etl::enable_if_t<is_formattable<T>::value>>
+    {
+        static constexpr arg_mask_t value = mask_monostate;
+    };
+}}
+```
+
 ---
 
 ## 5. 广义 pair 的格式化
@@ -498,6 +526,7 @@ else
 | 自定义类型在两套后端要各写一份 formatter | 见第 4 节；已有的内置类型不用管 |
 | 旧后端单次结果不得超过 512 字节 | 含实参的格式化结果超过该值会断言；可用预定义宏 `EMBMARTIN_FMT_LEGACY_SCRATCH_SIZE` 调大（占用栈） |
 | 旧后端不支持 `{0}` 与嵌套 `{}` | 需要这些就把宏设为 1 |
+| 自定义类型会拖大 ETL 后端体积 | 本组件已自动收窄参数掩码（约省 22 KB）；**自己直接调 `etl::format_to` 的地方不受保护**，见 4 节末尾 |
 | 格式化的程序存储器 / 栈开销不小 | 按需使用；`fixed<N>` 比直接格式化 `double` 更省（不需要 C 库浮点） |
 
 ---
