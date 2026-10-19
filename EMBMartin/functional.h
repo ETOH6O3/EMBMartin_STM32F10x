@@ -77,34 +77,34 @@ public:
 
 	private:
 		const Slice &_slice;
-		index_type _pos;
+		index_type __pos;
 
 	public:
-		constexpr inline Iterator(const Slice &slice, const index_type &pos = 0) noexcept : _slice{slice}, _pos{pos} {}
-		constexpr inline auto operator*() const noexcept { return _slice[_pos]; }
+		constexpr inline Iterator(const Slice &slice, const index_type &pos = 0) noexcept : _slice{slice}, __pos{pos} {}
+		constexpr inline auto operator*() const noexcept { return _slice[__pos]; }
 		constexpr inline Iterator operator+(difference_type offset) const noexcept
 		{
 			const auto new_pos = offset >= 0
-									 ? _pos + static_cast<index_type>(offset)
-									 : _pos - static_cast<index_type>(-(offset + 1)) - 1;
+									 ? __pos + static_cast<index_type>(offset)
+									 : __pos - static_cast<index_type>(-(offset + 1)) - 1;
 			return Iterator(_slice, new_pos);
 		}
 		constexpr inline Iterator operator-(difference_type offset) const noexcept
 		{
 			const auto new_pos = offset >= 0
-									 ? _pos - static_cast<index_type>(offset)
-									 : _pos + static_cast<index_type>(-(offset + 1)) + 1;
+									 ? __pos - static_cast<index_type>(offset)
+									 : __pos + static_cast<index_type>(-(offset + 1)) + 1;
 			return Iterator(_slice, new_pos);
 		}
 		constexpr inline Iterator &operator+=(difference_type offset) noexcept
 		{
 			if (offset >= 0)
 			{
-				_pos += static_cast<index_type>(offset);
+				__pos += static_cast<index_type>(offset);
 			}
 			else
 			{
-				_pos -= static_cast<index_type>(-(offset + 1)) + 1;
+				__pos -= static_cast<index_type>(-(offset + 1)) + 1;
 			}
 			return *this;
 		}
@@ -112,59 +112,59 @@ public:
 		{
 			if (offset >= 0)
 			{
-				_pos -= static_cast<index_type>(offset);
+				__pos -= static_cast<index_type>(offset);
 			}
 			else
 			{
-				_pos += static_cast<index_type>(-(offset + 1)) + 1;
+				__pos += static_cast<index_type>(-(offset + 1)) + 1;
 			}
 			return *this;
 		}
 		constexpr inline Iterator &operator++() noexcept
 		{
-			++_pos;
+			++__pos;
 			return *this;
 		}
 		constexpr inline Iterator &operator--() noexcept
 		{
-			--_pos;
+			--__pos;
 			return *this;
 		}
 		constexpr inline Iterator operator++(int) noexcept
 		{
 			Iterator temp = *this;
-			++_pos;
+			++__pos;
 			return temp;
 		}
 		constexpr inline Iterator operator--(int) noexcept
 		{
 			Iterator temp = *this;
-			--_pos;
+			--__pos;
 			return temp;
 		}
 		constexpr inline bool operator==(const Iterator &other) const noexcept
 		{
-			return _pos == other._pos;
+			return __pos == other.__pos;
 		}
 		constexpr inline bool operator!=(const Iterator &other) const noexcept
 		{
-			return _pos != other._pos;
+			return __pos != other.__pos;
 		}
 		constexpr inline bool operator<(const Iterator &other) const noexcept
 		{
-			return _pos < other._pos;
+			return __pos < other.__pos;
 		}
 		constexpr inline bool operator<=(const Iterator &other) const noexcept
 		{
-			return _pos <= other._pos;
+			return __pos <= other.__pos;
 		}
 		constexpr inline bool operator>(const Iterator &other) const noexcept
 		{
-			return _pos > other._pos;
+			return __pos > other.__pos;
 		}
 		constexpr inline bool operator>=(const Iterator &other) const noexcept
 		{
-			return _pos >= other._pos;
+			return __pos >= other.__pos;
 		}
 	};
 
@@ -437,7 +437,7 @@ template <typename Tuple, size_t... Is>
 class TupleView<Tuple, std::index_sequence<Is...>>
 {
 private:
-	Tuple _tuple;
+	Tuple __tuple;
 
 	template <size_t I>
 	using source_index = detail::_tuple_view_index<I, Is...>;
@@ -465,7 +465,7 @@ public:
 								   // 引用型储存必须绑定左值，否则视图会指向已销毁的临时对象
 								   !(std::is_lvalue_reference_v<Tuple> && !std::is_lvalue_reference_v<SOURCE &&>)>>
 	explicit constexpr TupleView(SOURCE &&tuple) noexcept(std::is_nothrow_constructible_v<Tuple, SOURCE &&>)
-		: _tuple(std::forward<SOURCE>(tuple))
+		: __tuple(std::forward<SOURCE>(tuple))
 	{
 	}
 
@@ -473,28 +473,28 @@ public:
 	constexpr decltype(auto) get() & noexcept
 	{
 		static_assert(I < size, "TupleView index out of range");
-		return detail::_tuple_get<source_index<I>::value>(_tuple);
+		return detail::_tuple_get<source_index<I>::value>(__tuple);
 	}
 
 	template <size_t I>
 	constexpr decltype(auto) get() const & noexcept
 	{
 		static_assert(I < size, "TupleView index out of range");
-		return detail::_tuple_get<source_index<I>::value>(std::as_const(_tuple));
+		return detail::_tuple_get<source_index<I>::value>(std::as_const(__tuple));
 	}
 
 	template <size_t I>
 	constexpr decltype(auto) get() && noexcept
 	{
 		static_assert(I < size, "TupleView index out of range");
-		return detail::_tuple_get<source_index<I>::value>(detail::_tuple_forward<Tuple>(std::move(_tuple)));
+		return detail::_tuple_get<source_index<I>::value>(detail::_tuple_forward<Tuple>(std::move(__tuple)));
 	}
 
 	template <size_t I>
 	constexpr decltype(auto) get() const && noexcept
 	{
 		static_assert(I < size, "TupleView index out of range");
-		return detail::_tuple_get<source_index<I>::value>(detail::_tuple_forward<Tuple>(std::as_const(_tuple)));
+		return detail::_tuple_get<source_index<I>::value>(detail::_tuple_forward<Tuple>(std::as_const(__tuple)));
 	}
 
 	template <size_t... Js>
@@ -535,7 +535,7 @@ template <typename Tuple, size_t... Is, size_t InsertPos, typename... ExtraTs>
 class TupleInsertView<Tuple, std::index_sequence<Is...>, InsertPos, std::tuple<ExtraTs...>>
 {
 private:
-	Tuple _tuple;
+	Tuple __tuple;
 	std::tuple<ExtraTs...> _extra;
 
 public:
@@ -564,7 +564,7 @@ public:
 	explicit constexpr TupleInsertView(SOURCE &&tuple, EXTRA &&extra) noexcept(
 		std::is_nothrow_constructible_v<Tuple, SOURCE &&> &&
 		std::is_nothrow_constructible_v<std::tuple<ExtraTs...>, EXTRA &&>)
-		: _tuple(std::forward<SOURCE>(tuple)), _extra(std::forward<EXTRA>(extra))
+		: __tuple(std::forward<SOURCE>(tuple)), _extra(std::forward<EXTRA>(extra))
 	{
 	}
 
@@ -574,7 +574,7 @@ public:
 	explicit constexpr TupleInsertView(std::in_place_t, SOURCE &&tuple, VALUES &&...values) noexcept(
 		std::is_nothrow_constructible_v<Tuple, SOURCE &&> &&
 		std::is_nothrow_constructible_v<std::tuple<ExtraTs...>, VALUES &&...>)
-		: _tuple(std::forward<SOURCE>(tuple)), _extra(std::forward<VALUES>(values)...)
+		: __tuple(std::forward<SOURCE>(tuple)), _extra(std::forward<VALUES>(values)...)
 	{
 	}
 
@@ -584,7 +584,7 @@ public:
 		static_assert(I < size, "TupleInsertView index out of range");
 		if constexpr (I < InsertPos)
 		{
-			return detail::_tuple_get<detail::_tuple_view_index<I, Is...>::value>(_tuple);
+			return detail::_tuple_get<detail::_tuple_view_index<I, Is...>::value>(__tuple);
 		}
 		else if constexpr (I < InsertPos + sizeof...(ExtraTs))
 		{
@@ -592,7 +592,7 @@ public:
 		}
 		else
 		{
-			return detail::_tuple_get<detail::_tuple_view_index<I - sizeof...(ExtraTs), Is...>::value>(_tuple);
+			return detail::_tuple_get<detail::_tuple_view_index<I - sizeof...(ExtraTs), Is...>::value>(__tuple);
 		}
 	}
 
@@ -602,7 +602,7 @@ public:
 		static_assert(I < size, "TupleInsertView index out of range");
 		if constexpr (I < InsertPos)
 		{
-			return detail::_tuple_get<detail::_tuple_view_index<I, Is...>::value>(std::as_const(_tuple));
+			return detail::_tuple_get<detail::_tuple_view_index<I, Is...>::value>(std::as_const(__tuple));
 		}
 		else if constexpr (I < InsertPos + sizeof...(ExtraTs))
 		{
@@ -610,7 +610,7 @@ public:
 		}
 		else
 		{
-			return detail::_tuple_get<detail::_tuple_view_index<I - sizeof...(ExtraTs), Is...>::value>(std::as_const(_tuple));
+			return detail::_tuple_get<detail::_tuple_view_index<I - sizeof...(ExtraTs), Is...>::value>(std::as_const(__tuple));
 		}
 	}
 
@@ -620,7 +620,7 @@ public:
 		static_assert(I < size, "TupleInsertView index out of range");
 		if constexpr (I < InsertPos)
 		{
-			return detail::_tuple_get<detail::_tuple_view_index<I, Is...>::value>(detail::_tuple_forward<Tuple>(std::move(_tuple)));
+			return detail::_tuple_get<detail::_tuple_view_index<I, Is...>::value>(detail::_tuple_forward<Tuple>(std::move(__tuple)));
 		}
 		else if constexpr (I < InsertPos + sizeof...(ExtraTs))
 		{
@@ -628,7 +628,7 @@ public:
 		}
 		else
 		{
-			return detail::_tuple_get<detail::_tuple_view_index<I - sizeof...(ExtraTs), Is...>::value>(detail::_tuple_forward<Tuple>(std::move(_tuple)));
+			return detail::_tuple_get<detail::_tuple_view_index<I - sizeof...(ExtraTs), Is...>::value>(detail::_tuple_forward<Tuple>(std::move(__tuple)));
 		}
 	}
 
@@ -638,7 +638,7 @@ public:
 		static_assert(I < size, "TupleInsertView index out of range");
 		if constexpr (I < InsertPos)
 		{
-			return detail::_tuple_get<detail::_tuple_view_index<I, Is...>::value>(detail::_tuple_forward<Tuple>(std::as_const(_tuple)));
+			return detail::_tuple_get<detail::_tuple_view_index<I, Is...>::value>(detail::_tuple_forward<Tuple>(std::as_const(__tuple)));
 		}
 		else if constexpr (I < InsertPos + sizeof...(ExtraTs))
 		{
@@ -646,7 +646,7 @@ public:
 		}
 		else
 		{
-			return detail::_tuple_get<detail::_tuple_view_index<I - sizeof...(ExtraTs), Is...>::value>(detail::_tuple_forward<Tuple>(std::as_const(_tuple)));
+			return detail::_tuple_get<detail::_tuple_view_index<I - sizeof...(ExtraTs), Is...>::value>(detail::_tuple_forward<Tuple>(std::as_const(__tuple)));
 		}
 	}
 
@@ -708,12 +708,12 @@ private:
 		std::add_lvalue_reference_t<std::add_const_t<std::remove_reference_t<Tuple>>>,
 		mid_index_seq>;
 
-	Tuple _tuple;
+	Tuple __tuple;
 
 	// 把前段 / 中间段 / 后段按 Python 解包结构物化成真实 tuple：
 	// 前段与后段逐元素展开，中间段收进一个内层 std::tuple。
 	template <typename SourceTuple, size_t... PreIs, size_t... MidIs, size_t... PostIs>
-	static constexpr auto _materialize_impl(SourceTuple &&source,
+	static constexpr auto __materialize_impl(SourceTuple &&source,
 											std::index_sequence<PreIs...>,
 											std::index_sequence<MidIs...>,
 											std::index_sequence<PostIs...>)
@@ -756,7 +756,7 @@ public:
 				  !(std::is_lvalue_reference_v<Tuple> &&
 					!std::is_lvalue_reference_v<SOURCE &&>)>>
 	explicit constexpr TupleUnpackView(SOURCE &&tuple) noexcept(std::is_nothrow_constructible_v<Tuple, SOURCE &&>)
-		: _tuple(std::forward<SOURCE>(tuple))
+		: __tuple(std::forward<SOURCE>(tuple))
 	{
 	}
 
@@ -766,15 +766,15 @@ public:
 		static_assert(I < size, "TupleUnpackView index out of range");
 		if constexpr (I < PreN)
 		{
-			return detail::_tuple_get<I>(_tuple);
+			return detail::_tuple_get<I>(__tuple);
 		}
 		else if constexpr (I == PreN)
 		{
-			return mid_view_type{_tuple};
+			return mid_view_type{__tuple};
 		}
 		else
 		{
-			return detail::_tuple_get<total_size - PostN + (I - PreN - 1)>(_tuple);
+			return detail::_tuple_get<total_size - PostN + (I - PreN - 1)>(__tuple);
 		}
 	}
 
@@ -784,16 +784,16 @@ public:
 		static_assert(I < size, "TupleUnpackView index out of range");
 		if constexpr (I < PreN)
 		{
-			return detail::_tuple_get<I>(std::as_const(_tuple));
+			return detail::_tuple_get<I>(std::as_const(__tuple));
 		}
 		else if constexpr (I == PreN)
 		{
-			return const_mid_view_type{_tuple};
+			return const_mid_view_type{__tuple};
 		}
 		else
 		{
 			return detail::_tuple_get<total_size - PostN + (I - PreN - 1)>(
-				std::as_const(_tuple));
+				std::as_const(__tuple));
 		}
 	}
 
@@ -803,16 +803,16 @@ public:
 		static_assert(I < size, "TupleUnpackView index out of range");
 		if constexpr (I < PreN)
 		{
-			return detail::_tuple_get<I>(std::move(_tuple));
+			return detail::_tuple_get<I>(std::move(__tuple));
 		}
 		else if constexpr (I == PreN)
 		{
-			return mid_view_type{_tuple};
+			return mid_view_type{__tuple};
 		}
 		else
 		{
 			return detail::_tuple_get<total_size - PostN + (I - PreN - 1)>(
-				std::move(_tuple));
+				std::move(__tuple));
 		}
 	}
 
@@ -822,22 +822,22 @@ public:
 		static_assert(I < size, "TupleUnpackView index out of range");
 		if constexpr (I < PreN)
 		{
-			return detail::_tuple_get<I>(std::as_const(_tuple));
+			return detail::_tuple_get<I>(std::as_const(__tuple));
 		}
 		else if constexpr (I == PreN)
 		{
-			return const_mid_view_type{_tuple};
+			return const_mid_view_type{__tuple};
 		}
 		else
 		{
 			return detail::_tuple_get<total_size - PostN + (I - PreN - 1)>(
-				std::as_const(_tuple));
+				std::as_const(__tuple));
 		}
 	}
 
 	constexpr auto materialize() &
 	{
-		return _materialize_impl(_tuple,
+		return __materialize_impl(__tuple,
 								 std::make_index_sequence<PreN>{},
 								 std::make_index_sequence<mid_size>{},
 								 std::make_index_sequence<PostN>{});
@@ -845,7 +845,7 @@ public:
 
 	constexpr auto materialize() const &
 	{
-		return _materialize_impl(std::as_const(_tuple),
+		return __materialize_impl(std::as_const(__tuple),
 								 std::make_index_sequence<PreN>{},
 								 std::make_index_sequence<mid_size>{},
 								 std::make_index_sequence<PostN>{});
@@ -853,7 +853,7 @@ public:
 
 	constexpr auto materialize() &&
 	{
-		return _materialize_impl(detail::_tuple_forward<Tuple>(std::move(_tuple)),
+		return __materialize_impl(detail::_tuple_forward<Tuple>(std::move(__tuple)),
 								 std::make_index_sequence<PreN>{},
 								 std::make_index_sequence<mid_size>{},
 								 std::make_index_sequence<PostN>{});
@@ -861,7 +861,7 @@ public:
 
 	constexpr auto materialize() const &&
 	{
-		return _materialize_impl(detail::_tuple_forward<Tuple>(std::as_const(_tuple)),
+		return __materialize_impl(detail::_tuple_forward<Tuple>(std::as_const(__tuple)),
 								 std::make_index_sequence<PreN>{},
 								 std::make_index_sequence<mid_size>{},
 								 std::make_index_sequence<PostN>{});
@@ -1824,12 +1824,12 @@ template <_PipeUnpackMode MODE, typename TUPLE>
 class _PipeWrapper
 {
 private:
-	TUPLE _args;
+	TUPLE __args;
 
 	constexpr _PipeWrapper() = default;
 
 	template <typename RESULT>
-	static constexpr auto _wrap_result(RESULT &&result)
+	static constexpr auto __wrap_result(RESULT &&result)
 	{
 		using result_type = remove_cvref_t<RESULT>;
 		if constexpr (
@@ -1856,14 +1856,14 @@ public:
 	template <typename... ARGS,
 			  typename = std::enable_if_t<std::is_constructible_v<TUPLE, ARGS &&...>>>
 	explicit constexpr inline _PipeWrapper(ARGS &&...args) noexcept
-		: _args(std::forward<ARGS>(args)...)
+		: __args(std::forward<ARGS>(args)...)
 	{
 	}
 
 	/** @brief 从同类型标准 tuple 构造管道对象。 */
 	template <_PipeUnpackMode M = MODE, typename = std::enable_if_t<M == _PipeUnpackMode::OnlyStdTuple>>
 	explicit constexpr inline _PipeWrapper(const TUPLE &tup) noexcept
-		: _args(tup)
+		: __args(tup)
 	{
 	}
 
@@ -1871,22 +1871,22 @@ public:
 	template <size_t N>
 	constexpr decltype(auto) get() & noexcept
 	{
-		return std::get<N>(_args);
+		return std::get<N>(__args);
 	}
 	template <size_t N>
 	constexpr decltype(auto) get() const & noexcept
 	{
-		return std::get<N>(_args);
+		return std::get<N>(__args);
 	}
 	template <size_t N>
 	constexpr decltype(auto) get() && noexcept
 	{
-		return std::get<N>(std::move(_args));
+		return std::get<N>(std::move(__args));
 	}
 	template <size_t N>
 	constexpr decltype(auto) get() const && noexcept
 	{
-		return std::get<N>(std::move(_args));
+		return std::get<N>(std::move(__args));
 	}
 
 	/**
@@ -1903,7 +1903,7 @@ public:
 		{
 			std::apply(
 				std::forward<decltype(func)>(func),
-				std::move(_args));
+				std::move(__args));
 
 			return _PipeWrapper<MODE, std::tuple<>>();
 		}
@@ -1911,8 +1911,8 @@ public:
 		{
 			auto &&rslt = std::apply(
 				std::forward<decltype(func)>(func),
-				std::move(_args));
-			return _wrap_result(std::forward<decltype(rslt)>(rslt));
+				std::move(__args));
+			return __wrap_result(std::forward<decltype(rslt)>(rslt));
 		}
 	}
 
@@ -1920,23 +1920,23 @@ public:
 	template <_PipeUnpackMode OTHER_MODE, typename OTHER_TUPLE>
 	constexpr auto operator|(_PipeWrapper<OTHER_MODE, OTHER_TUPLE> other) &&
 	{
-		using merged_type = decltype(std::tuple_cat(std::move(_args), std::move(other._args)));
+		using merged_type = decltype(std::tuple_cat(std::move(__args), std::move(other.__args)));
 		return _PipeWrapper<MODE, merged_type>(
-			std::tuple_cat(std::move(_args), std::move(other._args)));
+			std::tuple_cat(std::move(__args), std::move(other.__args)));
 	}
 
 	/** @brief 切换返回值解包模式。 */
 	template <_PipeUnpackMode NEW_MODE>
 	constexpr auto operator|(_PipeUnpackModeManipulator<NEW_MODE>) &&
 	{
-		return _PipeWrapper<NEW_MODE, TUPLE>(std::move(_args));
+		return _PipeWrapper<NEW_MODE, TUPLE>(std::move(__args));
 	}
 
 	/** @brief 对当前参数包做编译期切片。 */
 	template <size_t Start, size_t End, std::make_signed_t<size_t> Step>
 	constexpr auto operator|(_PipeSlicer<Start, End, Step>) &&
 	{
-		auto new_args = split<Start, End, Step>(std::move(_args));
+		auto new_args = split<Start, End, Step>(std::move(__args));
 		auto materialized = to_tuple(std::move(new_args));
 		using NEW_TUPLE = remove_cvref_t<decltype(materialized)>;
 		return _PipeWrapper<MODE, NEW_TUPLE>(std::move(materialized));
@@ -1946,7 +1946,7 @@ public:
 	template <size_t N, typename... T>
 	constexpr auto operator|(_PipeInserter<N, T...> inserter) &&
 	{
-		auto new_args = insert_tuple<N>(std::move(_args), std::move(inserter.val));
+		auto new_args = insert_tuple<N>(std::move(__args), std::move(inserter.val));
 		auto materialized = to_tuple(std::move(new_args));
 		using NEW_TUPLE = remove_cvref_t<decltype(materialized)>;
 		return _PipeWrapper<MODE, NEW_TUPLE>(std::move(materialized));
@@ -1956,7 +1956,7 @@ public:
 	template <size_t N>
 	constexpr auto operator|(_PipeEraser<N>) &&
 	{
-		auto new_args = erase<N>(std::move(_args));
+		auto new_args = erase<N>(std::move(__args));
 		auto materialized = to_tuple(std::move(new_args));
 		using NEW_TUPLE = remove_cvref_t<decltype(materialized)>;
 		return _PipeWrapper<MODE, NEW_TUPLE>(std::move(materialized));
@@ -1966,7 +1966,7 @@ public:
 	template <size_t N1, size_t N2>
 	constexpr auto operator|(_PipeSwapper<N1, N2>) &&
 	{
-		auto new_args = swap<N1, N2>(std::move(_args));
+		auto new_args = swap<N1, N2>(std::move(__args));
 		auto materialized = to_tuple(std::move(new_args));
 		using NEW_TUPLE = remove_cvref_t<decltype(materialized)>;
 		return _PipeWrapper<MODE, NEW_TUPLE>(std::move(materialized));

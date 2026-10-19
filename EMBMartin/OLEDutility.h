@@ -27,7 +27,7 @@ class IterableUInt
 private:
     static_assert(std::is_integral_v<T> && std::is_unsigned_v<T>, "T must be an unsigned integral type");
 
-    T _value;
+    T __value;
 
     // 计算位数
     static constexpr size_t bit_count = sizeof(T) * CHAR_BIT;
@@ -37,21 +37,21 @@ private:
     {
     private:
         T &_trg;
-        size_t _pos;
+        size_t __pos;
 
     public:
-        constexpr inline Bit(T &trg, size_t pos) noexcept : _trg{trg}, _pos{pos} {}
+        constexpr inline Bit(T &trg, size_t pos) noexcept : _trg{trg}, __pos{pos} {}
         constexpr inline Bit &operator=(bool bit) noexcept
         {
             if (bit)
-                this->_trg |= T(1) << _pos;
+                this->_trg |= T(1) << __pos;
             else
-                this->_trg &= ~(T(1) << _pos);
+                this->_trg &= ~(T(1) << __pos);
             return *this;
         }
         constexpr inline operator bool()const noexcept
         {
-            return bool((this->_trg >> this->_pos) & T(0b1));
+            return bool((this->_trg >> this->__pos) & T(0b1));
         }
     };
 
@@ -59,13 +59,13 @@ private:
     {
     private:
         const T &_trg;
-        size_t _pos;
+        size_t __pos;
 
     public:
-        constexpr inline ConstBit(const T &trg, size_t pos) noexcept : _trg{trg}, _pos{pos} {}
+        constexpr inline ConstBit(const T &trg, size_t pos) noexcept : _trg{trg}, __pos{pos} {}
         constexpr inline operator bool() const noexcept
         {
-            return bool((this->_trg >> this->_pos) & T(0b1));
+            return bool((this->_trg >> this->__pos) & T(0b1));
         }
     };
 
@@ -73,7 +73,7 @@ private:
     {
     private:
         T &_trg;
-        size_t _pos;
+        size_t __pos;
 
     public:
         using iterator_category = std::random_access_iterator_tag;
@@ -82,65 +82,65 @@ private:
         using pointer = void;
         using reference = Bit;
 
-        constexpr inline Iterator(T &trg, size_t pos = 0) noexcept : _trg{trg}, _pos{pos} {}
-        constexpr inline Bit operator*() const noexcept { return {_trg, _pos}; }
+        constexpr inline Iterator(T &trg, size_t pos = 0) noexcept : _trg{trg}, __pos{pos} {}
+        constexpr inline Bit operator*() const noexcept { return {_trg, __pos}; }
         constexpr inline Iterator operator+(size_t offset) const noexcept
         {
-            return Iterator(_trg, _pos + offset);
+            return Iterator(_trg, __pos + offset);
         }
         constexpr inline Iterator operator-(size_t offset) const noexcept
         {
-            return Iterator(_trg, _pos - offset);
+            return Iterator(_trg, __pos - offset);
         }
         constexpr inline Iterator &operator+=(size_t offset) noexcept
         {
-            _pos += offset;
+            __pos += offset;
             return *this;
         }
         constexpr inline Iterator &operator-=(size_t offset) noexcept
         {
-            _pos -= offset;
+            __pos -= offset;
             return *this;
         }
         constexpr inline Iterator &operator++() noexcept
         {
-            ++_pos;
+            ++__pos;
             return *this;
         }
         constexpr inline Iterator &operator--() noexcept
         {
-            --_pos;
+            --__pos;
             return *this;
         }
         constexpr inline Iterator operator++(int) noexcept
         {
             Iterator temp = *this;
-            ++_pos;
+            ++__pos;
             return temp;
         }
         constexpr inline Iterator operator--(int) noexcept
         {
             Iterator temp = *this;
-            --_pos;
+            --__pos;
             return temp;
         }
         constexpr inline difference_type operator-(const Iterator &other) const noexcept
         {
-            return static_cast<difference_type>(_pos - other._pos);
+            return static_cast<difference_type>(__pos - other.__pos);
         }
-        constexpr inline bool operator!=(const Iterator &other) const noexcept { return _pos != other._pos; }
-        constexpr inline bool operator==(const Iterator &other) const noexcept { return _pos == other._pos; }
-        constexpr inline bool operator<(const Iterator &other) const noexcept { return _pos < other._pos; }
-        constexpr inline bool operator<=(const Iterator &other) const noexcept { return _pos <= other._pos; }
-        constexpr inline bool operator>(const Iterator &other) const noexcept { return _pos > other._pos; }
-        constexpr inline bool operator>=(const Iterator &other) const noexcept { return _pos >= other._pos; }
+        constexpr inline bool operator!=(const Iterator &other) const noexcept { return __pos != other.__pos; }
+        constexpr inline bool operator==(const Iterator &other) const noexcept { return __pos == other.__pos; }
+        constexpr inline bool operator<(const Iterator &other) const noexcept { return __pos < other.__pos; }
+        constexpr inline bool operator<=(const Iterator &other) const noexcept { return __pos <= other.__pos; }
+        constexpr inline bool operator>(const Iterator &other) const noexcept { return __pos > other.__pos; }
+        constexpr inline bool operator>=(const Iterator &other) const noexcept { return __pos >= other.__pos; }
     };
 
     class ConstIterator
     {
     private:
         const T &_trg;
-        size_t _pos;
+        size_t __pos;
 
     public:
         using iterator_category = std::random_access_iterator_tag;
@@ -149,142 +149,142 @@ private:
         using pointer = void;
         using reference = ConstBit;
 
-        constexpr inline ConstIterator(const T &trg, size_t pos = 0) noexcept : _trg{trg}, _pos{pos} {}
-        constexpr inline ConstBit operator*() const noexcept { return {_trg, _pos}; }
+        constexpr inline ConstIterator(const T &trg, size_t pos = 0) noexcept : _trg{trg}, __pos{pos} {}
+        constexpr inline ConstBit operator*() const noexcept { return {_trg, __pos}; }
         constexpr inline ConstIterator operator+(size_t offset) const noexcept
         {
-            return ConstIterator(_trg, _pos + offset);
+            return ConstIterator(_trg, __pos + offset);
         }
         constexpr inline ConstIterator operator-(size_t offset) const noexcept
         {
-            return ConstIterator(_trg, _pos - offset);
+            return ConstIterator(_trg, __pos - offset);
         }
         constexpr inline ConstIterator &operator+=(size_t offset) noexcept
         {
-            _pos += offset;
+            __pos += offset;
             return *this;
         }
         constexpr inline ConstIterator &operator-=(size_t offset) noexcept
         {
-            _pos -= offset;
+            __pos -= offset;
             return *this;
         }
         constexpr inline ConstIterator &operator++() noexcept
         {
-            ++_pos;
+            ++__pos;
             return *this;
         }
         constexpr inline ConstIterator &operator--() noexcept
         {
-            --_pos;
+            --__pos;
             return *this;
         }
         constexpr inline ConstIterator operator++(int) noexcept
         {
             ConstIterator temp = *this;
-            ++_pos;
+            ++__pos;
             return temp;
         }
         constexpr inline ConstIterator operator--(int) noexcept
         {
             ConstIterator temp = *this;
-            --_pos;
+            --__pos;
             return temp;
         }
         constexpr inline difference_type operator-(const ConstIterator &other) const noexcept
         {
-            return static_cast<difference_type>(_pos - other._pos);
+            return static_cast<difference_type>(__pos - other.__pos);
         }
-        constexpr inline bool operator!=(const ConstIterator &other) const noexcept { return _pos != other._pos; }
-        constexpr inline bool operator==(const ConstIterator &other) const noexcept { return _pos == other._pos; }
-        constexpr inline bool operator<(const ConstIterator &other) const noexcept { return _pos < other._pos; }
-        constexpr inline bool operator<=(const ConstIterator &other) const noexcept { return _pos <= other._pos; }
-        constexpr inline bool operator>(const ConstIterator &other) const noexcept { return _pos > other._pos; }
-        constexpr inline bool operator>=(const ConstIterator &other) const noexcept { return _pos >= other._pos; }
+        constexpr inline bool operator!=(const ConstIterator &other) const noexcept { return __pos != other.__pos; }
+        constexpr inline bool operator==(const ConstIterator &other) const noexcept { return __pos == other.__pos; }
+        constexpr inline bool operator<(const ConstIterator &other) const noexcept { return __pos < other.__pos; }
+        constexpr inline bool operator<=(const ConstIterator &other) const noexcept { return __pos <= other.__pos; }
+        constexpr inline bool operator>(const ConstIterator &other) const noexcept { return __pos > other.__pos; }
+        constexpr inline bool operator>=(const ConstIterator &other) const noexcept { return __pos >= other.__pos; }
     };
 
 public:
     // ------------------------------------------默认构造--------------------------------------------------
-    constexpr inline IterableUInt() noexcept : _value{0} {}
+    constexpr inline IterableUInt() noexcept : __value{0} {}
 
     // ------------------------------------------从整数构造--------------------------------------------------
-    constexpr inline IterableUInt(T value) noexcept : _value{value} {}
+    constexpr inline IterableUInt(T value) noexcept : __value{value} {}
     template <typename U, typename = std::enable_if_t<!std::is_convertible_v<U, T>>>
-    explicit constexpr inline IterableUInt(U value) noexcept : _value{static_cast<T>(value)} {}
+    explicit constexpr inline IterableUInt(U value) noexcept : __value{static_cast<T>(value)} {}
     template <typename U, typename = std::enable_if_t<std::is_convertible_v<U, T>>, typename = void>
-    constexpr inline IterableUInt(U value) noexcept : _value{static_cast<T>(value)} {}
+    constexpr inline IterableUInt(U value) noexcept : __value{static_cast<T>(value)} {}
 
     // ------------------------------------------从同类构造--------------------------------------------------
     template <typename U, typename = std::enable_if_t<!std::is_convertible_v<U, T>>>
-    explicit constexpr inline IterableUInt(const IterableUInt<U> &other) noexcept : _value{static_cast<T>(other._value)} {}
+    explicit constexpr inline IterableUInt(const IterableUInt<U> &other) noexcept : __value{static_cast<T>(other.__value)} {}
     template <typename U, typename = std::enable_if_t<std::is_convertible_v<U, T>>, typename = void>
-    constexpr inline IterableUInt(const IterableUInt<U> &other) noexcept : _value{static_cast<T>(other._value)} {}
+    constexpr inline IterableUInt(const IterableUInt<U> &other) noexcept : __value{static_cast<T>(other.__value)} {}
 
     // ------------------------------------------向整型转换--------------------------------------------------
-    constexpr inline operator T() const noexcept { return _value; }
+    constexpr inline operator T() const noexcept { return __value; }
     template <typename U, typename = std::enable_if_t<!std::is_convertible_v<T, U>>>
-    explicit constexpr inline operator U() const noexcept { return static_cast<U>(_value); }
+    explicit constexpr inline operator U() const noexcept { return static_cast<U>(__value); }
     template <typename U, typename = std::enable_if_t<std::is_convertible_v<T, U>>, typename = void>
-    constexpr inline operator U() const noexcept { return static_cast<U>(_value); }
+    constexpr inline operator U() const noexcept { return static_cast<U>(__value); }
 
     // ------------------------------------------二元运算符--------------------------------------------------
     constexpr inline IterableUInt &operator+=(const IterableUInt &other) noexcept
     {
-        _value += other._value;
+        __value += other.__value;
         return *this;
     }
 
     constexpr inline IterableUInt &operator-=(const IterableUInt &other) noexcept
     {
-        _value -= other._value;
+        __value -= other.__value;
         return *this;
     }
 
     constexpr inline IterableUInt &operator*=(const IterableUInt &other) noexcept
     {
-        _value *= other._value;
+        __value *= other.__value;
         return *this;
     }
 
     constexpr inline IterableUInt &operator/=(const IterableUInt &other) noexcept
     {
-        _value /= other._value;
+        __value /= other.__value;
         return *this;
     }
 
     constexpr inline IterableUInt &operator%=(const IterableUInt &other) noexcept
     {
-        _value %= other._value;
+        __value %= other.__value;
         return *this;
     }
 
     constexpr inline IterableUInt &operator&=(const IterableUInt &other) noexcept
     {
-        _value &= other._value;
+        __value &= other.__value;
         return *this;
     }
 
     constexpr inline IterableUInt &operator|=(const IterableUInt &other) noexcept
     {
-        _value |= other._value;
+        __value |= other.__value;
         return *this;
     }
 
     constexpr inline IterableUInt &operator^=(const IterableUInt &other) noexcept
     {
-        _value ^= other._value;
+        __value ^= other.__value;
         return *this;
     }
 
     constexpr inline IterableUInt &operator<<=(size_t shift) noexcept
     {
-        _value <<= shift;
+        __value <<= shift;
         return *this;
     }
 
     constexpr inline IterableUInt &operator>>=(size_t shift) noexcept
     {
-        _value >>= shift;
+        __value >>= shift;
         return *this;
     }
 
@@ -296,109 +296,109 @@ public:
 
     constexpr inline IterableUInt operator-() const noexcept
     {
-        return IterableUInt(-_value);
+        return IterableUInt(-__value);
     }
 
     constexpr inline IterableUInt operator~() const noexcept
     {
-        return IterableUInt(~_value);
+        return IterableUInt(~__value);
     }
 
     constexpr inline IterableUInt &operator++() noexcept
     {
-        ++_value;
+        ++__value;
         return *this;
     }
 
     constexpr inline IterableUInt &operator--() noexcept
     {
-        --_value;
+        --__value;
         return *this;
     }
 
     constexpr inline IterableUInt operator++(int) noexcept
     {
         IterableUInt temp(*this);
-        ++_value;
+        ++__value;
         return temp;
     }
 
     constexpr inline IterableUInt operator--(int) noexcept
     {
         IterableUInt temp(*this);
-        --_value;
+        --__value;
         return temp;
     }
     // ------------------------------------------比较运算符--------------------------------------------------
     constexpr inline bool operator==(const IterableUInt &other) const noexcept
     {
-        return _value == other._value;
+        return __value == other.__value;
     }
 
     constexpr inline bool operator!=(const IterableUInt &other) const noexcept
     {
-        return _value != other._value;
+        return __value != other.__value;
     }
 
     constexpr inline bool operator<(const IterableUInt &other) const noexcept
     {
-        return _value < other._value;
+        return __value < other.__value;
     }
 
     constexpr inline bool operator<=(const IterableUInt &other) const noexcept
     {
-        return _value <= other._value;
+        return __value <= other.__value;
     }
 
     constexpr inline bool operator>(const IterableUInt &other) const noexcept
     {
-        return _value > other._value;
+        return __value > other.__value;
     }
 
     constexpr inline bool operator>=(const IterableUInt &other) const noexcept
     {
-        return _value >= other._value;
+        return __value >= other.__value;
     }
 
     constexpr inline bool operator==(T value) const noexcept
     {
-        return _value == value;
+        return __value == value;
     }
 
     constexpr inline bool operator!=(T value) const noexcept
     {
-        return _value != value;
+        return __value != value;
     }
 
     constexpr inline bool operator<(T value) const noexcept
     {
-        return _value < value;
+        return __value < value;
     }
 
     constexpr inline bool operator<=(T value) const noexcept
     {
-        return _value <= value;
+        return __value <= value;
     }
 
     constexpr inline bool operator>(T value) const noexcept
     {
-        return _value > value;
+        return __value > value;
     }
 
     constexpr inline bool operator>=(T value) const noexcept
     {
-        return _value >= value;
+        return __value >= value;
     }
 
     // ------------------------------------------随机访问--------------------------------------------------
-    constexpr inline Iterator begin() noexcept { return Iterator(_value, 0); }
-    constexpr inline Iterator end() noexcept { return Iterator(_value, bit_count); }
-    constexpr inline ConstIterator begin() const noexcept { return ConstIterator(_value, 0); }
-    constexpr inline ConstIterator end() const noexcept { return ConstIterator(_value, bit_count); }
-    constexpr inline ConstIterator cbegin() noexcept { return ConstIterator(_value, 0); }
-    constexpr inline ConstIterator cend() noexcept { return ConstIterator(_value, bit_count); }
-    constexpr inline Bit operator[](size_t pos) noexcept { return Bit(_value, pos); }
-    constexpr inline ConstBit operator[](size_t pos) const noexcept { return ConstBit(_value, pos); }
+    constexpr inline Iterator begin() noexcept { return Iterator(__value, 0); }
+    constexpr inline Iterator end() noexcept { return Iterator(__value, bit_count); }
+    constexpr inline ConstIterator begin() const noexcept { return ConstIterator(__value, 0); }
+    constexpr inline ConstIterator end() const noexcept { return ConstIterator(__value, bit_count); }
+    constexpr inline ConstIterator cbegin() noexcept { return ConstIterator(__value, 0); }
+    constexpr inline ConstIterator cend() noexcept { return ConstIterator(__value, bit_count); }
+    constexpr inline Bit operator[](size_t pos) noexcept { return Bit(__value, pos); }
+    constexpr inline ConstBit operator[](size_t pos) const noexcept { return ConstBit(__value, pos); }
 };
 
 using IterableUInt8 = IterableUInt<uint8_t>;
@@ -418,7 +418,7 @@ template <uint8_t X /*行数*/, uint8_t Y /*列数 */>
 class OLEDBitMap
 {
 private:
-    std::array<std::array<BWPixel, Y>, X> _pixels;
+    std::array<std::array<BWPixel, Y>, X> __pixels;
 
 public:
     constexpr static uint8_t row_num = X;
@@ -430,27 +430,27 @@ public:
     constexpr inline auto &operator[](uint8_t x) noexcept
     {
         EMBMARTIN_NON_BLOCKING_ASSERT(x < X, "out of range", &console);
-        return this->_pixels[x];
+        return this->__pixels[x];
     };
 
     constexpr inline const auto &operator[](uint8_t x) const noexcept
     {
         EMBMARTIN_NON_BLOCKING_ASSERT(x < X, "out of range", &console);
-        return this->_pixels[x];
+        return this->__pixels[x];
     };
 
     constexpr inline auto &operator[](const Coordinate<uint8_t, 0, X - 1, 0, Y - 1> &c) noexcept
     {
         const auto &[row_index, col_index] = c;
         EMBMARTIN_NON_BLOCKING_ASSERT((row_index < X) && (col_index < Y), "out of range", &console);
-        return this->_pixels[row_index][col_index];
+        return this->__pixels[row_index][col_index];
     };
 
     constexpr inline const auto &operator[](const Coordinate<uint8_t, 0, X - 1, 0, Y - 1> &c) const noexcept
     {
         const auto &[row_index, col_index] = c;
         EMBMARTIN_NON_BLOCKING_ASSERT((row_index < X) && (col_index < Y), "out of range", &console);
-        return this->_pixels[row_index][col_index];
+        return this->__pixels[row_index][col_index];
     };
 };
 
@@ -464,7 +464,7 @@ constexpr OLEDBitMap<X, Y>::OLEDBitMap(const std::array<uint8_t, ceil_div<uint8_
     {
         for (uint8_t i = 0; (i < 8) && (i < current_remained_row); i++)
         {
-            this->_pixels[current_start_row + i][current_col] =
+            this->__pixels[current_start_row + i][current_col] =
                 _8_col_pix[i] ? BWPixel::White : zero_equals_to;
         }
         ++current_col;
@@ -484,8 +484,8 @@ template <OLEDFontSize font_size = OLEDFontSize::F8x16>
 class WesternFont
 {
 private:
-    char _char;
-    BWPixel _background;
+    char __char;
+    BWPixel __background;
 
 public:
     constexpr static uint8_t row_num = (font_size == OLEDFontSize::F6x8) ? 8 : 16;
@@ -493,7 +493,7 @@ public:
     constexpr static auto size = std::make_pair(row_num, col_num);
 
     constexpr inline WesternFont(char c, BWPixel background = BWPixel::Transparent) noexcept
-        : _char{c}, _background{background} {}
+        : __char{c}, __background{background} {}
     constexpr inline operator OLEDBitMap<row_num, col_num>() const noexcept
     {
         if constexpr (font_size == OLEDFontSize::F6x8)
@@ -501,18 +501,18 @@ public:
             std::array<uint8_t, 6> data{};
             for (uint8_t i = 0; i < 6; ++i)
             {
-                data[i] = OLED_F6x8[_char - ' '][i];
+                data[i] = OLED_F6x8[__char - ' '][i];
             }
-            return {data, _background};
+            return {data, __background};
         }
         else // if constexpr (font_size == OLEDFontSize::F8x16)
         {
             std::array<uint8_t, 16> data{};
             for (uint8_t i = 0; i < 16; ++i)
             {
-                data[i] = OLED_F8x16[_char - ' '][i];
+                data[i] = OLED_F8x16[__char - ' '][i];
             }
-            return {data, _background};
+            return {data, __background};
         }
     }
 };

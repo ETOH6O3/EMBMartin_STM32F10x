@@ -9,8 +9,8 @@ EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
 PWM::PWM(
     TIM_TypeDef *__TIMX, int CHn, uint8_t TIMx_REMAP, const GPIOPin output_pin,
     int Duty_permillage, int Freq_HZ, int Reso_permillage) noexcept
-    : _Duty_permillage(Duty_permillage), _Freq_HZ(Freq_HZ), _Reso_permillage(Reso_permillage),
-      _TIMX(__TIMX), _CHn(CHn)
+    : __Duty_permillage(Duty_permillage), __Freq_HZ(Freq_HZ), __Reso_permillage(Reso_permillage),
+      _TIMX(__TIMX), __CHn(CHn)
 
 {
     SystemCoreClockUpdate();
@@ -88,7 +88,7 @@ PWM::PWM(
     TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High;
     TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable;
     TIM_OCInitStructure.TIM_Pulse = CCR;
-    switch (_CHn)
+    switch (__CHn)
     {
     case 1:
         TIM_OC1Init(__TIMX, &TIM_OCInitStructure);
@@ -117,58 +117,23 @@ void PWM::set_duty(int Duty_permillage) noexcept
     else if (Duty_permillage > 1000)
         Duty_permillage = 1000;
 
-    this->_Duty_permillage = Duty_permillage;
-    switch (this->_CHn)
+    this->__Duty_permillage = Duty_permillage;
+    switch (this->__CHn)
     {
     case 1:
-        TIM_SetCompare1(_TIMX, Duty_permillage * (1000 / _Reso_permillage) / 1000);
+        TIM_SetCompare1(_TIMX, Duty_permillage * (1000 / __Reso_permillage) / 1000);
         break;
     case 2:
-        TIM_SetCompare2(_TIMX, Duty_permillage * (1000 / _Reso_permillage) / 1000);
+        TIM_SetCompare2(_TIMX, Duty_permillage * (1000 / __Reso_permillage) / 1000);
         break;
     case 3:
-        TIM_SetCompare3(_TIMX, Duty_permillage * (1000 / _Reso_permillage) / 1000);
+        TIM_SetCompare3(_TIMX, Duty_permillage * (1000 / __Reso_permillage) / 1000);
         break;
     case 4:
-        TIM_SetCompare4(_TIMX, Duty_permillage * (1000 / _Reso_permillage) / 1000);
+        TIM_SetCompare4(_TIMX, Duty_permillage * (1000 / __Reso_permillage) / 1000);
         break;
     default:
         break;
-    }
-}
-
-void BreathingLED::breathe(int times) noexcept
-{
-    for (int t = 0; t < times; t++)
-    {
-        if (_driven_level)
-        {
-            int i;
-            for (i = 0; i <= 1000; i++)
-            {
-                this->set_duty(i);
-                Delay_ms(_period_s * 1000 / 2 / 1000);
-            }
-            for (; i >= 0; i--)
-            {
-                this->set_duty(i);
-                Delay_ms(_period_s * 1000 / 2 / 1000);
-            }
-        }
-        else
-        {
-            int i;
-            for (i = 1000; i >= 0; i--)
-            {
-                this->set_duty(i);
-                Delay_ms(_period_s * 1000 / 2 / 1000);
-            }
-            for (; i <= 1000; i++)
-            {
-                this->set_duty(i);
-                Delay_ms(_period_s * 1000 / 2 / 1000);
-            }
-        }
     }
 }
 

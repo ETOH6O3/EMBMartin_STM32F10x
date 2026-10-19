@@ -11,8 +11,8 @@ EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
 class UltrasonicSensor
 {
 private:
-    Inpin _echo;
-    OutPin _trig;
+    Inpin __echo;
+    OutPin __trig;
 
     const double TIM_TIME_S;
     uint16_t cnt;
@@ -46,9 +46,9 @@ public:
      */
     inline UltrasonicSensor(const GPIOPin &echo, const GPIOPin &trig, double tim_time_s, uint16_t temprature_kelvin,
                             TIM_TypeDef *update_TIMX = nullptr, TIM_TypeDef *trig_TIMX = nullptr) noexcept
-        : _echo{echo, GPIO_Mode_IPD}, _trig{trig}, TIM_TIME_S{tim_time_s}, cnt{0}, SOUND_VELOCITY{uint16_t(20.05 * std::sqrt(temprature_kelvin))}
+        : __echo{echo, GPIO_Mode_IPD}, __trig{trig}, TIM_TIME_S{tim_time_s}, cnt{0}, SOUND_VELOCITY{uint16_t(20.05 * std::sqrt(temprature_kelvin))}
         {
-            _trig = 0;
+            __trig = 0;
             if (update_TIMX != nullptr)
                 __update_handle = sys::InnerTimerManager::add(update_TIMX, [this]()
                                                               { this->update(); });
@@ -69,17 +69,17 @@ public:
 
     inline void trig() noexcept
     {
-        _trig = 1;
+        __trig = 1;
         sys::delay_us(10);
-        _trig = 0;
+        __trig = 0;
     }
 
     // 定时中断调用函数
     inline void update() noexcept
     {
         static uint16_t __cnt = 0;
-        static bool _echo_last = _echo;
-        if (_echo == 1)
+        static bool _echo_last = __echo;
+        if (__echo == 1)
         {
             __cnt++;
         }
@@ -91,7 +91,7 @@ public:
                 measured = true; // 收到一个完整回波，测距结果有效
             }
         }  
-        _echo_last = _echo;
+        _echo_last = __echo;
     }
 
     /**

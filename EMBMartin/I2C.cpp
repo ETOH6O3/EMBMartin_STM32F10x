@@ -7,11 +7,11 @@ void I2C::send_byte(uint8_t data) noexcept
     for (uint8_t i = 0; i < 8; ++i)
     {
         // 契约：确保 SCL 必定已经是低电平
-        (data & (0x80 >> i)) ? _SDA.set() : _SDA.reset();
+        (data & (0x80 >> i)) ? __SDA.set() : __SDA.reset();
         i2c_delay(); // SDA 建立时间 + SCL 低电平保持
-        _SCL.set();
+        __SCL.set();
         i2c_delay(); // SCL 高电平保持（从机在这段时间内采样数据位）
-        _SCL.reset();
+        __SCL.reset();
         i2c_delay(); // SCL 低电平保持
     }
 }
@@ -20,16 +20,16 @@ uint8_t I2C::receive_byte() noexcept
 {
     uint8_t rslt{0x00};
     // 契约：确保 SCL 必定已经是低电平
-    _SDA.set(); // 释放 SDA
+    __SDA.set(); // 释放 SDA
     i2c_delay();
 
     for (uint8_t i = 0; i < 8; ++i)
     {
-        _SCL.set();
+        __SCL.set();
         i2c_delay(); // 必须：等从机把数据位放到 SDA 上再采样
         rslt <<= 1;
-        rslt += _SDA.read();
-        _SCL.reset();
+        rslt += __SDA.read();
+        __SCL.reset();
         i2c_delay(); // SCL 低电平保持
     }
 

@@ -96,7 +96,7 @@ private:
     std::pair<__JOYSTICK_PARAMS_T, __JOYSTICK_PARAMS_T> __joysticks_params;
 
     template <typename... Args>
-    inline void _display(uint16_t x, uint16_t y, const etl::string_view &str) noexcept
+    inline void __display(uint16_t x, uint16_t y, const etl::string_view &str) noexcept
     {
         this->show("[display,");
         this->show(x);
@@ -209,7 +209,7 @@ void EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
         {
             if (begin_it != it)
             {
-                this->_display(coord_temp.x * __FONT_WIDTH,
+                this->__display(coord_temp.x * __FONT_WIDTH,
                                coord_temp.y * __FONT_HEIGHT,
                                etl::string_view(begin_it, it - begin_it));
             }
@@ -239,7 +239,7 @@ void EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
 
     if (begin_it != str.end())
     {
-        this->_display(coord_temp.x * __FONT_WIDTH,
+        this->__display(coord_temp.x * __FONT_WIDTH,
                        coord_temp.y * __FONT_HEIGHT,
                        etl::string_view(begin_it, str.end() - begin_it));
     }

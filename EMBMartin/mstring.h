@@ -234,7 +234,7 @@ private:
 	 *
 	 * etl::string 自己维护的截断标记无法覆盖“外部直接写缓冲区”的情况，故单独记录
 	 */
-	bool _truncated = false;
+	bool __truncated = false;
 
 	// ------------------------------------------内部工具--------------------------------------------------
 
@@ -246,14 +246,14 @@ private:
 	}
 
 	/** @brief 设置“内容已被覆写、长度由调用方给出”的结果 */
-	void _commit_length(const size_type length) noexcept
+	void __commit_length(const size_type length) noexcept
 	{
 		this->_data.uninitialized_resize(length < N ? length : N - 1);
 	}
 
 	/** @brief 判断全部字符是否满足 predicate ，空串返回 false */
 	template <typename PREDICATE>
-	bool _all_of(PREDICATE predicate) const noexcept
+	bool __all_of(PREDICATE predicate) const noexcept
 	{
 		if (this->_data.empty())
 		{
@@ -293,10 +293,10 @@ private:
 			this->_data.data(), this->capacity(), format_string, args...);
 
 		const size_type written = static_cast<size_type>(out - this->_data.data());
-		this->_commit_length(written);
+		this->__commit_length(written);
 
 		// 只有「写满容量」这一种情形才需要确认是否真的被截断
-		this->_truncated = (written == this->capacity()) &&
+		this->__truncated = (written == this->capacity()) &&
 						   (EMBMartin::formatted_size(format_string, args...) > written);
 
 		// 保证以 '\0' 结尾（format_to_n 按容量截断，可能没留下结尾空间）
@@ -435,14 +435,14 @@ public:
 	 */
 	bool truncated() const noexcept
 	{
-		return this->_data.is_truncated() || this->_truncated;
+		return this->_data.is_truncated() || this->__truncated;
 	}
 
 	/** @brief 清除截断状态 */
 	void clear_truncated() noexcept
 	{
 		this->_data.clear_truncated();
-		this->_truncated = false;
+		this->__truncated = false;
 	}
 
 	/** @brief 本类型恒不进行动态分配，此接口仅用于与标准库容器接口对齐 */
@@ -510,15 +510,15 @@ public:
 		{
 			++length;
 		}
-		this->_commit_length(length);
-		this->_truncated = false;
+		this->__commit_length(length);
+		this->__truncated = false;
 	}
 
 	/** @brief 按指定长度重新计算长度，用于配合 data_mutable() */
 	void commit(const size_type length) noexcept
 	{
-		this->_commit_length(length);
-		this->_truncated = false;
+		this->__commit_length(length);
+		this->__truncated = false;
 	}
 
 	// ------------------------------------------迭代器--------------------------------------------------
@@ -593,7 +593,7 @@ public:
 	void clear() noexcept
 	{
 		this->_data.clear();
-		this->_truncated = false;
+		this->__truncated = false;
 	}
 
 	/** @brief 调整字符个数，变长部分用 c 填充；超出容量时按 ETL 契约截断 */
@@ -808,9 +808,9 @@ public:
 	void swap(String &other) noexcept
 	{
 		std::swap(this->_data, other._data);
-		const bool truncated = this->_truncated;
-		this->_truncated = other._truncated;
-		other._truncated = truncated;
+		const bool truncated = this->__truncated;
+		this->__truncated = other.__truncated;
+		other.__truncated = truncated;
 	}
 
 	// ------------------------------------------比较--------------------------------------------------
@@ -1078,25 +1078,25 @@ public:
 	/** @brief 全部字符是否都是十进制数字，语义同 Python 的 str.isdigit */
 	bool isdigit() const noexcept
 	{
-		return this->_all_of(EMBMartin::detail::ascii_digit);
+		return this->__all_of(EMBMartin::detail::ascii_digit);
 	}
 
 	/** @brief 全部字符是否都是字母，语义同 Python 的 str.isalpha */
 	bool isalpha() const noexcept
 	{
-		return this->_all_of(EMBMartin::detail::ascii_alpha);
+		return this->__all_of(EMBMartin::detail::ascii_alpha);
 	}
 
 	/** @brief 全部字符是否都是字母或数字，语义同 Python 的 str.isalnum */
 	bool isalnum() const noexcept
 	{
-		return this->_all_of(EMBMartin::detail::ascii_alnum);
+		return this->__all_of(EMBMartin::detail::ascii_alnum);
 	}
 
 	/** @brief 全部字符是否都是空白字符，语义同 Python 的 str.isspace */
 	bool isspace() const noexcept
 	{
-		return this->_all_of(EMBMartin::detail::ascii_space);
+		return this->__all_of(EMBMartin::detail::ascii_space);
 	}
 
 	/** @brief 是否含至少一个字母，且所有字母均为大写，语义同 Python 的 str.isupper */
@@ -1311,10 +1311,10 @@ public:
 	using const_iterator = typename std::array<String<N>, M>::const_iterator;
 
 private:
-	std::array<String<N>, M> _elements{};
-	size_type _count = 0;
+	std::array<String<N>, M> __elements{};
+	size_type __count = 0;
 	/** @brief 溢出次数，用于区分“恰好写满”与“溢出被丢弃” */
-	size_type _overflow_count = 0;
+	size_type __overflow_count = 0;
 
 public:
 	/** @brief 元素个数上限 */
@@ -1326,39 +1326,39 @@ public:
 	/** @brief 已压入的元素个数 */
 	size_type size() const noexcept
 	{
-		return this->_count;
+		return this->__count;
 	}
 
 	bool empty() const noexcept
 	{
-		return this->_count == 0;
+		return this->__count == 0;
 	}
 
 	/** @brief 溢出次数，非 0 表示有元素未能压入 */
 	size_type overflow_count() const noexcept
 	{
-		return this->_overflow_count;
+		return this->__overflow_count;
 	}
 
 	void clear() noexcept
 	{
-		this->_count = 0;
-		this->_overflow_count = 0;
+		this->__count = 0;
+		this->__overflow_count = 0;
 	}
 
 	void push_back(const String<N> &element) noexcept
 	{
-		if (this->_overflow_count != 0)
+		if (this->__overflow_count != 0)
 		{
 			return;
 		}
-		if (this->_count >= M)
+		if (this->__count >= M)
 		{
 			this->clear();
-			this->_overflow_count = 1;
+			this->__overflow_count = 1;
 			return;
 		}
-		this->_elements[this->_count++] = element;
+		this->__elements[this->__count++] = element;
 	}
 
 	/** @brief 压入一个字符串视图 */
@@ -1369,42 +1369,42 @@ public:
 
 	reference operator[](const size_type index) noexcept
 	{
-		return this->_elements[index];
+		return this->__elements[index];
 	}
 
 	const_reference operator[](const size_type index) const noexcept
 	{
-		return this->_elements[index];
+		return this->__elements[index];
 	}
 
 	iterator begin() noexcept
 	{
-		return this->_elements.begin();
+		return this->__elements.begin();
 	}
 
 	const_iterator begin() const noexcept
 	{
-		return this->_elements.begin();
+		return this->__elements.begin();
 	}
 
 	const_iterator cbegin() const noexcept
 	{
-		return this->_elements.cbegin();
+		return this->__elements.cbegin();
 	}
 
 	iterator end() noexcept
 	{
-		return this->_elements.begin() + static_cast<difference_type>(this->_count);
+		return this->__elements.begin() + static_cast<difference_type>(this->__count);
 	}
 
 	const_iterator end() const noexcept
 	{
-		return this->_elements.begin() + static_cast<difference_type>(this->_count);
+		return this->__elements.begin() + static_cast<difference_type>(this->__count);
 	}
 
 	const_iterator cend() const noexcept
 	{
-		return this->_elements.cbegin() + static_cast<difference_type>(this->_count);
+		return this->__elements.cbegin() + static_cast<difference_type>(this->__count);
 	}
 };
 
@@ -1429,9 +1429,9 @@ public:
 	using const_iterator = typename std::array<etl::string_view, M>::const_iterator;
 
 private:
-	std::array<etl::string_view, M> _elements{};
-	size_type _count = 0;
-	size_type _overflow_count = 0;
+	std::array<etl::string_view, M> __elements{};
+	size_type __count = 0;
+	size_type __overflow_count = 0;
 
 public:
 	static constexpr size_type capacity() noexcept
@@ -1441,78 +1441,78 @@ public:
 
 	size_type size() const noexcept
 	{
-		return this->_count;
+		return this->__count;
 	}
 
 	bool empty() const noexcept
 	{
-		return this->_count == 0;
+		return this->__count == 0;
 	}
 
 	size_type overflow_count() const noexcept
 	{
-		return this->_overflow_count;
+		return this->__overflow_count;
 	}
 
 	void clear() noexcept
 	{
-		this->_count = 0;
-		this->_overflow_count = 0;
+		this->__count = 0;
+		this->__overflow_count = 0;
 	}
 
 	void push_back(const etl::string_view &element) noexcept
 	{
-		if (this->_overflow_count != 0)
+		if (this->__overflow_count != 0)
 		{
 			return;
 		}
-		if (this->_count >= M)
+		if (this->__count >= M)
 		{
 			this->clear();
-			this->_overflow_count = 1;
+			this->__overflow_count = 1;
 			return;
 		}
-		this->_elements[this->_count++] = element;
+		this->__elements[this->__count++] = element;
 	}
 
 	reference operator[](const size_type index) noexcept
 	{
-		return this->_elements[index];
+		return this->__elements[index];
 	}
 
 	const_reference operator[](const size_type index) const noexcept
 	{
-		return this->_elements[index];
+		return this->__elements[index];
 	}
 
 	iterator begin() noexcept
 	{
-		return this->_elements.begin();
+		return this->__elements.begin();
 	}
 
 	const_iterator begin() const noexcept
 	{
-		return this->_elements.begin();
+		return this->__elements.begin();
 	}
 
 	const_iterator cbegin() const noexcept
 	{
-		return this->_elements.cbegin();
+		return this->__elements.cbegin();
 	}
 
 	iterator end() noexcept
 	{
-		return this->_elements.begin() + static_cast<difference_type>(this->_count);
+		return this->__elements.begin() + static_cast<difference_type>(this->__count);
 	}
 
 	const_iterator end() const noexcept
 	{
-		return this->_elements.begin() + static_cast<difference_type>(this->_count);
+		return this->__elements.begin() + static_cast<difference_type>(this->__count);
 	}
 
 	const_iterator cend() const noexcept
 	{
-		return this->_elements.cbegin() + static_cast<difference_type>(this->_count);
+		return this->__elements.cbegin() + static_cast<difference_type>(this->__count);
 	}
 };
 
