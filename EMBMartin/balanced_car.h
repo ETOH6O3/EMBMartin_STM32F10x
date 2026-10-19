@@ -1,5 +1,4 @@
-#ifndef EMBMARTIN_BALANCED_CAR_H
-#define EMBMARTIN_BALANCED_CAR_H
+#pragma once
 
 #include "tools.h"
 
@@ -64,4 +63,3 @@ public:
 
 EMBMARTIN_BALANCED_CAR_NAMESPACE_END
 
-#endif // EMBMARTIN_BALANCED_CAR_H

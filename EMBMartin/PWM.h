@@ -1,5 +1,4 @@
-#ifndef EMBMARTIN_PWM_H
-#define EMBMARTIN_PWM_H
+#pragma once
 
 #include <cmath>
 
@@ -236,4 +235,3 @@ EMBMARTIN_STM32F10X_NAMESPACE_END
 
 
 
-#endif // EMBMARTIN_PWM_H

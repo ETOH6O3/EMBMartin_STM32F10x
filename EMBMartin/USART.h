@@ -1,5 +1,4 @@
-#ifndef EMBMARTIN_USART_H
-#define EMBMARTIN_USART_H
+#pragma once
 
 #include "macro.h"
 #include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)
@@ -84,4 +83,3 @@ using BluetoothConsole = USBConsole<BaseStream>;
 
 EMBMARTIN_STM32F10X_NAMESPACE_END
 
-#endif // EMBMARTIN_USART_H

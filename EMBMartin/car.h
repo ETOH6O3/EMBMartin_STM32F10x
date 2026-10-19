@@ -1,5 +1,4 @@
-#ifndef EMBMARTIN_CAR_H
-#define EMBMARTIN_CAR_H
+#pragma once
 
 #include <algorithm>
 #include <cmath>
@@ -593,4 +592,3 @@ public:
 
 EMBMARTIN_STM32F10X_NAMESPACE_END
 
-#endif // EMBMARTIN_CAR_H

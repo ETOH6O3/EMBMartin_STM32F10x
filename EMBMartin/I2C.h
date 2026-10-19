@@ -1,5 +1,4 @@
-#ifndef EMBMARTIN_I2C_H
-#define EMBMARTIN_I2C_H
+#pragma once
 
 #include <array>
 #include <cstddef>
@@ -492,4 +491,3 @@ public:
 
 EMBMARTIN_STM32F10X_NAMESPACE_END
 
-#endif // EMBMARTIN_I2C_H

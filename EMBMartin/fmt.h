@@ -145,8 +145,7 @@
  * @see EMBMARTIN_FMT_ASSERT
  * @see FMT.md —— 面向使用者的接口文档
  */
-#ifndef EMBMARTIN_FORMAT_STRING_H
-#define EMBMARTIN_FORMAT_STRING_H
+#pragma once
 
 #include <cassert>
 #include <cmath>
@@ -3426,4 +3425,3 @@ namespace etl
 // 因为 fmt.cpp 需要用同样的内联性重新打开对应的命名空间
 //（否则 clang 会报 -Winline-namespace-reopened-noninline）。
 
-#endif // EMBMARTIN_FORMAT_STRING_H

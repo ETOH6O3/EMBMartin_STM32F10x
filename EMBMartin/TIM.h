@@ -1,5 +1,4 @@
-#ifndef EMBMARTIN_EXTI_H
-#define EMBMARTIN_EXTI_H
+#pragma once
 
 #include "macro.h"
 #include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)
@@ -311,7 +310,3 @@ public:
 
 EMBMARTIN_STM32F10X_NAMESPACE_END
 
-
-#include "PWM.h" // 理论上属于
-
-#endif // EMBMARTIN_EXTI_H

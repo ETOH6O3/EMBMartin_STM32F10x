@@ -6,8 +6,7 @@
  *
  */
 
-#ifndef EMBMARTIN_STREAM_H
-#define EMBMARTIN_STREAM_H
+#pragma once
 
 #include <cstddef>
 #include <cstdio>
@@ -650,4 +649,3 @@ EMBMARTIN_NAMESPACE_END
 // debug 控制台
 EMBMARTIN_DEBUGING_EXTERN_CONSOLE;
 
-#endif // EMBMARTIN_STREAM_H

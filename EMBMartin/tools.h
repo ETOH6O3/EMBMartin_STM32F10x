@@ -12,8 +12,7 @@
  ******************************************************************************
  */
 
-#ifndef EMBMARTIN_TOOLS_H
-#define EMBMARTIN_TOOLS_H
+#pragma once
 
 #include "system.h"
 #include "basic_tools.h"
@@ -32,4 +31,3 @@
 #include "obstacle_avoiding_car.h"
 #include "car.h"
 
-#endif // EMBMARTIN_TOOLS_H

@@ -1,5 +1,4 @@
-#ifndef EMBMARTIN_OLEDUtility_H
-#define EMBMARTIN_OLEDUtility_H
+#pragma once
 
 #include <cstddef>
 #include <cstdint>
@@ -546,4 +545,3 @@ public:
 
 EMBMARTIN_OLED_NAMESPACE_END
 
-#endif // ! EMBMARTIN_OLEDUtility_H

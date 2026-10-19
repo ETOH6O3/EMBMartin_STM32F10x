@@ -9,8 +9,7 @@
  * 2. 建议的编译器环境： ARM compiler 6 或更高版本; 或 MSVC 14+
  ******************************************************************************
  */
-#ifndef EMBMARTIN_METAPROGRAMING
-#define EMBMARTIN_METAPROGRAMING
+#pragma once
 
 #include <type_traits>
 #include <tuple>
@@ -605,4 +604,3 @@ auto make_swapped_index_sequence()
 
 EMBMARTIN_NAMESPACE_END
 
-#endif

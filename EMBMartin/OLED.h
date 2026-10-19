@@ -1,5 +1,4 @@
-#ifndef EMBMARTIN_OLED_H
-#define EMBMARTIN_OLED_H
+#pragma once
 
 #include <cstdio>
 #include <stdint.h>
@@ -673,4 +672,3 @@ EMBMARTIN_OLED_NEW_VERSION_NAMESPACE_END
 
 EMBMARTIN_OLED_NAMESPACE_END
 
-#endif // EMBMARTIN_OLED_H

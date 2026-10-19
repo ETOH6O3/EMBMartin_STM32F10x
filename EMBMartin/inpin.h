@@ -1,5 +1,4 @@
-#ifndef EMBMARTIN_INPIN_H
-#define EMBMARTIN_INPIN_H
+#pragma once
 
 #include "macro.h"
 #include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)
@@ -178,4 +177,3 @@ public:
 
 EMBMARTIN_STM32F10X_NAMESPACE_END
 
-#endif // EMBMARTIN_INPIN_H

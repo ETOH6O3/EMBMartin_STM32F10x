@@ -16,8 +16,7 @@
  ******************************************************************************
  */
 
-#ifndef EMBMARTIN_FUNCTIONAL_PROGRAMMING_H
-#define EMBMARTIN_FUNCTIONAL_PROGRAMMING_H
+#pragma once
 
 #include <tuple>
 #include <utility>
@@ -2491,4 +2490,3 @@ namespace std
 
 } // namespace std
 
-#endif // EMBMARTIN_FUNCTIONAL_PROGRAMMING_H

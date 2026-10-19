@@ -21,8 +21,7 @@
  * 使 <cstring> 无法再引入标准声明（实测仅 #include <cstring> 即报错）
  ******************************************************************************
  */
-#ifndef EMBMARTIN_MSTRING_H
-#define EMBMARTIN_MSTRING_H
+#pragma once
 
 #include <array>
 #include <cstddef>
@@ -1844,4 +1843,3 @@ namespace etl
 // OutStream 已有 show(etl::string_view) 重载，而 String 可隐式转换为 etl::string_view ，
 // 因此 console.show(str) / console.println("{}", str) 无需任何额外改动即可工作。
 
-#endif // EMBMARTIN_MSTRING_H

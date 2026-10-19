@@ -1,5 +1,4 @@
-#ifndef EMBMARTIN_COORDINATE_H
-#define EMBMARTIN_COORDINATE_H
+#pragma once
 
 #include <cstdint>
 #include <utility>
@@ -222,4 +221,3 @@ EMBMARTIN_NAMESPACE_BEGIN
 
 EMBMARTIN_NAMESPACE_END
 
-#endif
