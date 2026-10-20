@@ -408,6 +408,53 @@ protected:
     }
 
     /**
+     * @brief 第 4 步「沿偏移车道越过障碍」在 __plan 里的下标
+     *
+     * 下标从 0 起，所以第 N 步对应 N - 1。第 4 步完成时 __avoid_step 已被
+     * 推进到 4，因此用 `__avoid_step > CROSS_STEP_INDEX` 判断。
+     */
+    constexpr static inline uint8_t CROSS_STEP_INDEX = 3;
+
+    /**
+     * @brief 当前是否允许打断绕障
+     *
+     * **只允许在第 4 步「沿偏移车道越过障碍」完成之后打断**。
+     * 在此之前车还贴着障碍物、或正横穿它：
+     *
+     * - 第 1～3 步只完成了「驶离 → 偏航 → 摆正」，车仍在障碍物侧方；
+     * - 第 4 步尚未跑完时车正横穿障碍所在的车道，中途停车会直接卡在障碍路径上。
+     *
+     * 另外第 5～7 步只做「再摆 → 回航 → 回正」，此时车已越过障碍，
+     * 即使停下也不会撞上，才允许打断。
+     *
+     * @return true 表示可以安全打断
+     */
+    [[nodiscard]] inline bool avoid_can_be_interrupted() const noexcept
+    {
+        return state == State::AVOID && __avoid_step > CROSS_STEP_INDEX;
+    }
+
+    /**
+     * @brief 中止绕障并立即回到 COMMON（不可打断期间调用将被忽略）
+     *
+     * 供子类在 avoid_working() 的覆写里使用：判定需要提前结束时调用本函数，
+     * 它会先检查 avoid_can_be_interrupted()，不满足条件就原样返回。
+     *
+     * @return true 表示已中止并回到 COMMON；false 表示当前不允许打断
+     */
+    bool interrupt_avoid() noexcept
+    {
+        if (!avoid_can_be_interrupted())
+        {
+            return false;
+        }
+
+        car.stop();
+        transition_to(State::COMMON);
+        return true;
+    }
+
+    /**
      * @brief 进入绕障：算好航向与穿越距离，把七步排成表，启动第 1 步
      *
      * 全程约 (D + 3.0 + 6.3) / 70 秒。七步由 avoid_working() 逐拍推进，
@@ -448,7 +495,11 @@ protected:
      * @brief 绕障的状态机钩子，每拍调用一次
      *
      * 默认行为：推进当前步，一步走完就进下一步，七步全部完成才回 COMMON。
-     * 子类可覆写以实现「按需打断」（例如逼近障碍时提前中止）。
+     *
+     * 子类若要「按需打断」，**必须**先过 avoid_can_be_interrupted() 这一关，
+     * 或直接调用 interrupt_avoid()（内部已含该判断）。第 4 步「沿偏移车道
+     * 越过障碍」完成之前一律不允许打断：那时车还在障碍物旁边或正横穿它，
+     * 半途中止会把车停在障碍路径上，且航向尚未摆正。
      *
      * @note 基类的推进与转移逻辑不要漏掉，覆写后应调用基类版本或自行转移。
      */
