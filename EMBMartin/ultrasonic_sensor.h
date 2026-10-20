@@ -44,18 +44,8 @@ public:
      * @param update_TIMX 提供回波采样节拍的定时器；为 nullptr 时不自动采样
      * @param trig_TIMX 提供测距触发节拍的定时器；为 nullptr 时不自动触发，只能手动调 trig()
      */
-    inline UltrasonicSensor(const GPIOPin &echo, const GPIOPin &trig, double tim_time_s, uint16_t temprature_kelvin,
-                            TIM_TypeDef *update_TIMX = nullptr, TIM_TypeDef *trig_TIMX = nullptr) noexcept
-        : __echo{echo, GPIO_Mode_IPD}, __trig{trig}, TIM_TIME_S{tim_time_s}, cnt{0}, SOUND_VELOCITY{uint16_t(20.05 * std::sqrt(temprature_kelvin))}
-        {
-            __trig = 0;
-            if (update_TIMX != nullptr)
-                __update_handle = sys::InnerTimerManager::add(update_TIMX, [this]()
-                                                              { this->update(); });
-            if (trig_TIMX != nullptr)
-                __trig_handle = sys::InnerTimerManager::add(trig_TIMX, [this]()
-                                                            { this->trig(); });
-        }
+    UltrasonicSensor(const GPIOPin &echo, const GPIOPin &trig, double tim_time_s, uint16_t temprature_kelvin,
+                     TIM_TypeDef *update_TIMX = nullptr, TIM_TypeDef *trig_TIMX = nullptr) noexcept;
 
     /// 析构时注销测距触发与回波采样
     inline ~UltrasonicSensor() noexcept
@@ -75,24 +65,7 @@ public:
     }
 
     // 定时中断调用函数
-    inline void update() noexcept
-    {
-        static uint16_t __cnt = 0;
-        static bool _echo_last = __echo;
-        if (__echo == 1)
-        {
-            __cnt++;
-        }
-        else
-        {
-            if (_echo_last == 1) {
-                cnt = __cnt;
-                __cnt = 0;
-                measured = true; // 收到一个完整回波，测距结果有效
-            }
-        }  
-        _echo_last = __echo;
-    }
+    void update() noexcept;
 
     /**
      * @brief 是否已收到过至少一个完整回波
@@ -114,21 +87,7 @@ public:
      *
      * @note 尚未收到任何回波时返回 0，调用前可用 has_measurement() 判断。
      */
-    inline double get_distance() const noexcept
-    {
-        if (filtered_valid && cnt == filtered_cnt)
-        {
-            return filtered_distance;
-        }
-
-        const double raw = cnt * SOUND_VELOCITY * TIM_TIME_S / 2.0;
-
-        filtered_distance = filtered_valid ? FILTER_ALPHA * raw + (1.0 - FILTER_ALPHA) * filtered_distance
-                                           : raw; // 首次直接用测量值起步
-        filtered_cnt = cnt;
-        filtered_valid = true;
-        return filtered_distance;
-    }
+    double get_distance() const noexcept;
 
     /// 未经滤波的原始距离（米）
     inline double get_raw_distance() const noexcept

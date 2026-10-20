@@ -137,6 +137,23 @@ void PWM::set_duty(int Duty_permillage) noexcept
     }
 }
 
+DCMotorDriver::DCMotorDriver(
+    PWM _PWMA, OutPin _AIN1, OutPin _AIN2,
+    OutPin STBY,
+    PWM _PWMB, OutPin _BIN1, OutPin _BIN2) noexcept
+    : PWMA{_PWMA}, AIN1{_AIN1}, AIN2{_AIN2},
+      STBY{STBY},
+      PWMB{_PWMB}, BIN1{_BIN1}, BIN2{_BIN2}
+{
+    work();
+    set_mode(Mode::FORWARD, 0);
+    set_mode(Mode::FORWARD, 1);
+}
+
+DCMotorDriver::DCMotorDriver(PWM _PWMA, OutPin _AIN1, OutPin _AIN2, OutPin STBY) noexcept
+    : DCMotorDriver(_PWMA, _AIN1, _AIN2, STBY,
+                    PWM{nullptr, 0, 0}, OutPin{null_pin}, OutPin{null_pin}) {}
+
 void DCMotorDriver::set_mode(Mode mode, uint8_t motor_index) noexcept
 {
     OutPin *IN1;

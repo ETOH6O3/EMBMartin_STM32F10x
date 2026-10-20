@@ -30,13 +30,9 @@ private:
     double integral = 0.0;       //!< 积分值
 
 public:
-    inline SingleLoopPID(
+    SingleLoopPID(
         double _kp, double _ki, double _kd, double &_current, double _dt,
-        double _integral_limit, double _output_limit, double _alpha = 0.0 /*默认不滤波*/, const int16_t* _d_current = nullptr) noexcept
-        : kp(_kp), ki(_ki), kd(_kd),
-          integral_limit(_integral_limit), output_limit(_output_limit), alpha(std::clamp(_alpha, 0.0, 1.0)),
-          current(_current), dt(_dt),
-          d_current(_d_current) {};
+        double _integral_limit, double _output_limit, double _alpha = 0.0 /*默认不滤波*/, const int16_t* _d_current = nullptr) noexcept;
 
     double compute(double target) noexcept; // 中断函数中调用
 
@@ -61,17 +57,10 @@ public:
      * @param _alpha 误差滤波系数，内部夹到 [0, 1]
      * @param _d_current 可选的现成微分值来源，默认 nullptr 表示自行差分
      */
-    inline void set(
+    void set(
         double _kp, double _ki, double _kd, double _dt,
         double _integral_limit, double _output_limit,
-        double _alpha = 0.0, const int16_t* _d_current = nullptr) noexcept
-    {
-        set_gains(_kp, _ki, _kd);
-        set_dt(_dt);
-        set_limits(_integral_limit, _output_limit);
-        set_alpha(_alpha);
-        set_d_current(_d_current);
-    }
+        double _alpha = 0.0, const int16_t* _d_current = nullptr) noexcept;
 
     /// 只改三个增益（最常用的调参入口）
     inline void set_gains(double _kp, double _ki, double _kd) noexcept
@@ -152,24 +141,10 @@ public:
         double duty_left_permillage;  //!< 左轮占空比千分比
         double duty_right_permillage; //!< 右轮占空比千分比
     };
-    inline BalancedCarPID(MPU6050::Data &_MPU_data,
-                          int16_t &_pace_left, int16_t &_pace_right,
-                          PIDParams vertical_params, PIDParams velocity_params, PIDParams turn_params,
-                          double dt /* 采样时间间隔（秒） */, double _pitch_med_angle) noexcept
-        : MPU_data(_MPU_data),
-          pace_left(_pace_left), pace_right(_pace_right),
-          angle_filter(_MPU_data, 0.001, dt),
-          vertical(vertical_params.kp, vertical_params.ki, vertical_params.kd,
-                   this->angle_status.pitch, dt,
-                   vertical_params.integral_limit, vertical_params.output_limit, vertical_params.alpha,
-                &this->MPU_data.gyro_y),
-          velocity(velocity_params.kp, velocity_params.ki, velocity_params.kd,
-                   this->velocity_pid_current, dt,
-                   velocity_params.integral_limit, velocity_params.output_limit, velocity_params.alpha),
-          turn(turn_params.kp, turn_params.ki, turn_params.kd,
-               this->turn_pid_current, dt,
-               turn_params.integral_limit, turn_params.output_limit, turn_params.alpha),
-                pitch_med_angle(_pitch_med_angle) {};
+    BalancedCarPID(MPU6050::Data &_MPU_data,
+                   int16_t &_pace_left, int16_t &_pace_right,
+                   PIDParams vertical_params, PIDParams velocity_params, PIDParams turn_params,
+                   double dt /* 采样时间间隔（秒） */, double _pitch_med_angle) noexcept;
 
     Output compute(double turn_trg, double velocity_trg) noexcept; // 中断函数中调用
 

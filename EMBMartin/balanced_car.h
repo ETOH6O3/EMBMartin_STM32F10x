@@ -22,7 +22,7 @@ EMBMARTIN_DEBUGING_SPECIFIER:
     BalancedCarPID controller;
 
 public:
-    inline BalancedCar(
+    BalancedCar(
         DCMotorDriver &_driver,
         RotaryEncoder &_encoder_left,
         RotaryEncoder &_encoder_right,
@@ -32,26 +32,7 @@ public:
         PIDParams turn_params,
         double pitch_med_angle,
         double _left_speed_scaling,
-        double dt) noexcept
-        : EXTI_TIME_S(dt),
-          left_speed_scaling(_left_speed_scaling),
-          driver(_driver),
-          encoder_left(_encoder_left),
-          encoder_right(_encoder_right),
-          v_left(0),
-          v_right(0),
-          MPU(_MPU),
-          mpu_data(MPU.get_data()),
-          angle_filter(mpu_data, 0.001, dt),
-          controller(
-              mpu_data,
-              v_left,
-              v_right,
-              vertical_params,
-              velocity_params,
-              turn_params,
-              dt,
-              pitch_med_angle) {};
+        double dt) noexcept;
 
     auto get_MPU_data() noexcept { return mpu_data; }
     auto get_angle_status() noexcept { return angle; }

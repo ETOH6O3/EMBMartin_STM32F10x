@@ -1,6 +1,39 @@
 #include "balanced_car.h"
 
-void EMBMartin::STM32::BalancedCar::update(double turn_trg, double velocity_trg) noexcept
+EMBMARTIN_BALANCED_CAR_NAMESPACE_BEGIN
+
+BalancedCar::BalancedCar(
+    DCMotorDriver &_driver,
+    RotaryEncoder &_encoder_left,
+    RotaryEncoder &_encoder_right,
+    MPU6050 &_MPU,
+    PIDParams vertical_params,
+    PIDParams velocity_params,
+    PIDParams turn_params,
+    double pitch_med_angle,
+    double _left_speed_scaling,
+    double dt) noexcept
+    : EXTI_TIME_S(dt),
+      left_speed_scaling(_left_speed_scaling),
+      driver(_driver),
+      encoder_left(_encoder_left),
+      encoder_right(_encoder_right),
+      v_left(0),
+      v_right(0),
+      MPU(_MPU),
+      mpu_data(MPU.get_data()),
+      angle_filter(mpu_data, 0.001, dt),
+      controller(
+          mpu_data,
+          v_left,
+          v_right,
+          vertical_params,
+          velocity_params,
+          turn_params,
+          dt,
+          pitch_med_angle) {};
+
+void BalancedCar::update(double turn_trg, double velocity_trg) noexcept
 {
     // 读取 MPU6050 数据
     this->mpu_data = this->MPU.get_data();
@@ -17,3 +50,5 @@ void EMBMartin::STM32::BalancedCar::update(double turn_trg, double velocity_trg)
     this->driver.set_speed(output.duty_left_permillage * this->left_speed_scaling, 0);
     this->driver.set_speed(output.duty_right_permillage, 1);
 }
+
+EMBMARTIN_BALANCED_CAR_NAMESPACE_END

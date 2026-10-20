@@ -78,7 +78,7 @@ IO::IO(const GPIOPin &SCL, const GPIOPin &SDA) noexcept : OLED_SCL(SCL), OLED_SD
 	Clear(); // OLED清屏
 }
 
-inline void IO::I2C_Start(void) noexcept
+void IO::I2C_Start(void) noexcept
 {
 	OLED_W_SDA(1);
 	// 添加数据同步屏障防止编译器重排指令
@@ -95,7 +95,7 @@ inline void IO::I2C_Start(void) noexcept
 	__ISB();
 }
 
-inline void IO::I2C_Stop(void) noexcept
+void IO::I2C_Stop(void) noexcept
 {
 	OLED_W_SDA(0);
 	__DSB();
@@ -108,14 +108,14 @@ inline void IO::I2C_Stop(void) noexcept
 	__ISB();
 }
 
-inline void IO::SetCursor(uint8_t Y, uint8_t X) noexcept
+void IO::SetCursor(uint8_t Y, uint8_t X) noexcept
 {
 	WriteCommand(0xB0 | Y);					// 设置Y位置
 	WriteCommand(0x10 | ((X & 0xF0) >> 4)); // 设置X位置高4位
 	WriteCommand(0x00 | (X & 0x0F));		// 设置X位置低4位
 }
 
-inline void IO::I2C_SendByte(uint8_t Byte) noexcept
+void IO::I2C_SendByte(uint8_t Byte) noexcept
 {
 	uint8_t i;
 	for (i = 0; i < 8; i++)
@@ -139,7 +139,7 @@ inline void IO::I2C_SendByte(uint8_t Byte) noexcept
 	__ISB();
 }
 
-inline void IO::WriteCommand(uint8_t Command) noexcept
+void IO::WriteCommand(uint8_t Command) noexcept
 {
 	I2C_Start();
 	I2C_SendByte(0x78); // 从机地址
@@ -148,7 +148,7 @@ inline void IO::WriteCommand(uint8_t Command) noexcept
 	I2C_Stop();
 }
 
-inline void IO::WriteData(uint8_t Data) noexcept
+void IO::WriteData(uint8_t Data) noexcept
 {
 	I2C_Start();
 	I2C_SendByte(0x78); // 从机地址
@@ -157,7 +157,7 @@ inline void IO::WriteData(uint8_t Data) noexcept
 	I2C_Stop();
 }
 
-inline void IO::Clear(void) noexcept
+void IO::Clear(void) noexcept
 {
 	uint8_t i, j;
 	for (j = 0; j < 8; j++)
@@ -255,7 +255,7 @@ void IO::ShowSignedNum(intmax_t Number) noexcept
 		ShowNum(static_cast<uintmax_t>(Number));
 	}
 }
-inline uint32_t IO::Pow(uint32_t X, uint32_t Y) noexcept
+uint32_t IO::Pow(uint32_t X, uint32_t Y) noexcept
 {
 	uint32_t Result = 1;
 	while (Y--)

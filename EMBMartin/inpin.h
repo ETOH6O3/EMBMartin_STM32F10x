@@ -104,10 +104,7 @@ public:
      * @param trigger 按键触发状态，默认为 false（低电平触发）
      * @note 会在构造时自动初始化 GPIO 为输入模式
      */
-    inline Key(GPIOPin p, bool trigger = false) noexcept
-        : input(p, trigger ? GPIO_Mode_IPD : GPIO_Mode_IPU), trigger(trigger)
-    {
-    }
+    Key(GPIOPin p, bool trigger = false) noexcept;
 
     /**
      * @brief 构造一个按键对象
@@ -115,7 +112,7 @@ public:
      * @param pin GPIO 引脚号
      * @param trigger 按键触发状态，默认为 false（低电平触发）
      */
-    inline Key(GPIO_TypeDef *port, uint16_t pin, bool trigger = false) noexcept : Key{GPIOPin{port, pin}, trigger} {}
+    Key(GPIO_TypeDef *port, uint16_t pin, bool trigger = false) noexcept;
 
     /**
      * @brief 检测按键是否被按下
@@ -127,10 +124,7 @@ public:
         return read_key(this->input.get_pin(), this->trigger);
     }
 
-    inline operator bool() const noexcept
-    {
-        return this->is_pressed();
-    }
+    operator bool() const noexcept;
 };
 
 /**
@@ -157,7 +151,7 @@ public:
      * @param port GPIO 端口指针
      * @param pin GPIO 引脚号
      */
-    inline Sensor(GPIO_TypeDef *port, uint16_t pin) noexcept : Sensor{GPIOPin{port, pin}} {}
+    Sensor(GPIO_TypeDef *port, uint16_t pin) noexcept;
 
     /**
      * @brief 获取传感器状态

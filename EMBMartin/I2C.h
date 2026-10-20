@@ -67,95 +67,15 @@ protected:
         }
     }
 
-    inline void start() noexcept
-    {
-        /***************************************************************************************************
-        SCL
-        XXXXXXXXXXXXXXXXXXXXXX
-                             XX
-                              X
-                              XX
-                               X
-                               XX
-                                X
-        SDA                     XXXXXXXXXXXXXXXX
-        XXXXXXXXXXXXXXXXXX
-                         X
-                         XX
-                          X
-                          X
-                          XX
-                           X
-                           XXXXXXXXXXXXXXXXXXXX
+    void start() noexcept;
 
-        ****************************************************************************************************/
-        __SDA.set();
-        i2c_delay(); // 防止与终止信号混淆，同时保证 SDA 建立时间
-        __SCL.set();
-
-        i2c_delay(); // SCL 高电平保持（起始信号的建立时间）
-        __SDA.reset();
-        i2c_delay(); // 起始信号的数据保持时间
-        __SCL.reset();
-        i2c_delay(); // SCL 低电平保持
-    }
-
-    inline void stop() noexcept
-    {
-        /***************************************************************************************************
-                          XXXXXXXXXXXXXXXX
-                         XX
-                        XX
-                        XX
-         SCL           XX
-        XXXXXXXXXXXXXXXXX
-
-
-                                  XXXXXXXX
-                                XXX
-                               XXX
-                              XX
-        SDA                  XX
-        XXXXXXXXXXXXXXXXXXXXXXX
-
-        ****************************************************************************************************/
-        // 契约：确保 SCL 必定已经是低电平
-        __SDA.reset();
-        i2c_delay(); // SDA 建立时间
-
-        __SCL.set();
-        i2c_delay(); // SCL 高电平保持（停止信号的建立时间）
-        __SDA.set();
-        i2c_delay(); // 停止信号的数据保持时间 + 总线空闲时间
-    }
+    void stop() noexcept;
 
     void send_byte(uint8_t data) noexcept;
-    inline void send_ack(bool data) noexcept
-    {
-        data ? __SDA.set() : __SDA.reset();
-        i2c_delay(); // SDA 建立时间
-        __SCL.set();
-        i2c_delay(); // SCL 高电平保持
-        __SCL.reset();
-        i2c_delay(); // SCL 低电平保持
-    }
+    void send_ack(bool data) noexcept;
 
     uint8_t receive_byte() noexcept;
-    inline void receive_ack() noexcept
-    {
-        bool rslt;
-
-        __SDA.set(); // 释放 SDA
-        i2c_delay();
-
-        __SCL.set();
-        i2c_delay(); // ★ 关键：必须等从机把 SDA 拉低后再采样，否则 -O1 下必然误判 NACK
-        rslt = __SDA.read();
-        __SCL.reset();
-        i2c_delay(); // SCL 低电平保持
-
-        EMBMARTIN_ASSERT(!rslt, "I2C req exception", &console);
-    }
+    void receive_ack() noexcept;
 
 public:
     /**
@@ -164,23 +84,7 @@ public:
      * @param SDA I2C 数据线引脚
      * @param addr 从机地址，第 0 位强制置 0
      */
-    inline I2C(GPIOPin SCL, GPIOPin SDA, uint8_t addr) noexcept
-        : __SCL(SCL), __SDA(SDA), _addr(addr & 0b11111110)
-    {
-        RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(SCL.port), ENABLE);
-        RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(SDA.port), ENABLE);
-        GPIO_InitTypeDef GPIO_InitStruct = {
-            .GPIO_Pin = SCL.pin,
-            .GPIO_Speed = GPIO_Speed_50MHz,
-            .GPIO_Mode = GPIO_Mode_Out_OD,
-        };
-        GPIO_Init(SCL.port, &GPIO_InitStruct);
-        GPIO_InitStruct.GPIO_Pin = SDA.pin;
-        GPIO_Init(SDA.port, &GPIO_InitStruct);
-
-        GPIO_SetBits(SCL.port, SCL.pin);
-        GPIO_SetBits(SDA.port, SDA.pin);
-    }
+    I2C(GPIOPin SCL, GPIOPin SDA, uint8_t addr) noexcept;
 
     template <typename... Args>
     void write_reg(uint8_t first_reg_addr, Args... data) noexcept

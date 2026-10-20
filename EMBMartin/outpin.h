@@ -20,30 +20,7 @@ private:
     GPIOPin pin;        //!< GPIO 引脚信息
     mutable bool current_level; //!< 目前输出
 public:
-    inline OutPin(GPIOPin p) noexcept : pin(p), current_level(0)
-    {
-        if (p == null_pin)
-            return;
-
-        RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(pin.port), ENABLE);
-
-        RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
-        if (p == PB4)
-            GPIO_PinRemapConfig(GPIO_Remap_SWJ_NoJTRST, ENABLE);
-        else if ((p == PA15) || (p == PB3))
-            GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
-        else if ((p == PA13) || (p == PA14))
-            GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE);
-
-        GPIO_InitTypeDef GPIO_InitStruct = {
-            .GPIO_Pin = p.pin,
-            .GPIO_Speed = GPIO_Speed_50MHz,
-            .GPIO_Mode = GPIO_Mode_Out_PP,
-        };
-        GPIO_Init(p.port, &GPIO_InitStruct);
-
-        this->reset();
-    }
+    OutPin(GPIOPin p) noexcept;
     inline void set() const noexcept
     {
         if (pin == null_pin)
@@ -70,16 +47,7 @@ public:
         return current_level;
     }
 
-    inline OutPin& operator=(bool value) noexcept
-    {
-        if (pin == null_pin)
-            return *this;
-        if (value)
-            this->set();
-        else
-            this->reset();
-        return *this;
-    }
+    OutPin& operator=(bool value) noexcept;
 
     inline operator bool() const noexcept
     {
@@ -105,10 +73,7 @@ public:
      * @param driven_level 驱动电平，默认为 false（低电平点亮 LED）
      * @note 会在构造时自动初始化 GPIO 为推挽输出模式
      */
-    inline LED(GPIOPin p, bool driven_level = false) noexcept : output(p), driven_level(driven_level)
-    {
-        this->off(); // 初始化时熄灭 LED
-    }
+    LED(GPIOPin p, bool driven_level = false) noexcept;
 
     /**
      * @brief 构造一个 LED 对象
@@ -116,33 +81,21 @@ public:
      * @param pin GPIO 引脚号
      * @param driven_level 驱动电平，默认为 false（低电平点亮 LED）
      */
-    inline LED(GPIO_TypeDef *port, uint16_t pin, bool driven_level = false) noexcept : LED{GPIOPin{port, pin}, driven_level} {}
+    LED(GPIO_TypeDef *port, uint16_t pin, bool driven_level = false) noexcept;
 
     /**
      * @brief 点亮 LED
      *
      * 根据 driven_level 设置，将对应的 GPIO 引脚设置为相应电平以点亮 LED
      */
-    inline void on() const noexcept
-    {
-        if (this->driven_level)
-            this->output.set();
-        else
-            this->output.reset();
-    }
+    void on() const noexcept;
 
     /**
      * @brief 熄灭 LED
      *
      * 根据 driven_level 设置，将对应的 GPIO 引脚设置为相反电平以熄灭 LED
      */
-    inline void off() const noexcept
-    {
-        if (this->driven_level)
-            this->output.reset();
-        else
-            this->output.set();
-    }
+    void off() const noexcept;
 
     /**
      * @brief 切换 LED 状态
@@ -159,23 +112,9 @@ public:
         return this->output.get_level() == this->driven_level;
     }
 
-    inline const LED& operator=(bool value) const noexcept
-    {
-        if (value)
-            this->on();
-        else
-            this->off();
-        return *this;
-    }
+    const LED& operator=(bool value) const noexcept;
 
-    inline LED& operator=(bool value) noexcept
-    {
-        if (value)
-            this->on();
-        else
-            this->off();
-        return *this;
-    }
+    LED& operator=(bool value) noexcept;
 };
 
 /**
@@ -196,10 +135,7 @@ public:
      * @param driven_level 驱动电平，默认为 false（低电平驱动蜂鸣器）
      * @note 会在构造时自动初始化 GPIO 为推挽输出模式
      */
-    inline Buzzer(GPIOPin p, bool driven_level = false) noexcept : output(p), driven_level(driven_level)
-    {
-        this->off(); // 初始化时关闭蜂鸣器
-    }
+    Buzzer(GPIOPin p, bool driven_level = false) noexcept;
 
     /**
      * @brief 构造一个蜂鸣器对象
@@ -207,33 +143,21 @@ public:
      * @param pin GPIO 引脚号
      * @param driven_level 驱动电平，默认为 false（低电平驱动蜂鸣器）
      */
-    inline Buzzer(GPIO_TypeDef *port, uint16_t pin, bool driven_level = false) noexcept : Buzzer{GPIOPin{port, pin}, driven_level} {}
+    Buzzer(GPIO_TypeDef *port, uint16_t pin, bool driven_level = false) noexcept;
 
     /**
      * @brief 打开蜂鸣器
      *
      * 根据 driven_level 设置，将对应的 GPIO 引脚设置为相应电平以打开蜂鸣器
      */
-    inline void on() const noexcept
-    {
-        if (this->driven_level)
-            this->output.set();
-        else
-            this->output.reset();
-    }
+    void on() const noexcept;
 
     /**
      * @brief 关闭蜂鸣器
      *
      * 根据 driven_level 设置，将对应的 GPIO 引脚设置为相反电平以关闭蜂鸣器
      */
-    inline void off() const noexcept
-    {
-        if (this->driven_level)
-            this->output.reset();
-        else
-            this->output.set();
-    }
+    void off() const noexcept;
 
     /**
      * @brief 切换蜂鸣器状态
@@ -249,12 +173,7 @@ public:
      * @brief 发出一次蜂鸣声
      * @param duration_ms 蜂鸣持续时间（毫秒），默认为 100ms
      */
-    inline void beep(intmax_t duration_ms = 100) const noexcept
-    {
-        this->on();
-        Delay_ms(duration_ms);
-        this->off();
-    }
+    void beep(intmax_t duration_ms = 100) const noexcept;
 
     /**
      * @brief 发出多次蜂鸣声
@@ -262,38 +181,15 @@ public:
      * @param duration_ms 每次蜂鸣持续时间（毫秒）
      * @param interval_ms 每次蜂鸣之间的间隔时间（毫秒），默认为 500ms
      */
-    inline void beep(intmax_t times, intmax_t duration_ms, intmax_t interval_ms = 500) const noexcept
-    {
-        for (intmax_t i = 0; i < times - 1; i++)
-        {
-            this->beep(duration_ms);
-            Delay_ms(interval_ms);
-        }
-        this->beep(duration_ms);
-    }
+    void beep(intmax_t times, intmax_t duration_ms, intmax_t interval_ms = 500) const noexcept;
 
     inline operator bool() const noexcept
     {
         return this->output.get_level() == this->driven_level;
     }
 
-    inline const Buzzer& operator=(bool value) const noexcept
-    {
-        if (value)
-            this->on();
-        else
-            this->off();
-        return *this;
-    }
+    const Buzzer& operator=(bool value) const noexcept;
 
-    inline Buzzer& operator=(bool value) noexcept
-    {
-        if (value)
-            this->on();
-        else
-            this->off();
-        return *this;
-    }
+    Buzzer& operator=(bool value) noexcept;
 };
 EMBMARTIN_STM32F10X_NAMESPACE_END
-

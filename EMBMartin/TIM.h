@@ -153,20 +153,7 @@ public:
      * 此时直接跳过——立刻置为到期，不装载等待。需要真正等待请用 `delay()`
      * 或 `delay_ms()`，它们在这种情况下会自动改走 `sys::delay`。
      */
-    inline void start(uint32_t cnt) noexcept
-    {
-        duration = cnt;
-
-        if (!is_ready())
-        {
-            running = false; // 节拍不会自增，跳过等待
-            deadline = ticks;
-            return;
-        }
-
-        deadline = ticks + cnt;
-        running = true;
-    }
+    void start(uint32_t cnt) noexcept;
 
     /// 按上次 `start()` 的节拍数重新装载
     inline void restart() noexcept
@@ -201,27 +188,13 @@ public:
      * @brief 把毫秒换算成节拍数（向上取整，宁长勿短）
      * @param ms 毫秒数
      */
-    [[nodiscard]] inline uint32_t ticks_of_ms(double ms) const noexcept
-    {
-        const double __tick_ms = tick_ms();
-        if (__tick_ms <= 0.0)
-        {
-            return 0; // 定时器还没初始化，无法换算
-        }
-        return uint32_t(ms / __tick_ms + 0.999);
-    }
+    [[nodiscard]] uint32_t ticks_of_ms(double ms) const noexcept;
 
     /// 按毫秒装载延时（内部换算成节拍）
-    inline void start_ms(double ms) noexcept
-    {
-        start(ticks_of_ms(ms));
-    }
+    void start_ms(double ms) noexcept;
 
     /// 按毫秒阻塞延时（内部换算成节拍）
-    inline void delay_ms(double ms) noexcept
-    {
-        delay(ticks_of_ms(ms));
-    }
+    void delay_ms(double ms) noexcept;
 
     /**
      * @brief 阻塞延时：装载后自行等待到点，无需使用者轮询
@@ -234,26 +207,7 @@ public:
      * @note 若定时器未初始化或未开启，节拍不会推进，此时自动改用 `sys::delay_ms`
      *       等完同样长的时间（周期未知时直接返回），不会死等。
      */
-    inline void delay(uint32_t cnt) noexcept
-    {
-        start(cnt);
-
-        if (running)
-        {
-            while (!done())
-            {
-                EMBMARTIN_KEEP_CODE_ORDER;
-            }
-            return;
-        }
-
-        // 定时中断没跑起来，退化为阻塞延时
-        const double __second = tick_second();
-        if (__second > 0.0 && cnt > 0)
-        {
-            sys::delay_ms(intmax_t(double(cnt) * __second * 1000.0 + 0.5));
-        }
-    }
+    void delay(uint32_t cnt) noexcept;
 
     /// 取消本次延时，`done()` 之后恒为 true 直到下次 start()
     inline void stop() noexcept

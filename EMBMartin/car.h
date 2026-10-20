@@ -274,14 +274,7 @@ EMBMARTIN_DEBUGING_SPECIFIER:
     }
 
     /// 停车并清掉反馈量
-    inline void __stop_motors() noexcept
-    {
-        __output_permillage(0.0, 0.0);
-        __speed_input_left = 0.0;
-        __speed_input_right = 0.0;
-        __measured_left_cm_s = 0.0;
-        __measured_right_cm_s = 0.0;
-    }
+    void __stop_motors() noexcept;
 
     /**
      * @brief 记录一次动作的起始状态，并发出首拍
@@ -294,42 +287,7 @@ EMBMARTIN_DEBUGING_SPECIFIER:
      * @param goal 判停方式
      * @param target 判停目标（cm / 秒 / 度）
      */
-    inline void __begin_action(double left_cm_s, double right_cm_s, Goal goal, double target) noexcept
-    {
-        __measured_left_cm_s = 0.0;
-        __measured_right_cm_s = 0.0;
-        __speed_input_left = 0.0;
-        __speed_input_right = 0.0;
-
-        __goal = goal;
-        __target = target;
-        __sample_s = __sample_period_s();
-        __left_cm_s = left_cm_s;
-        __right_cm_s = right_cm_s;
-
-        // 参数下发 + 清积分：每次动作都从干净的积分状态起步
-        sync_pid_params();
-        __pid_left.reinit();
-        __pid_right.reinit();
-
-        __ff_left = __duty_per_speed * left_cm_s;
-        __ff_right = __duty_per_speed * right_cm_s;
-
-        // 起步同步：丢掉上一个采样窗口（它发生在下令之前），并记下当前窗口的残段计数
-        __begin_left = __encoder_left.get_count();
-        __begin_right = __encoder_right.get_count();
-        (void)__encoder_left.get_speed();
-        (void)__encoder_right.get_speed();
-        __begin_ticks = __sampler.get_ticks();
-        __last_ticks = __begin_ticks;
-
-        __summed_left = 0;
-        __summed_right = 0;
-        __steps = 0;
-
-        // 首拍还没有任何实测值，先只给前馈，避免闭环一上来就把占空比推到饱和
-        __output_permillage(__ff_left, __ff_right);
-    }
+    void __begin_action(double left_cm_s, double right_cm_s, Goal goal, double target) noexcept;
 
     /**
      * @brief 推进一个采样窗口（非阻塞内核的单拍）
@@ -341,57 +299,7 @@ EMBMARTIN_DEBUGING_SPECIFIER:
      * @param right_cm_s 右轮目标速度（cm/s）
      * @return true 表示动作已完成（调用者应停止推进）
      */
-    inline bool __update(double left_cm_s, double right_cm_s) noexcept
-    {
-        if (__goal == Goal::NONE)
-            return true;
-
-        // 一拍 = __sample_interval 个定时器节拍，用 tick 差值判断而不是阻塞等待
-        const uint32_t now = __sampler.get_ticks();
-        const uint32_t need = __sample_interval;
-        if (uint32_t(now - __last_ticks) < need)
-            return false; // 还没到下一拍
-        __last_ticks = now;
-        ++__steps;
-
-        const int16_t speed_left = __encoder_left.get_speed();
-        const int16_t speed_right = __encoder_right.get_speed();
-        __summed_left += speed_left;
-        __summed_right += speed_right;
-
-        __measured_left_cm_s = double(speed_left) * __cm_per_count * __left_polarity / __sample_s;
-        __measured_right_cm_s = double(speed_right) * __cm_per_count * __right_polarity / __sample_s;
-
-        const Travel travel{
-            double(__summed_left + __encoder_left.get_count() - __begin_left) * __cm_per_count * __left_polarity,
-            double(__summed_right + __encoder_right.get_count() - __begin_right) * __cm_per_count * __right_polarity,
-            __elapsed_s(__begin_ticks, __steps, __sample_s)};
-
-        // 反馈取反：让 SingleLoopPID 的 error 变成 (v_target - v_measured)
-        __speed_input_left = -__measured_left_cm_s;
-        __speed_input_right = -__measured_right_cm_s;
-
-        // 增益每拍从 PIDParams 同步一次：动作执行中途调参也能立刻生效，
-        // 只改增益、不清积分，控制量不会因为重新构造而跳变。
-        __pid_left.set_gains(__speed_params.kp, __speed_params.ki, __speed_params.kd);
-        __pid_right.set_gains(__speed_params.kp, __speed_params.ki, __speed_params.kd);
-
-        __output_permillage(
-            __ff_left + __pid_left.compute(-left_cm_s),
-            __ff_right + __pid_right.compute(-right_cm_s));
-
-        switch (__goal)
-        {
-        case Goal::DISTANCE:
-            return std::abs(travel.center_cm()) >= __target;
-        case Goal::DURATION:
-            return travel.elapsed_s >= __target;
-        case Goal::ANGLE:
-            return std::abs(__angle_deg(travel)) >= __target;
-        default:
-            return true;
-        }
-    }
+    bool __update(double left_cm_s, double right_cm_s) noexcept;
 
     /**
      * @brief 启动一次非阻塞动作的公共入口
@@ -431,7 +339,7 @@ public:
      * @note _counts_per_revolution 与 _wheel_diameter_cm 必须为正，否则车不动。
      * @note _speed_params 必须比本对象活得久。
      */
-    inline Car(
+    Car(
         DCMotorDriver &_driver,
         EXTIRotaryEncoder &_encoder_left,
         EXTIRotaryEncoder &_encoder_right,
@@ -443,29 +351,7 @@ public:
         const PIDParams &_speed_params,
         int8_t _left_polarity = 1,
         int8_t _right_polarity = 1,
-        uint16_t _sample_interval_cnt = 1) noexcept
-        : __driver(_driver),
-          __encoder_left(_encoder_left),
-          __encoder_right(_encoder_right),
-          __track_width_cm(_track_width_cm),
-          __cm_per_count(__cm_per_count_of(_counts_per_revolution, _wheel_diameter_cm)),
-          __duty_per_speed(__cm_per_count > 0.0 ? _duty_per_count_speed / __cm_per_count : 0.0),
-          __left_polarity(_left_polarity < 0 ? int8_t(-1) : int8_t(1)),
-          __right_polarity(_right_polarity < 0 ? int8_t(-1) : int8_t(1)),
-          __speed_params(_speed_params),
-          __encoder_TIMX(encoder_TIMX),
-          __sample_interval(_sample_interval_cnt == 0 ? uint16_t(1) : _sample_interval_cnt),
-          __pid_left(_speed_params.kp, _speed_params.ki, _speed_params.kd,
-                     __speed_input_left, 1.0,
-                     _speed_params.integral_limit, _speed_params.output_limit, _speed_params.alpha),
-          __pid_right(_speed_params.kp, _speed_params.ki, _speed_params.kd,
-                      __speed_input_right, 1.0,
-                      _speed_params.integral_limit, _speed_params.output_limit, _speed_params.alpha),
-          __sampler(encoder_TIMX != nullptr ? encoder_TIMX : TIM1)
-    {
-        // dt 与限幅在构造末尾按运行期真实采样周期对齐一次
-        sync_pid_params();
-    };
+        uint16_t _sample_interval_cnt = 1) noexcept;
 
     Car(const Car &) = delete;
     Car &operator=(const Car &) = delete;
@@ -494,7 +380,7 @@ public:
 
     /// 主动把 PIDParams 的当前值下发给两个闭环（动作执行中途调参后可立即调用；
     /// 下一个动作开始时也会自动同步，所以一般不必手动调）
-    inline void apply_pid_params() noexcept { sync_pid_params(); }
+    void apply_pid_params() noexcept;
 
     /// 测速定时器是否已初始化并开始走拍；为 false 时所有动作都不会动车
     [[nodiscard]] inline bool is_ready() const noexcept
@@ -641,13 +527,7 @@ public:
      *
      * @note 停车判定精度为一个编码器采样周期内的行程。
      */
-    inline void forward_distance(double speed_cm_s, double distance_cm) noexcept
-    {
-        forward_distance_async(speed_cm_s, distance_cm);
-        while (!update())
-        {
-        }
-    }
+    void forward_distance(double speed_cm_s, double distance_cm) noexcept;
 
     /**
      * @brief 以指定速度前进指定时间（阻塞）
@@ -658,13 +538,7 @@ public:
      * @note 计时走 sys::InnerTimerManager 的定时器节拍（经 Delayer 累计），
      *       不占用 SysTick，也不会关中断。
      */
-    inline void forward_time(double speed_cm_s, double seconds) noexcept
-    {
-        forward_time_async(speed_cm_s, seconds);
-        while (!update())
-        {
-        }
-    }
+    void forward_time(double speed_cm_s, double seconds) noexcept;
 
     /**
      * @brief 边前进边转向：给定中心前进速度与轮速差，转到指定角度为止（阻塞）
@@ -682,13 +556,7 @@ public:
      * @param speed_diff_cm_s 轮速差（cm/s），正值 = 左转
      * @param degrees 目标转角（度），正值左转、负值右转，取绝对值判停
      */
-    inline void arc_turn(double center_cm_s, double speed_diff_cm_s, double degrees) noexcept
-    {
-        arc_turn_async(center_cm_s, speed_diff_cm_s, degrees);
-        while (!update())
-        {
-        }
-    }
+    void arc_turn(double center_cm_s, double speed_diff_cm_s, double degrees) noexcept;
 
     /**
      * @brief 原地转向：中心不动，以给定轮速差旋转指定角度（阻塞）
@@ -701,13 +569,7 @@ public:
      * @param speed_diff_cm_s 轮速差（cm/s），正值 = 左转（逆时针）
      * @param degrees 目标转角（度），正值左转、负值右转
      */
-    inline void spin_turn(double speed_diff_cm_s, double degrees) noexcept
-    {
-        spin_turn_async(speed_diff_cm_s, degrees);
-        while (!update())
-        {
-        }
-    }
+    void spin_turn(double speed_diff_cm_s, double degrees) noexcept;
 
     /**
      * @brief 绕单侧车轮旋转：以左轮或右轮为圆心，以给定轮速差转指定角度（阻塞）
@@ -722,13 +584,7 @@ public:
      * @param speed_diff_cm_s 轮速差（cm/s），正值 = 左转（逆时针）
      * @param degrees 目标转角（度），正值左转、负值右转
      */
-    inline void pivot_turn(Pivot pivot, double speed_diff_cm_s, double degrees) noexcept
-    {
-        pivot_turn_async(pivot, speed_diff_cm_s, degrees);
-        while (!update())
-        {
-        }
-    }
+    void pivot_turn(Pivot pivot, double speed_diff_cm_s, double degrees) noexcept;
 };
 
 EMBMARTIN_STM32F10X_NAMESPACE_END
