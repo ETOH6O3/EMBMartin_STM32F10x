@@ -327,10 +327,10 @@ private:
 
     /// 0/45/135/180 度；中位（下标 2）在 common_working() 里已经测过，跳过
     static constexpr std::array<ScanPoint, 4> SCAN_POINTS = {{
-        {0, 10, 1200},  // 0 度：多等一会，减弱互补滤波影响
-        {1, 45, 850},  // 45 度
-        {3, 135, 850}, // 135 度
-        {4, 180, 850}, // 180 度
+        {0, 10, 2000},  // 0 度：多等一会，减弱互补滤波影响
+        {1, 45, 1550},  // 45 度
+        {3, 135, 1550}, // 135 度
+        {4, 180, 1550}, // 180 度
     }};
 
     /// 进入扫描点：摆舵机并装载等待
@@ -413,7 +413,7 @@ protected:
      * 下标从 0 起，所以第 N 步对应 N - 1。第 4 步完成时 __avoid_step 已被
      * 推进到 4，因此用 `__avoid_step > CROSS_STEP_INDEX` 判断。
      */
-    constexpr static inline uint8_t CROSS_STEP_INDEX = 3;
+    constexpr static inline uint8_t CROSS_STEP_INDEX = 2;
 
     /**
      * @brief 当前是否允许打断绕障
