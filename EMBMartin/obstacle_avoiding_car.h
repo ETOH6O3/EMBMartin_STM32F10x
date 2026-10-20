@@ -437,8 +437,9 @@ protected:
     /**
      * @brief 中止绕障并立即回到 COMMON（不可打断期间调用将被忽略）
      *
-     * 供子类在 avoid_working() 的覆写里使用：判定需要提前结束时调用本函数，
-     * 它会先检查 avoid_can_be_interrupted()，不满足条件就原样返回。
+     * 一般**不需要**子类直接调用本函数：只要覆写 avoid_interrupt_requested()
+     * 表达「想不想打断」，基类的 avoid_working() 会在合法时机自动完成中止。
+     * 本函数保留给「外部主动取消绕障」这类需要同步结果的场景。
      *
      * @return true 表示已中止并回到 COMMON；false 表示当前不允许打断
      */
@@ -451,8 +452,34 @@ protected:
 
         car.stop();
         transition_to(State::COMMON);
+        on_avoid_interrupted();
         return true;
     }
+
+    // ------------------------ 子类可覆写的打断钩子 ------------------------
+
+    /**
+     * @brief 子类表达「是否希望打断当前绕障」，**由基类负责判断时机**
+     *
+     * 子类只需回答「想不想」，不必关心现在是第几步、能不能停：
+     *
+     * - 返回 true 时，基类检查 avoid_can_be_interrupted()：
+     *   允许则立即中止并调用 on_avoid_interrupted()，
+     *   不允许（第 1～4 步尚未跑完）则**忽略本次请求**，继续推进原动作；
+     * - 因为 avoid_working() 每拍都会调用一次本函数，
+     *   请求会在第 4 步完成后的第一拍自动生效，子类无需自行重试。
+     *
+     * @return true 表示希望打断；false 表示继续绕障（默认）
+     */
+    [[nodiscard]] virtual bool avoid_interrupt_requested() noexcept { return false; }
+
+    /**
+     * @brief 绕障已被打断时的收尾钩子，在回到 COMMON 之后调用
+     *
+     * 适合在这里恢复被绕障挂起的其它任务（例如恢复循迹）。
+     * 默认什么都不做。
+     */
+    virtual void on_avoid_interrupted() noexcept {}
 
     /**
      * @brief 进入绕障：算好航向与穿越距离，把七步排成表，启动第 1 步
@@ -496,15 +523,22 @@ protected:
      *
      * 默认行为：推进当前步，一步走完就进下一步，七步全部完成才回 COMMON。
      *
-     * 子类若要「按需打断」，**必须**先过 avoid_can_be_interrupted() 这一关，
-     * 或直接调用 interrupt_avoid()（内部已含该判断）。第 4 步「沿偏移车道
-     * 越过障碍」完成之前一律不允许打断：那时车还在障碍物旁边或正横穿它，
-     * 半途中止会把车停在障碍路径上，且航向尚未摆正。
+     * 打断**由基类统一把关**：每拍先问一次 avoid_interrupt_requested()，
+     * 子类只回答「想不想打断」，能不在第 4 步之前停下由基类决定。
+     * 请求在不可打断期间会被忽略，等第 4 步完成后自动生效，
+     * 因此子类既不需要记住当前第几步，也不需要自行重试。
      *
-     * @note 基类的推进与转移逻辑不要漏掉，覆写后应调用基类版本或自行转移。
+     * @note 子类一般**不需要**覆写本函数；要打断请覆写
+     *       avoid_interrupt_requested()，要收尾请覆写 on_avoid_interrupted()。
      */
     virtual void avoid_working() noexcept
     {
+        // 先处理打断请求：时机不合法时基类会自动忽略，继续推进原动作
+        if (avoid_interrupt_requested() && interrupt_avoid())
+        {
+            return;
+        }
+
         // 当前步还没跑完（Car 的 update 返回 false），本拍什么都不做
         if (!car.update())
         {
