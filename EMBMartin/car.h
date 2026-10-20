@@ -142,6 +142,15 @@ public:
         RIGHT  //!< 以右轮为中心（左轮画半径 = 轮距 的圆）
     };
 
+    /// 非阻塞动作的判停方式
+    enum class Goal : uint8_t
+    {
+        NONE,     //!< 空闲，没有进行中的动作
+        DISTANCE, //!< 车体中心行程达到目标（cm）
+        DURATION, //!< 行驶时间达到目标（秒）
+        ANGLE     //!< 车体转角达到目标（度）
+    };
+
     /// 一次采样窗口内的累计行程，传给内部的判停谓词
     struct Travel
     {
@@ -192,6 +201,22 @@ EMBMARTIN_DEBUGING_SPECIFIER:
     SingleLoopPID __pid_right; //!< 右轮转速闭环
 
     Delayer __sampler; //!< 按编码器采样节拍推进的定时器节拍计数器
+
+    // 一次动作的会话状态：由 __begin_action() 写入，__update() 逐拍推进，跨调用保存
+    Goal __goal = Goal::NONE;         //!< 当前动作的判停方式
+    double __target = 0.0;            //!< 当前动作的判停目标（cm / 秒 / 度）
+    double __sample_s = 0.0;          //!< 本次动作的控制周期（秒）
+    double __ff_left = 0.0;           //!< 左轮前馈占空比（‰）
+    double __ff_right = 0.0;          //!< 右轮前馈占空比（‰）
+    double __left_cm_s = 0.0;         //!< 本次动作的左轮目标速度（cm/s）
+    double __right_cm_s = 0.0;        //!< 本次动作的右轮目标速度（cm/s）
+    int16_t __begin_left = 0;         //!< 起步时刻左编码器的残段计数
+    int16_t __begin_right = 0;        //!< 起步时刻右编码器的残段计数
+    int32_t __summed_left = 0;        //!< 已完成的采样窗口左计数之和
+    int32_t __summed_right = 0;       //!< 已完成的采样窗口右计数之和
+    uint32_t __begin_ticks = 0;       //!< 起步时刻的节拍数
+    uint32_t __last_ticks = 0;        //!< 上一次推进时的节拍数
+    uint32_t __steps = 0;             //!< 已推进的采样窗口数
 
     // ------------------------------ 内部工具 ------------------------------
 
@@ -259,110 +284,130 @@ EMBMARTIN_DEBUGING_SPECIFIER:
     }
 
     /**
-     * @brief 阻塞式运动内核：按给定左右轮目标速度运行，直到判停谓词成立
+     * @brief 记录一次动作的起始状态，并发出首拍
      *
-     * 每调用一次 __sampler.delay() 正好推进一个编码器采样周期，因此循环体
-     * 与编码器的采样窗口严格一一对应：
+     * 与 __update() 一起构成非阻塞内核：本函数只调用一次，负责
+     * 「清反馈、下发 PID 参数与清积分、记残段计数、给首拍前馈」。
      *
-     * - get_speed() 每个窗口只读一次并累加，不会重复计入同一窗口；
-     * - 再叠加 get_count()（当前窗口内尚未采完的部分计数）并扣掉起步时刻的
-     *   那个残段，就得到「起步至今」的精确累计计数。
-     *
-     * 两个 SingleLoopPID 是成员，长期持有；每次动作开始时先 sync_pid_params()
-     * 把 PIDParams 的当前值下发下去并清积分，动作执行期间每拍再同步一次增益，
-     * 所以**动作执行中途调参也能立刻生效**，且不会让控制量跳变。
-     *
-     * @param target_left_cm_s 左轮目标速度（cm/s）
-     * @param target_right_cm_s 右轮目标速度（cm/s）
-     * @param should_stop 判停谓词，签名 bool(const Travel &)
+     * @param left_cm_s 左轮目标速度（cm/s）
+     * @param right_cm_s 右轮目标速度（cm/s）
+     * @param goal 判停方式
+     * @param target 判停目标（cm / 秒 / 度）
      */
-    template <typename StopFn>
-    void __run(double target_left_cm_s, double target_right_cm_s, StopFn should_stop) noexcept
+    inline void __begin_action(double left_cm_s, double right_cm_s, Goal goal, double target) noexcept
     {
         __measured_left_cm_s = 0.0;
         __measured_right_cm_s = 0.0;
         __speed_input_left = 0.0;
         __speed_input_right = 0.0;
 
-        const Travel initial; // 起步前状态：全部为 0
-        if (!is_ready() || should_stop(initial))
-        {
-            __stop_motors();
-            return;
-        }
-
-        const double sample_s = __sample_period_s();
+        __goal = goal;
+        __target = target;
+        __sample_s = __sample_period_s();
+        __left_cm_s = left_cm_s;
+        __right_cm_s = right_cm_s;
 
         // 参数下发 + 清积分：每次动作都从干净的积分状态起步
         sync_pid_params();
         __pid_left.reinit();
         __pid_right.reinit();
 
-        const double feedforward_left = __duty_per_speed * target_left_cm_s;
-        const double feedforward_right = __duty_per_speed * target_right_cm_s;
+        __ff_left = __duty_per_speed * left_cm_s;
+        __ff_right = __duty_per_speed * right_cm_s;
 
         // 起步同步：丢掉上一个采样窗口（它发生在下令之前），并记下当前窗口的残段计数
-        const int16_t begin_left = __encoder_left.get_count();
-        const int16_t begin_right = __encoder_right.get_count();
+        __begin_left = __encoder_left.get_count();
+        __begin_right = __encoder_right.get_count();
         (void)__encoder_left.get_speed();
         (void)__encoder_right.get_speed();
-        const uint32_t begin_ticks = __sampler.get_ticks();
+        __begin_ticks = __sampler.get_ticks();
+        __last_ticks = __begin_ticks;
 
-        int32_t summed_left = 0; // 已完成的采样窗口计数之和
-        int32_t summed_right = 0;
-        uint32_t steps = 0;
+        __summed_left = 0;
+        __summed_right = 0;
+        __steps = 0;
 
         // 首拍还没有任何实测值，先只给前馈，避免闭环一上来就把占空比推到饱和
-        __output_permillage(feedforward_left, feedforward_right);
+        __output_permillage(__ff_left, __ff_right);
+    }
 
-        while (true)
+    /**
+     * @brief 推进一个采样窗口（非阻塞内核的单拍）
+     *
+     * 内部用 `__sampler.done()` 判断这一拍是否到点：没到点直接返回 false，
+     * **绝不阻塞等待**，因此可以在定时中断或主循环里反复调用。
+     *
+     * @param left_cm_s 左轮目标速度（cm/s）
+     * @param right_cm_s 右轮目标速度（cm/s）
+     * @return true 表示动作已完成（调用者应停止推进）
+     */
+    inline bool __update(double left_cm_s, double right_cm_s) noexcept
+    {
+        if (__goal == Goal::NONE)
+            return true;
+
+        // 一拍 = __sample_interval 个定时器节拍，用 tick 差值判断而不是阻塞等待
+        const uint32_t now = __sampler.get_ticks();
+        const uint32_t need = __sample_interval;
+        if (uint32_t(now - __last_ticks) < need)
+            return false; // 还没到下一拍
+        __last_ticks = now;
+        ++__steps;
+
+        const int16_t speed_left = __encoder_left.get_speed();
+        const int16_t speed_right = __encoder_right.get_speed();
+        __summed_left += speed_left;
+        __summed_right += speed_right;
+
+        __measured_left_cm_s = double(speed_left) * __cm_per_count * __left_polarity / __sample_s;
+        __measured_right_cm_s = double(speed_right) * __cm_per_count * __right_polarity / __sample_s;
+
+        const Travel travel{
+            double(__summed_left + __encoder_left.get_count() - __begin_left) * __cm_per_count * __left_polarity,
+            double(__summed_right + __encoder_right.get_count() - __begin_right) * __cm_per_count * __right_polarity,
+            __elapsed_s(__begin_ticks, __steps, __sample_s)};
+
+        // 反馈取反：让 SingleLoopPID 的 error 变成 (v_target - v_measured)
+        __speed_input_left = -__measured_left_cm_s;
+        __speed_input_right = -__measured_right_cm_s;
+
+        // 增益每拍从 PIDParams 同步一次：动作执行中途调参也能立刻生效，
+        // 只改增益、不清积分，控制量不会因为重新构造而跳变。
+        __pid_left.set_gains(__speed_params.kp, __speed_params.ki, __speed_params.kd);
+        __pid_right.set_gains(__speed_params.kp, __speed_params.ki, __speed_params.kd);
+
+        __output_permillage(
+            __ff_left + __pid_left.compute(-left_cm_s),
+            __ff_right + __pid_right.compute(-right_cm_s));
+
+        switch (__goal)
         {
-            __sampler.delay(__sample_interval); // 等一个采样周期，中断照常响应
-            ++steps;
-
-            const int16_t speed_left = __encoder_left.get_speed();
-            const int16_t speed_right = __encoder_right.get_speed();
-            summed_left += speed_left;
-            summed_right += speed_right;
-
-            __measured_left_cm_s = double(speed_left) * __cm_per_count * __left_polarity / sample_s;
-            __measured_right_cm_s = double(speed_right) * __cm_per_count * __right_polarity / sample_s;
-
-            const Travel travel{
-                double(summed_left + __encoder_left.get_count() - begin_left) * __cm_per_count * __left_polarity,
-                double(summed_right + __encoder_right.get_count() - begin_right) * __cm_per_count * __right_polarity,
-                __elapsed_s(begin_ticks, steps, sample_s)};
-
-            // 反馈取反：让 SingleLoopPID 的 error 变成 (v_target - v_measured)
-            __speed_input_left = -__measured_left_cm_s;
-            __speed_input_right = -__measured_right_cm_s;
-
-            // 增益每拍从 PIDParams 同步一次：动作执行中途调参也能立刻生效，
-            // 只改增益、不清积分，控制量不会因为重新构造而跳变。
-            __pid_left.set_gains(__speed_params.kp, __speed_params.ki, __speed_params.kd);
-            __pid_right.set_gains(__speed_params.kp, __speed_params.ki, __speed_params.kd);
-
-            __output_permillage(
-                feedforward_left + __pid_left.compute(-target_left_cm_s),
-                feedforward_right + __pid_right.compute(-target_right_cm_s));
-
-            if (should_stop(travel))
-                break;
+        case Goal::DISTANCE:
+            return std::abs(travel.center_cm()) >= __target;
+        case Goal::DURATION:
+            return travel.elapsed_s >= __target;
+        case Goal::ANGLE:
+            return std::abs(__angle_deg(travel)) >= __target;
+        default:
+            return true;
         }
-
-        __stop_motors();
     }
 
-    /// 判停：车体中心行程的绝对值是否达到目标
-    [[nodiscard]] inline bool __reached_distance(const Travel &travel, double distance_cm) const noexcept
+    /**
+     * @brief 启动一次非阻塞动作的公共入口
+     *
+     * 车里没有节拍时（定时器没起来）直接判为「已完成」，等价于不动车，
+     * 避免调用者看到 is_action_running() 恒为 true 而永远等下去。
+     */
+    inline void __start(double left_cm_s, double right_cm_s, Goal goal, double target) noexcept
     {
-        return std::abs(travel.center_cm()) >= distance_cm;
-    }
-
-    /// 判停：转角绝对值是否达到目标
-    [[nodiscard]] inline bool __reached_angle(const Travel &travel, double degrees) const noexcept
-    {
-        return std::abs(__angle_deg(travel)) >= degrees;
+        if (!is_ready())
+        {
+            __goal = Goal::NONE;
+            __stop_motors();
+            return;
+        }
+        __begin_action(left_cm_s, right_cm_s, goal, target);
     }
 
 public:
@@ -466,7 +511,14 @@ public:
     [[nodiscard]] inline double get_right_speed_cm_s() const noexcept { return __measured_right_cm_s; }
 
     /// 立刻停车（等价于把当前动作提前结束）
-    inline void stop() noexcept { __stop_motors(); }
+    inline void stop() noexcept
+    {
+        __goal = Goal::NONE;
+        __stop_motors();
+    }
+
+    /// 是否有非阻塞动作正在进行中
+    [[nodiscard]] inline bool is_action_running() const noexcept { return __goal != Goal::NONE; }
 
     /**
      * @brief 非阻塞地直接下发左右轮目标速度（cm/s），立即返回
@@ -476,7 +528,7 @@ public:
      * - **不等待、不停车**：下发后函数立刻返回，电机保持这个速度一直转，
      *   直到下一次调用本函数或 stop()。适合「主循环里一边前进一边轮询传感器」；
      * - **纯前馈**：只按 duty_per_speed 换算占空比，不跑 PID 闭环，因此实际速度
-     *   依赖标定比值。需要精确到 cm 或精确转角时请用阻塞动作。
+     *   依赖标定比值。需要精确到 cm 或精确转角时请用阻塞动作或 *_async()。
      *
      * @param left_cm_s 左轮目标速度（cm/s），正值前进
      * @param right_cm_s 右轮目标速度（cm/s），正值前进
@@ -489,12 +541,100 @@ public:
         __output_permillage(__duty_per_speed * left_cm_s, __duty_per_speed * right_cm_s);
     }
 
+    // ------------------------ 非阻塞内核的公开入口 ------------------------
+
+    /**
+     * @brief 推进一个采样窗口，**不会阻塞**
+     *
+     * 每调用一次最多推进一个控制周期：没到下一个采样窗时立即返回 false。
+     * 在定时中断（与编码器采样同一个定时器）或主循环里反复调用即可。
+     *
+     * @return true 表示当前动作已完成；此时电机已经停下，会话状态已清空
+     *
+     * @note 没有动作在进行时返回 true。
+     * @note 完成的瞬间会自动 __stop_motors()，调用者无需再调 stop()。
+     */
+    inline bool update() noexcept
+    {
+        if (__goal == Goal::NONE)
+            return true;
+
+        // 目标速度在 __begin_action() 时已按动作类型折算好并存入会话，
+        // 这里原样取回交给 __update()，调用者无需再关心左右轮差速关系。
+        if (__update(__left_cm_s, __right_cm_s))
+        {
+            __goal = Goal::NONE;
+            __stop_motors();
+            return true;
+        }
+        return false;
+    }
+
+    // ------------------------------ 非阻塞动作 ------------------------------
+
+    /**
+     * @brief 启动「前进指定距离」（非阻塞），立即返回
+     * @param speed_cm_s 前进速度（cm/s），负值后退
+     * @param distance_cm 目标距离（cm），取绝对值
+     */
+    inline void forward_distance_async(double speed_cm_s, double distance_cm) noexcept
+    {
+        __start(speed_cm_s, speed_cm_s, Goal::DISTANCE, std::abs(distance_cm));
+    }
+
+    /**
+     * @brief 启动「前进指定时间」（非阻塞），立即返回
+     * @param speed_cm_s 前进速度（cm/s），负值后退
+     * @param seconds 目标时间（秒），取绝对值
+     */
+    inline void forward_time_async(double speed_cm_s, double seconds) noexcept
+    {
+        __start(speed_cm_s, speed_cm_s, Goal::DURATION, std::abs(seconds));
+    }
+
+    /**
+     * @brief 启动「边前进边转向」（非阻塞），立即返回
+     * @param center_cm_s 车体中心前进速度（cm/s）
+     * @param speed_diff_cm_s 轮速差（cm/s），正值左转
+     * @param degrees 目标转角（度），取绝对值判停
+     */
+    inline void arc_turn_async(double center_cm_s, double speed_diff_cm_s, double degrees) noexcept
+    {
+        __start(center_cm_s - speed_diff_cm_s * 0.5, center_cm_s + speed_diff_cm_s * 0.5,
+                Goal::ANGLE, std::abs(degrees));
+    }
+
+    /**
+     * @brief 启动「原地转向」（非阻塞），立即返回
+     * @param speed_diff_cm_s 轮速差（cm/s），正值左转
+     * @param degrees 目标转角（度），取绝对值判停
+     */
+    inline void spin_turn_async(double speed_diff_cm_s, double degrees) noexcept
+    {
+        __start(-speed_diff_cm_s * 0.5, speed_diff_cm_s * 0.5, Goal::ANGLE, std::abs(degrees));
+    }
+
+    /**
+     * @brief 启动「绕单侧车轮旋转」（非阻塞），立即返回
+     * @param pivot 以哪一侧车轮为旋转中心
+     * @param speed_diff_cm_s 轮速差（cm/s），正值左转
+     * @param degrees 目标转角（度），取绝对值判停
+     */
+    inline void pivot_turn_async(Pivot pivot, double speed_diff_cm_s, double degrees) noexcept
+    {
+        const double left_target = (pivot == Pivot::LEFT) ? 0.0 : -speed_diff_cm_s;
+        const double right_target = (pivot == Pivot::LEFT) ? speed_diff_cm_s : 0.0;
+        __start(left_target, right_target, Goal::ANGLE, std::abs(degrees));
+    }
+
     // ------------------------------ 五个运动动作 ------------------------------
 
     /**
      * @brief 以指定速度前进指定距离（阻塞）
      *
      * 左右轮同速，行驶过程中由闭环把实际速度校准到 speed_cm_s。
+     * 内部复用非阻塞内核：start 后原地自旋 update()，行为与本类引入 async
+     * 接口之前完全一致。
      *
      * @param speed_cm_s 前进速度（cm/s）；负值表示后退，此时距离仍取正值
      * @param distance_cm 目标距离（cm），取绝对值
@@ -503,9 +643,10 @@ public:
      */
     inline void forward_distance(double speed_cm_s, double distance_cm) noexcept
     {
-        const double target = std::abs(distance_cm);
-        __run(speed_cm_s, speed_cm_s, [this, target](const Travel &travel)
-              { return __reached_distance(travel, target); });
+        forward_distance_async(speed_cm_s, distance_cm);
+        while (!update())
+        {
+        }
     }
 
     /**
@@ -519,9 +660,10 @@ public:
      */
     inline void forward_time(double speed_cm_s, double seconds) noexcept
     {
-        const double target = std::abs(seconds);
-        __run(speed_cm_s, speed_cm_s, [this, target](const Travel &travel)
-              { return travel.elapsed_s >= target; });
+        forward_time_async(speed_cm_s, seconds);
+        while (!update())
+        {
+        }
     }
 
     /**
@@ -542,10 +684,10 @@ public:
      */
     inline void arc_turn(double center_cm_s, double speed_diff_cm_s, double degrees) noexcept
     {
-        const double target = std::abs(degrees);
-        __run(center_cm_s - speed_diff_cm_s * 0.5, center_cm_s + speed_diff_cm_s * 0.5,
-              [this, target](const Travel &travel)
-              { return __reached_angle(travel, target); });
+        arc_turn_async(center_cm_s, speed_diff_cm_s, degrees);
+        while (!update())
+        {
+        }
     }
 
     /**
@@ -561,10 +703,10 @@ public:
      */
     inline void spin_turn(double speed_diff_cm_s, double degrees) noexcept
     {
-        const double target = std::abs(degrees);
-        __run(-speed_diff_cm_s * 0.5, speed_diff_cm_s * 0.5,
-              [this, target](const Travel &travel)
-              { return __reached_angle(travel, target); });
+        spin_turn_async(speed_diff_cm_s, degrees);
+        while (!update())
+        {
+        }
     }
 
     /**
@@ -582,11 +724,10 @@ public:
      */
     inline void pivot_turn(Pivot pivot, double speed_diff_cm_s, double degrees) noexcept
     {
-        const double target = std::abs(degrees);
-        const double left_target = (pivot == Pivot::LEFT) ? 0.0 : -speed_diff_cm_s;
-        const double right_target = (pivot == Pivot::LEFT) ? speed_diff_cm_s : 0.0;
-        __run(left_target, right_target, [this, target](const Travel &travel)
-              { return __reached_angle(travel, target); });
+        pivot_turn_async(pivot, speed_diff_cm_s, degrees);
+        while (!update())
+        {
+        }
     }
 };
 
