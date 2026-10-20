@@ -503,7 +503,7 @@ constexpr decltype(auto) _to_tuple(TUPLE &&_tuple_obj)
 	// }
 	// ... 一路展开到 256 元素
 
-#include "_to_tuple_part.txt" // 内联 python 生成的代码
+#include "_to_tuple_part.inc" // 内联 python 生成的代码
 
 	else
 	{
