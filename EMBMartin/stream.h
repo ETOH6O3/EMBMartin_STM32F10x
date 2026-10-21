@@ -1,13 +1,12 @@
 /**
- * @file IO.h
+ * @file stream.h
  * @author 孙鸣淼
  * @brief 适用于单片机开发的轻量化流操作封装头文件
  * @version 0.1
  *
  */
 
-#ifndef EMBMARTIN_STREAM_H
-#define EMBMARTIN_STREAM_H
+#pragma once
 
 #include <cstddef>
 #include <cstdio>
@@ -353,14 +352,14 @@ protected:
      * 
      * @param tentative 若为真，下次调用时不会刷新 buffer
      */
-    void __read(bool tentative = false)noexcept
+    void _read(bool tentative = false)noexcept
     {
-        static bool __last_used = true;
-        if (__last_used)
+        static bool _last_used = true;
+        if (_last_used)
         {
             this->read();
         }
-        __last_used = !tentative;
+        _last_used = !tentative;
         
     }
 
@@ -418,7 +417,7 @@ protected:
     inline void update() noexcept
     {
         this->flush();
-        this->__read();
+        this->_read();
     }
 
 public:
@@ -581,7 +580,7 @@ template <size_t buffer_size>
 template <typename... Args>
 void InStream<buffer_size>::scanf(const char c[], Args *...args) noexcept
 {
-    this->__read();
+    this->_read();
     sscanf(this->buffer, c, args...);
 }
 
@@ -589,7 +588,7 @@ template <size_t buffer_size>
 template <typename... Args>
 void InStream<buffer_size>::scanf(const char c[], Args &&...args) noexcept
 {
-    this->__read();
+    this->_read();
     sscanf(this->buffer, c, &args...);
 }
 
@@ -597,7 +596,7 @@ template <size_t buffer_size>
 template <typename... Args, size_t N>
 std::tuple<Args...> InStream<buffer_size>::scan(const char (&c)[N]) noexcept
 {
-    this->__read();
+    this->_read();
     std::tuple<Args...> result{};
 
     std::apply(
@@ -613,7 +612,7 @@ std::tuple<Args...> InStream<buffer_size>::scan(const char (&c)[N]) noexcept
 template <size_t buffer_size>
 void InStream<buffer_size>::getline(char trg[]) noexcept
 {
-    this->__read();
+    this->_read();
     char *buff_p = this->buffer;
     char *trg_p = trg;
     while ((*buff_p != '\r') && (*buff_p != '\n') && (*buff_p != '\0') && ((buff_p - this->buffer) < static_cast<ptrdiff_t>(_buffer_size - 1)))
@@ -626,7 +625,7 @@ void InStream<buffer_size>::getline(char trg[]) noexcept
 template <size_t buffer_size>
 String<buffer_size> InStream<buffer_size>::getline() noexcept
 {
-    this->__read();
+    this->_read();
 
     String<buffer_size> result;
     char *dest = result.data_mutable();
@@ -650,4 +649,3 @@ EMBMARTIN_NAMESPACE_END
 // debug 控制台
 EMBMARTIN_DEBUGING_EXTERN_CONSOLE;
 
-#endif // EMBMARTIN_STREAM_H

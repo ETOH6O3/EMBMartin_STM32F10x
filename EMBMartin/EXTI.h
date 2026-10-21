@@ -47,17 +47,7 @@ public:
                               EXTITrigger_TypeDef trigger = EXTI_Trigger_Falling, uint8_t __PreemptionPriority = 0, uint8_t __SubPriority = 0,
                               EXTIMode_TypeDef _EXTI_Mode = EXTI_Mode_Interrupt) noexcept;
 
-    inline ~EXTIManager() // 禁用对应 EXTI line、注销回调
-    {
-        auto __idx = __EXTI_pin.idx();
-        if (__instances[__idx] == this)
-            __instances[__idx] = nullptr;
-
-        EXTI->IMR &= ~__EXTI_pin.get_pin().pin;
-        EXTI->EMR &= ~__EXTI_pin.get_pin().pin;
-
-        EXTI_ClearITPendingBit(Get_EXTI_Line(__EXTI_pin.get_pin().pin));
-    }
+    ~EXTIManager(); // 禁用对应 EXTI line、注销回调
 
     EXTIManager(const EXTIManager &) = delete;
     EXTIManager &operator=(const EXTIManager &) = delete;

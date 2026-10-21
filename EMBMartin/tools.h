@@ -12,8 +12,7 @@
  ******************************************************************************
  */
 
-#ifndef EMBMARTIN_TOOLS_H
-#define EMBMARTIN_TOOLS_H
+#pragma once
 
 #include "system.h"
 #include "basic_tools.h"
@@ -24,12 +23,14 @@
 #include "stream.h"
 #include "TIM.h"
 #include "PWM.h"
+#include "breathing_led.h"
 #include "OLED.h"
 #include "I2C.h"
+#include "mpu6050.h"
 #include "PID.h"
+#include "angle_filter.h"
 #include "USART.h"
 #include "ultrasonic_sensor.h"
 #include "obstacle_avoiding_car.h"
 #include "car.h"
 
-#endif // EMBMARTIN_TOOLS_H

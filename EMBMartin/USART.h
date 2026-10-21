@@ -1,5 +1,4 @@
-#ifndef EMBMARTIN_USART_H
-#define EMBMARTIN_USART_H
+#pragma once
 
 #include "macro.h"
 #include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)
@@ -8,6 +7,11 @@
 #include "system.h"
 #include "stream.h"
 #include "debugger.h"
+
+
+extern "C" void USART1_IRQHandler(void);
+extern "C" void USART2_IRQHandler(void);
+extern "C" void USART3_IRQHandler(void);
 
 EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
 
@@ -84,4 +88,3 @@ using BluetoothConsole = USBConsole<BaseStream>;
 
 EMBMARTIN_STM32F10X_NAMESPACE_END
 
-#endif // EMBMARTIN_USART_H

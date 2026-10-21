@@ -1,5 +1,4 @@
-#ifndef EMBMARTIN_PWM_H
-#define EMBMARTIN_PWM_H
+#pragma once
 
 #include <cmath>
 
@@ -28,11 +27,11 @@ EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
 class PWM
 {
 private:
-    int _Duty_permillage;
-    int _Freq_HZ;
-    int _Reso_permillage;
+    int __Duty_permillage;
+    int __Freq_HZ;
+    int __Reso_permillage;
     TIM_TypeDef *_TIMX;
-    int _CHn;
+    int __CHn;
 
     PWM(TIM_TypeDef *TIMX, int CHn, uint8_t TIMx_REMAP, GPIOPin output_pin /* 只能是规定的复用引脚 */,
         int Duty_permillage = 0, int Freq_HZ = 20000, int Reso_permillage = 10 /* 建议能被 1000 除尽 */
@@ -67,56 +66,10 @@ public:
     void set_duty(int Duty_permillage) noexcept;
     inline auto get_duty() const noexcept
     {
-        return _Duty_permillage;
+        return __Duty_permillage;
     }
 };
 
-/**
- * @brief 呼吸灯类，用于实现呼吸灯效果
- *
- */
-class BreathingLED : public PWM
-{
-private:
-    bool _driven_level;
-    int _period_s;
-
-public:
-    /**
-     * @brief 构造一个呼吸灯对象
-     *
-     * 呼吸灯是基于 PWM 实现的，通过周期性地改变 LED 亮度来模拟 "呼吸" 效果。
-     *
-     * @param TIMX 定时器外设指针，用于产生 PWM 信号
-     * @param CHn 定时器通道号（1-4）
-     * @param TIMx_REMAP 定时器重映像选择（0-3），默认 0（未重映像）
-     *                   - 0b00: 无重映像
-     *                   - 0b01: 部分重映像 01
-     *                   - 0b10: 部分重映像 10
-     *                   - 0b11: 完全重映像
-     * @param driven_level 驱动电平，false 表示低电平点亮 LED，true 表示高电平点亮 LED
-     * @param period_s 呼吸周期（秒），即从暗到亮再到暗的完整周期时间
-     *
-     * @note 呼吸灯初始化时会自动设置 PWM 频率为 1kHz，分辨率为 10‰
-     */
-    BreathingLED(TIM_TypeDef *TIMX, int CHn, uint8_t TIMx_REMAP = 0b00,
-                 bool driven_level = false, int period_s = 5) noexcept
-        : PWM(TIMX, CHn, TIMx_REMAP, driven_level ? 0 : 1000 /* 初期关闭 */, 1000, 10),
-          _driven_level(driven_level), _period_s(period_s) {};
-
-    /**
-     * @brief 执行呼吸灯效果
-     *
-     * 控制 LED 按照设定的周期执行呼吸效果，即亮度从暗逐渐变亮，
-     * 再从亮逐渐变暗的过程。
-     *
-     * @param times 呼吸次数，默认为 1 次
-     *
-     * @note 该函数是阻塞式的，会持续执行完指定次数的呼吸效果
-     * @note 呼吸周期由构造函数中设置的_period_s 决定
-     */
-    void breathe(int times = 1) noexcept;
-};
 
 class SteeringEngine : public PWM
 {
@@ -189,22 +142,12 @@ public:
         FORWARD,
         REVERSE
     };
-    inline DCMotorDriver(
+    DCMotorDriver(
         PWM _PWMA, OutPin _AIN1, OutPin _AIN2,
         OutPin STBY,
-        PWM _PWMB, OutPin _BIN1, OutPin _BIN2) noexcept
-        : PWMA{_PWMA}, AIN1{_AIN1}, AIN2{_AIN2},
-          STBY{STBY},
-          PWMB{_PWMB}, BIN1{_BIN1}, BIN2{_BIN2}
-    {
-        work();
-        set_mode(Mode::FORWARD,0);
-        set_mode(Mode::FORWARD,1);
-    };
+        PWM _PWMB, OutPin _BIN1, OutPin _BIN2) noexcept;
 
-    inline DCMotorDriver(PWM _PWMA, OutPin _AIN1, OutPin _AIN2, OutPin STBY = null_pin /* 直接接到了 3V */) noexcept
-        : DCMotorDriver(_PWMA, _AIN1, _AIN2, STBY,
-                        PWM{nullptr, 0, 0}, OutPin{null_pin}, OutPin{null_pin}) {};
+    DCMotorDriver(PWM _PWMA, OutPin _AIN1, OutPin _AIN2, OutPin STBY = null_pin /* 直接接到了 3V */) noexcept;
 
     inline void standby() noexcept
     {
@@ -233,7 +176,3 @@ public:
 
 
 EMBMARTIN_STM32F10X_NAMESPACE_END
-
-
-
-#endif // EMBMARTIN_PWM_H

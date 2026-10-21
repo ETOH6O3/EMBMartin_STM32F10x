@@ -12,8 +12,7 @@
  ******************************************************************************
  */
 
-#ifndef EMBM_SYSTEM_H
-#define EMBM_SYSTEM_H
+#pragma once
 
 #include <stdint.h>
 #include <array>
@@ -337,4 +336,3 @@ private:
 
 EMBMARTIN_SYS_NAMESPACE_END
 
-#endif // EMBM_SYSTEM_H

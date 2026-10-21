@@ -10,8 +10,7 @@
  ******************************************************************************
  */
 
-#ifndef EMBMARTIN_MATH_H
-#define EMBMARTIN_MATH_H
+#pragma once
 
 #include <limits>
 #include <stdint.h>
@@ -424,4 +423,3 @@ constexpr inline split_double split_double_func(double x) noexcept
 
 EMBMARTIN_NAMESPACE_END
 
-#endif // EMBMARTIN_MATH_H

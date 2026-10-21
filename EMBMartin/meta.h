@@ -9,8 +9,7 @@
  * 2. 建议的编译器环境： ARM compiler 6 或更高版本; 或 MSVC 14+
  ******************************************************************************
  */
-#ifndef EMBMARTIN_METAPROGRAMING
-#define EMBMARTIN_METAPROGRAMING
+#pragma once
 
 #include <type_traits>
 #include <tuple>
@@ -504,7 +503,7 @@ constexpr decltype(auto) _to_tuple(TUPLE &&_tuple_obj)
 	// }
 	// ... 一路展开到 256 元素
 
-#include "_to_tuple_part.txt" // 内联 python 生成的代码
+#include "_to_tuple_part.inc" // 内联 python 生成的代码
 
 	else
 	{
@@ -605,4 +604,3 @@ auto make_swapped_index_sequence()
 
 EMBMARTIN_NAMESPACE_END
 
-#endif

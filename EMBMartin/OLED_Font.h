@@ -1,5 +1,4 @@
-#ifndef __OLED_FONT_H
-#define __OLED_FONT_H
+#pragma once
 
 #include <stdint.h>
 #include "macro.h"
@@ -421,4 +420,3 @@ enum class OLEDFontSize : uint8_t
 
 EMBMARTIN_OLED_NAMESPACE_END
 
-#endif

@@ -1,6 +1,6 @@
 /**
  ******************************************************************************
- * @file    tools.h
+ * @file    basic_tools.h
  * @author  孙鸣淼
  * @brief   这里存放一些嵌入式开发中非常底层的工具 （基于 STM32 标准外设库）
  ******************************************************************************
@@ -12,8 +12,7 @@
  ******************************************************************************
  */
 
-#ifndef EMBMARTIN_BASIC_TOOLS_H
-#define EMBMARTIN_BASIC_TOOLS_H
+#pragma once
 
 #include <stddef.h>
 #include <numeric>
@@ -339,8 +338,4 @@ const USARTPins USARTX_REMAP[3][4] =
 
 EMBMARTIN_STM32F10X_NAMESPACE_END
 
-extern "C" void USART1_IRQHandler(void);
-extern "C" void USART2_IRQHandler(void);
-extern "C" void USART3_IRQHandler(void);
 
-#endif // EMBMARTIN_BASIC_TOOLS_H

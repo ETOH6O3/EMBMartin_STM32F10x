@@ -31,6 +31,18 @@ EXTIManager::EXTIManager(const EMBMartin::STM32::GPIOPin &gpio_pin, const EXTIMa
     NVIC_Init(&NVIC_InitStructure);
 }
 
+EXTIManager::~EXTIManager() // 禁用对应 EXTI line、注销回调
+{
+    auto __idx = __EXTI_pin.idx();
+    if (__instances[__idx] == this)
+        __instances[__idx] = nullptr;
+
+    EXTI->IMR &= ~__EXTI_pin.get_pin().pin;
+    EXTI->EMR &= ~__EXTI_pin.get_pin().pin;
+
+    EXTI_ClearITPendingBit(Get_EXTI_Line(__EXTI_pin.get_pin().pin));
+}
+
 EMBMARTIN_STM32F10X_NAMESPACE_END
 
 extern "C"{

@@ -8,8 +8,7 @@
  ******************************************************************************
  */
 
-#ifndef EMBMARTIN_MACRO_H
-#define EMBMARTIN_MACRO_H
+#pragma once
 
  // ------------------------------------------未分类功能--------------------------------------------------
 
@@ -183,4 +182,3 @@
 #define STM32_DEVICE_HEADER stm32f10x.h // 修改这个与使用预定义宏等效
 #endif                                  // STM32_DEVICE_HEADER
 
-#endif // EMBMARTIN_MACRO_H
