@@ -13,17 +13,20 @@
 EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
 
 /**
- * @brief 避障小车状态机
+ * @brief 避障小车状态机（左右双超声波，无舵机）
  *
- * 三层状态：COMMON（正常行驶并监视前方）→ SCAN（舵机扫描左右）→ AVOID（绕障）
- * → COMMON。每次状态转移先跑旧状态的 exit()，再跑新状态的 init()。
+ * 两层状态：COMMON（正常行驶并监视前方）→ AVOID（绕障）→ COMMON。
+ * 每次状态转移先跑旧状态的 exit()，再跑新状态的 init()。
+ *
+ * 左右两个超声波探头固定朝前偏左 / 前偏右（各约 45°），**不再需要舵机扫描**：
+ * 哪一侧距离更近，障碍物就在哪一侧，绕行方向据此一次决定。
  *
  * ---------------------------------- 调用上下文 ----------------------------------
  *
  * working() 每调用一次推进一步，**全类上下文中不允许出现任何阻塞等待**：
  *
  * - 电机动作一律走 Car 的 *_async() 非阻塞接口，由 Car::update() 每拍推进；
- * - 需要等待的场合一律用 Delayer 的 start() / done() 两段式，不用 delay()。
+ * - 不等待任何外设到位：超声回波由各自的定时器中断持续采样，本类只读结果。
  *
  * 这一点是硬约束：若在 ISR 里等自己所在定时器的节拍，中断不能重入，
  * 节拍永远不推进，会直接死锁（早期版本就是这样挂住的）。
@@ -40,9 +43,6 @@ EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
  *
  * 两种方式只能选一种：同时用会让同一拍被推进两次。
  *
- * 注意：早期版本把七步写在 init() 里连续阻塞执行，在 ISR 里等自己所在定时器
- * 的节拍会直接死锁，因此本类所有动作都拆成了步进式。
- *
  * ---------------------------------- 绕障航迹 ----------------------------------
  *
  * 七步，以障碍物在**左侧**为例（转到右侧绕行）。四次转向都是**绕内侧轮**
@@ -53,23 +53,23 @@ EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
  *     Δ = e^{jφ} · (轮距/2) · (sinβ + j·sign(α)·(1-cosβ))
  *
  * 其中 β = |α|，φ 为转向前的航向，α 为该次转角（正 = 左转）。
- * 轮距 17 cm、β = 45° 时，沿航向的分量 6.01 cm、横向分量 2.49 cm。
+ * 轮距 17 cm、β = 40° 时，沿航向的分量约 5.47 cm、横向分量约 1.94 cm。
  *
  * | 步 | 动作                       | 结束时航向 | 本步车心位移 (dx, dy) cm |
  * |----|----------------------------|-----------|--------------------------|
- * | 1  | pivot_turn RIGHT  -45°     |  -45°     | (+6.01, -2.49)           |
- * | 2  | forward_distance 35 cm     |  -45°     | (+24.75, -24.75)         |
- * | 3  | pivot_turn LEFT   +45°     |    0°     | (+6.01, -2.49)           |
+ * | 1  | pivot_turn RIGHT  -TURN    |  -40°     | (+5.47, -1.94)           |
+ * | 2  | forward_distance SIDE      |  -40°     | (+S·cos40, -S·sin40)     |
+ * | 3  | pivot_turn LEFT   +TURN    |    0°     | (+5.47, -1.94)           |
  * | 4  | forward_distance D cm      |    0°     | (+D, 0)                  |
- * | 5  | pivot_turn LEFT   +45°     |  +45°     | (+6.01, +2.49)           |
- * | 6  | forward_distance 35 cm     |  +45°     | (+24.75, +24.75)         |
- * | 7  | pivot_turn RIGHT  -45°     |    0°     | (+6.01, +2.49)           |
+ * | 5  | pivot_turn LEFT   +TURN    |  +40°     | (+5.47, +1.94)           |
+ * | 6  | forward_distance SIDE      |  +40°     | (+S·cos40, +S·sin40)     |
+ * | 7  | pivot_turn RIGHT  -TURN    |    0°     | (+5.47, +1.94)           |
  *
- * 四次转向的横向分量 −2.49 ×2 与 +2.49 ×2 恰好抵消，纵向分量则同向累加。
- * 因此 **净横向位移 = 0、净航向 = 0°、净前进 = D + 73.5 cm**，
- * 与原地转向的版本一样回到原航线上，只是整体多前进了 24 cm（转向本身带出的行程）。
+ * 四次转向的横向分量 −1.94 ×2 与 +1.94 ×2 恰好抵消，纵向分量则同向累加。
+ * 因此 **净横向位移 = 0、净航向 = 0°、净前进 = D + 2·S·cos40° + 21.9 cm**，
+ * 回到原航线上，只是整体多前进了转向本身带出的行程。
  *
- * D = 进 AVOID 前测到的正前方距离 + DIST_MARGIN_CM，保证越过障碍后仍有余量。
+ * D = 进 AVOID 前两侧实测距离的**较小值** + DIST_MARGIN_CM，保证越过障碍后仍有余量。
  * 障碍物在右侧时全部转向取反。
  */
 class ObstacleAvoidingCar
@@ -78,51 +78,36 @@ private:
     enum class State : uint8_t
     {
         COMMON, // 非避障
-        SCAN,   // 扫描
         AVOID   // 避障
     };
 
 public:
-    /**
-     * @brief 校准后的机械中位角度（度）
-     *
-     * 本舵机按标称中位 90 度回正时会向 180 度一侧偏一些，实测 83 度才真正朝正前方。
-     * 所有「回正」动作都必须引用本常量，不要再写死 80 / 85 / 90。
-     */
-    constexpr static inline double CENTER_DEGREE = 83.0;
-
     /// 行驶与转向的统一速度（cm/s)
-    constexpr static inline double DRIVE_SPEED_CM_S = 70.0;
+    constexpr static inline double DRIVE_SPEED_CM_S = 50.0;
 
-    /// 绕障时侧移段的直行距离（cm）
-    constexpr static inline double SIDE_SHIFT_CM = 3.0;
+    /// 绕障时侧移段的直行  距离（cm）
+    constexpr static inline double SIDE_SHIFT_CM = 5.0;
 
     /// 绕障时每次转向的角度（度）
-    constexpr static inline double TURN_DEG = 40.0;
+    constexpr static inline double TURN_DEG = 30.0;
 
     /// 穿越障碍时在实测距离之上多走的余量（cm）
-    constexpr static inline double DIST_MARGIN_CM = 0.0;
+    constexpr static inline double DIST_MARGIN_CM = -7.0;
+
+    /// 临界距离（米）：任意一侧测得的距离小于它就开始避障
+    constexpr static inline double CRITICAL_DIST = 0.2;
 
 protected:
     Car &car;
-    SteeringEngine &steering_engine;
-    UltrasonicSensor &ultrasonic_sensor;
+    UltrasonicSensor &ultrasonic_left;  //!< 左前探头（朝前偏左约 45°）
+    UltrasonicSensor &ultrasonic_right; //!< 右前探头（朝前偏右约 45°）
 
 private:
-    constexpr static inline double CRITICAL_DIST = 0.5; // 临界距离（米）
-
-    /// 起步后等超声稳定的毫秒数
-    constexpr static inline uint16_t COMMON_SETTLE_MS = 500;
-
-    std::array<double, 5> dist_datas = {}; // 0, 45, 中位, 135, 180 度的距离数据
     State state = State::COMMON;
 
-    Delayer delayer;                                      // 延时器（两段式，绝不阻塞）
     sys::InnerTimerManager::Handle __working_handle = {}; // 工作回调在定时器队列里的句柄
 
     bool obstacle_on_left = false; // 障碍物在左侧还是右侧
-    uint8_t __step = 0;            // scan 状态机当前步进下标
-    bool __common_armed = false;   // COMMON 状态的起步稳定等待是否已装载
 
     /// 绕障七步：一步要么是转向、要么是直行
     struct AvoidStep
@@ -139,10 +124,11 @@ public:
      * @brief 构造避障小车（**不注册任何中断**）
      *
      * @param _car 差速小车（提供 *_async / update / drive / stop）
-     * @param _steering_engine 超声波转向舵机
-     * @param _ultrasonic_sensor 超声波传感器
-     * @param delay_TIMX 提供等待节拍（两段式 start/done）的定时器
+     * @param _ultrasonic_left 左前超声波
+     * @param _ultrasonic_right 右前超声波
      *
+     * @note 两个探头必须由调用方**错开触发相位**（见 UltrasonicSensor 的分频 /
+     *       启动等待参数），否则会互相收到对方的回波、两侧读数同时失真。
      * @note 构造期间不驱动电机：全局构造时定时器尚未建立，任何动作都会
      *       走退化路径。真正的起步由第一次 common_working() 完成。
      * @note working() 由谁驱动、何时驱动，由调用方决定：
@@ -151,9 +137,8 @@ public:
      */
     ObstacleAvoidingCar(
         Car &_car,
-        SteeringEngine &_steering_engine,
-        UltrasonicSensor &_ultrasonic_sensor,
-        TIM_TypeDef *delay_TIMX) noexcept;
+        UltrasonicSensor &_ultrasonic_left,
+        UltrasonicSensor &_ultrasonic_right) noexcept;
 
     virtual ~ObstacleAvoidingCar() noexcept { detach(); }
 
@@ -200,8 +185,7 @@ public:
     /**
      * @brief 状态机入口，每调用一次推进一步，**全函数不阻塞**
      *
-     * 电机动作走 Car 的 *_async() + update()，等待走 Delayer 的
-     * start() / done() 两段式，因此在中断上下文里调用也安全。
+     * 电机动作走 Car 的 *_async() + update()，因此在中断上下文里调用也安全。
      */
     void working() noexcept
     {
@@ -209,9 +193,6 @@ public:
         {
         case State::COMMON:
             common_working();
-            break;
-        case State::SCAN:
-            scan_working();
             break;
         case State::AVOID:
             avoid_working();
@@ -225,58 +206,36 @@ public:
     /// 当前状态（调试用）
     [[nodiscard]] inline State get_state() const noexcept { return state; }
 
+    /**
+     * @brief 障碍物在左侧还是右侧（进入 AVOID 时由两个探头比较得出）
+     *
+     * 左探头更近 => 障碍在左 => 向右绕。未进入过 AVOID 时保持 false。
+     */
+    [[nodiscard]] inline bool is_obstacle_on_left() const noexcept { return obstacle_on_left; }
+
+    /// 当前执行到绕障第几步（未在绕障时为 0）
+    [[nodiscard]] inline uint8_t get_avoid_step() const noexcept { return __avoid_step; }
+
 protected:
     //-------------------------------- common ---------------------------------
 
-    /// 进入正常行驶：持续前进 + 装载起步稳定等待
+    /// 进入正常行驶：持续前进
     virtual void common_init() noexcept
     {
         car.drive(DRIVE_SPEED_CM_S, DRIVE_SPEED_CM_S); // 非阻塞，一直跑
-        __common_armed = false;
     }
 
-    // 非避障时的执行函数：只轮询超声，不驱动电机
+    /**
+     * @brief 非避障时的执行函数：只轮询两个探头，不驱动电机
+     *
+     * **任意一侧**测得距离小于 CRITICAL_DIST 就进入避障。两侧都还没收到过回波时
+     * 不判断（上电后 cnt 为 0 会算出 0 米，那不代表贴脸有障碍物）。
+     */
     virtual void common_working() noexcept;
 
     virtual void common_exit() noexcept
     {
         car.stop(); // 刹车
-    }
-
-private:
-    //--------------------------------- scan ----------------------------------
-
-    /// 一个扫描点：写入 dist_datas 的下标、舵机角度、到位后等待的毫秒数
-    struct ScanPoint
-    {
-        uint8_t index;
-        uint8_t angle;
-        uint16_t wait_ms;
-    };
-
-    /// 0/45/135/180 度；中位（下标 2）在 common_working() 里已经测过，跳过
-    static constexpr std::array<ScanPoint, 4> SCAN_POINTS = {{
-        {0, 10, 2000},  // 0 度：多等一会，减弱互补滤波影响
-        {1, 45, 1550},  // 45 度
-        {3, 135, 1550}, // 135 度
-        {4, 180, 1550}, // 180 度
-    }};
-
-    /// 进入扫描点：摆舵机并装载等待
-    void scan_enter_point(uint8_t __idx) noexcept;
-
-    void scan_init() noexcept
-    {
-        __step = 0;
-        scan_enter_point(__step);
-    }
-
-    // 扫描期间只轮询舵机是否到位，到位就取一个点，然后切下一个角度
-    void scan_working() noexcept;
-
-    void scan_exit() noexcept
-    {
-        steering_engine.set_degree(CENTER_DEGREE); // 回正
     }
 
     //--------------------------------- avoid ---------------------------------
@@ -287,7 +246,7 @@ protected:
      *
      * 「内侧轮」= 转弯方向那一侧的车轮：左转绕左轮、右转绕右轮。
      * 内轮停转、外轮走半径 = 轮距 的圆弧，因此转完后**车心也会被带出一段位移**，
-     * 沿当时航向约 6.0 cm、朝弯外约 2.5 cm（45°、轮距 17 cm 时），
+     * 沿当时航向约 5.5 cm、朝弯外约 1.9 cm（40°、轮距 17 cm 时），
      * 这是绕轮转向与原地转向的本质区别。
      *
      * @warning Car::pivot_turn 的**转向方向由 speed_diff_cm_s 的符号决定**，
@@ -365,15 +324,17 @@ protected:
     virtual void on_avoid_interrupted() noexcept {}
 
     /**
-     * @brief 进入绕障：算好航向与穿越距离，把七步排成表，启动第 1 步
+     * @brief 进入绕障：比较左右两侧距离定方向，把七步排成表，启动第 1 步
      *
-     * 全程约 (D + 3.0 + 6.3) / 70 秒。七步由 avoid_working() 逐拍推进，
-     * 本函数不等待、不停留。
+     * 全程约 (D + 2·SIDE_SHIFT_CM·cos40° + 21.9) / DRIVE_SPEED_CM_S 秒。
+     * 七步由 avoid_working() 逐拍推进，本函数不等待、不停留。
      *
      * @note 四次转向都是绕内侧轮，横向分量两两相消，因此仍然回到原航线，
-     *       但每次转向本身会带出约 6 cm 的前进量。
+     *       但每次转向本身会带出约 5.5 cm 的前进量。
+     * @note 本函数会在返回前**立即启动第一个动作**（转向），因此子类若需要
+     *       先取得电机控制权，可覆写本函数并在条件不满足时不调用基类版本。
      */
-    void avoid_init() noexcept;
+    virtual void avoid_init() noexcept;
 
     /**
      * @brief 绕障的状态机钩子，每拍调用一次
@@ -381,7 +342,7 @@ protected:
      * 默认行为：推进当前步，一步走完就进下一步，七步全部完成才回 COMMON。
      *
      * 打断**由基类统一把关**：每拍先问一次 avoid_interrupt_requested()，
-     * 子类只回答「想不想打断」，能不在第 4 步之前停下由基类决定。
+     * 子类只回答「想不想打断」，能不能在第 4 步之前停下由基类决定。
      * 请求在不可打断期间会被忽略，等第 4 步完成后自动生效，
      * 因此子类既不需要记住当前第几步，也不需要自行重试。
      *

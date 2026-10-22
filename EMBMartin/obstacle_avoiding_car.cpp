@@ -4,15 +4,12 @@ EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
 
 ObstacleAvoidingCar::ObstacleAvoidingCar(
     Car &_car,
-    SteeringEngine &_steering_engine,
-    UltrasonicSensor &_ultrasonic_sensor,
-    TIM_TypeDef *delay_TIMX) noexcept
+    UltrasonicSensor &_ultrasonic_left,
+    UltrasonicSensor &_ultrasonic_right) noexcept
     : car{_car},
-      steering_engine{_steering_engine},
-      ultrasonic_sensor{_ultrasonic_sensor},
-      delayer{delay_TIMX}
+      ultrasonic_left{_ultrasonic_left},
+      ultrasonic_right{_ultrasonic_right}
 {
-    steering_engine.set_degree(CENTER_DEGREE); // 回正
     common_init();
 }
 
@@ -29,9 +26,6 @@ void ObstacleAvoidingCar::transition_to(State next) noexcept
     case State::COMMON:
         common_exit();
         break;
-    case State::SCAN:
-        scan_exit();
-        break;
     case State::AVOID:
         avoid_exit();
         break;
@@ -44,72 +38,26 @@ void ObstacleAvoidingCar::transition_to(State next) noexcept
     case State::COMMON:
         common_init();
         break;
-    case State::SCAN:
-        scan_init();
-        break;
     case State::AVOID:
         avoid_init();
         break;
     }
 }
 
-// 非避障时的执行函数：只轮询超声，不驱动电机
+// 非避障时的执行函数：只轮询两个探头，不驱动电机
 void ObstacleAvoidingCar::common_working() noexcept
 {
-    if (!__common_armed)
-    {
-        if (!delayer.is_ready()) // 定时器还没跑起来，下一拍再试
-        {
-            return;
-        }
-        delayer.start_ms(COMMON_SETTLE_MS);
-        __common_armed = true;
-        return;
-    }
+    /* 每一侧各自判断，互不等待：只要某一侧已经收到过完整回波，就可以用那一侧。
+     * 还没收到过回波的探头 cnt 恒为 0、会算出 0 米，那不代表贴脸有障碍物，
+     * 因此**只跳过没测到的那一侧**，不能让一侧没测到就拖住另一侧的判断。 */
+    const bool left_ready = ultrasonic_left.has_measurement();
+    const bool right_ready = ultrasonic_right.has_measurement();
 
-    if (!delayer.done()) // 刚起步/刚回到本状态，先等超声稳定
-    {
-        return;
-    }
-
-    if (!ultrasonic_sensor.has_measurement()) // 还没收到过回波，cnt 为 0 不代表贴脸
-    {
-        return;
-    }
-
-    // 实时更新超声测距
-    if (ultrasonic_sensor.get_distance() <= CRITICAL_DIST)
-    {
-        dist_datas[2] = ultrasonic_sensor.get_distance();
-        transition_to(State::SCAN); // 进入避障程序
-    }
-}
-
-/// 进入扫描点：摆舵机并装载等待
-void ObstacleAvoidingCar::scan_enter_point(uint8_t __idx) noexcept
-{
-    steering_engine.set_degree(SCAN_POINTS[__idx].angle);
-    delayer.start_ms(SCAN_POINTS[__idx].wait_ms);
-}
-
-// 扫描期间只轮询舵机是否到位，到位就取一个点，然后切下一个角度
-void ObstacleAvoidingCar::scan_working() noexcept
-{
-    if (!delayer.done())
-    {
-        return; // 还没转到位
-    }
-
-    // 到位，取数
-    dist_datas[SCAN_POINTS[__step].index] = ultrasonic_sensor.get_distance();
-
-    if (++__step >= SCAN_POINTS.size())
+    if ((left_ready && ultrasonic_left.get_distance() <= CRITICAL_DIST) ||
+        (right_ready && ultrasonic_right.get_distance() <= CRITICAL_DIST))
     {
         transition_to(State::AVOID);
-        return;
     }
-
-    scan_enter_point(__step);
 }
 
 void ObstacleAvoidingCar::turn(double degrees) noexcept
@@ -146,26 +94,45 @@ bool ObstacleAvoidingCar::interrupt_avoid() noexcept
 
 void ObstacleAvoidingCar::avoid_init() noexcept
 {
-    // 判断障碍物在左还是右：左侧更近 => 障碍在左 => 向右绕（负角度）
-    auto right_dist = (dist_datas[0] + dist_datas[1] + dist_datas[2]) / 3.0; // 中位数据会略微受到右侧滤波影响，故算入
-    auto left_dist = (dist_datas[3] + dist_datas[4]) / 2.0;
-    this->obstacle_on_left = left_dist < right_dist;
+    /* 进入避障的可能是任意一侧，另一侧未必已有回波。没测到的一侧 get_distance()
+     * 恒为 0，直接参与比较会把它误判成「更近」。因此只把**有效**的那一侧纳入比较，
+     * 两侧都有效时才比较左右。 */
+    const bool left_ready = ultrasonic_left.has_measurement();
+    const bool right_ready = ultrasonic_right.has_measurement();
+    const double left_m = left_ready ? ultrasonic_left.get_distance() : -1.0;
+    const double right_m = right_ready ? ultrasonic_right.get_distance() : -1.0;
+
+    if (left_ready && right_ready)
+        obstacle_on_left = left_m < right_m; // 左侧更近 => 障碍在左 => 向右绕（负角度）
+    else if (left_ready)
+        obstacle_on_left = true;             // 只有左侧测到且它触发了 => 障碍在左
+    else
+        obstacle_on_left = false;            // 只有右侧有效（或都无效）=> 按障碍在右处理
 
     // 转向符号：障碍在左则先右转（负），障碍在右则先左转（正）
     const double dir = obstacle_on_left ? -1.0 : 1.0;
 
-    // 穿越距离：实测前方距离（米 → cm）+ 余量
-    const double forward_cm = dist_datas[2] * 100.0 + DIST_MARGIN_CM;
+    // 穿越距离：只取有效那一侧；两侧都有效时取较小值。米 → cm，再加余量。
+    double forward_m;
+    if (left_ready && right_ready)
+        forward_m = left_m < right_m ? left_m : right_m;
+    else if (left_ready)
+        forward_m = left_m;
+    else if (right_ready)
+        forward_m = right_m;
+    else
+        forward_m = 0.0; // 两侧都没测到（理论上不会进到这里）
+    const double forward_cm = forward_m * 100.0 + DIST_MARGIN_CM;
 
     // 转 → 跑 S → 转 → 跑 D → 转 → 跑 S → 转
     __plan = {{
-        {true, dir * TURN_DEG},           // 1 驶离障碍物一侧
-        {false, SIDE_SHIFT_CM},           // 2 偏航
-        {true, -dir * TURN_DEG},          // 3 摆回原航向
-        {false, forward_cm},              // 4 沿偏移车道越过障碍
-        {true, -dir * TURN_DEG},          // 5 再摆向另一侧
-        {false, SIDE_SHIFT_CM},           // 6 回航
-        {true, dir * TURN_DEG},           // 7 回正
+        {true, dir * TURN_DEG},  // 1 驶离障碍物一侧
+        {false, SIDE_SHIFT_CM},  // 2 偏航
+        {true, -dir * TURN_DEG}, // 3 摆回原航向
+        {false, forward_cm},     // 4 沿偏移车道越过障碍
+        {true, -dir * TURN_DEG}, // 5 再摆向另一侧
+        {false, SIDE_SHIFT_CM + 5},  // 6 回航
+        {true, dir * TURN_DEG},  // 7 回正
     }};
 
     __avoid_step = 0;
