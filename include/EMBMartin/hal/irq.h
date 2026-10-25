@@ -4,8 +4,6 @@
 #include "EMBMartin/macro.h"
 
 
-#include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)
-
 EMBMARTIN_SYS_NAMESPACE_BEGIN
 
 /**

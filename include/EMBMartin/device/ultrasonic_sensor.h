@@ -2,8 +2,7 @@
 
 #include <cmath>
 
-#include "EMBMartin/hal/gpio/inpin.h"
-#include "EMBMartin/hal/gpio/outpin.h"
+#include "EMBMartin/hal/gpio.h"
 #include "EMBMartin/hal/system.h"
 
 EMBMARTIN_STM32F10X_NAMESPACE_BEGIN

@@ -7,9 +7,9 @@
 #include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)
 
 #include "EMBMartin/hal/gpio/basic_tools.h"
-#include "EMBMartin/lang/stream.h"
 #include "EMBMartin/hal/peripheral/I2C.h"
 #include "EMBMartin/device/oled/OLEDutility.h"
+#include "EMBMartin/lang/stream.h"
 
 //------------------------------------------ 版本控制 --------------------------------------------------
 #ifndef EMBMARTIN_USING_OLD_OLED_VERSION // 一般在 macro.h 定义

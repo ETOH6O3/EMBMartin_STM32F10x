@@ -16,7 +16,6 @@
 #pragma once
 
 #include "EMBMartin/macro.h"
-#include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)
 #include "EMBMartin/hal/gpio/basic_tools.h"
 
 EMBMARTIN_STM32F10X_NAMESPACE_BEGIN

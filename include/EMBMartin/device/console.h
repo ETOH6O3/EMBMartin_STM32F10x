@@ -16,7 +16,6 @@
 #pragma once
 
 #include "EMBMartin/macro.h"
-#include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)
 #include "EMBMartin/hal/peripheral/USART.h"
 #include "EMBMartin/lang/stream.h"
 #include "EMBMartin/device/debugger.h"

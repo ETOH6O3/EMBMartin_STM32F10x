@@ -14,15 +14,19 @@
 
 #pragma once
 
+// ------------------------------------------------ algorithm：算法
+#include "EMBMartin/algorithm/PID.h"
+#include "EMBMartin/algorithm/angle_filter.h"
+
+// ------------------------------------------------ lang：平台无关基础设施
+#include "EMBMartin/lang/mstring.h"
+#include "EMBMartin/lang/stream.h"
+
 // ------------------------------------------------ hal：纯外设驱动
 #include "EMBMartin/hal/system.h"
 #include "EMBMartin/hal/gpio/basic_tools.h"
 #include "EMBMartin/hal/gpio/outpin.h"
 #include "EMBMartin/hal/gpio/inpin.h"
-
-// ------------------------------------------------ lang：平台无关基础设施
-#include "EMBMartin/lang/mstring.h"
-#include "EMBMartin/lang/stream.h"
 
 // ------------------------------------------------ device：具体器件驱动
 #include "EMBMartin/device/rotary_encoder.h"
@@ -35,6 +39,3 @@
 #include "EMBMartin/device/mpu6050.h"
 #include "EMBMartin/device/ultrasonic_sensor.h"
 
-// ------------------------------------------------ algorithm：算法
-#include "EMBMartin/algorithm/PID.h"
-#include "EMBMartin/algorithm/angle_filter.h"

@@ -16,7 +16,6 @@
 #pragma once
 
 #include "EMBMartin/macro.h"
-#include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)
 #include "EMBMartin/hal/peripheral/PWM.h"
 #include "EMBMartin/hal/gpio/outpin.h"
 

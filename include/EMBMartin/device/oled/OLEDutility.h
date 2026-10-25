@@ -10,13 +10,8 @@
 
 #include "EMBMartin/macro.h"
 
-// 属于 OLEDUtility 的头文件，没有合并进来是为了向前兼容
 #include "EMBMartin/device/oled/OLED_Font.h"
 #include "EMBMartin/algorithm/coordinate.h"
-// EMBMARTIN_DEBUGING_EXTERN_CONSOLE 展开后用到 EMBMartin::OutStream，必须自包含
-#include "EMBMartin/lang/stream.h"
-
-EMBMARTIN_DEBUGING_EXTERN_CONSOLE;
 
 EMBMARTIN_OLED_NAMESPACE_BEGIN
 
@@ -431,27 +426,23 @@ public:
 
     constexpr inline auto &operator[](uint8_t x) noexcept
     {
-        EMBMARTIN_NON_BLOCKING_ASSERT(x < X, "out of range", &console);
         return this->__pixels[x];
     };
 
     constexpr inline const auto &operator[](uint8_t x) const noexcept
     {
-        EMBMARTIN_NON_BLOCKING_ASSERT(x < X, "out of range", &console);
         return this->__pixels[x];
     };
 
     constexpr inline auto &operator[](const Coordinate<uint8_t, 0, X - 1, 0, Y - 1> &c) noexcept
     {
         const auto &[row_index, col_index] = c;
-        EMBMARTIN_NON_BLOCKING_ASSERT((row_index < X) && (col_index < Y), "out of range", &console);
         return this->__pixels[row_index][col_index];
     };
 
     constexpr inline const auto &operator[](const Coordinate<uint8_t, 0, X - 1, 0, Y - 1> &c) const noexcept
     {
         const auto &[row_index, col_index] = c;
-        EMBMARTIN_NON_BLOCKING_ASSERT((row_index < X) && (col_index < Y), "out of range", &console);
         return this->__pixels[row_index][col_index];
     };
 };

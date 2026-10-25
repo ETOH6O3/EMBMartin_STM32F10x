@@ -3,7 +3,6 @@
 #include <etl/inplace_function.h>
 
 #include "EMBMartin/hal/gpio/inpin.h"
-// #include "lang/stream/stream.h"
 
 extern "C"
 {

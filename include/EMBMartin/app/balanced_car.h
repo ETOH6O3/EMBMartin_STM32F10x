@@ -1,6 +1,10 @@
 #pragma once
 
-#include "EMBMartin/EMBMartin.h"
+#include "EMBMartin/device/dc_motor_driver.h"
+#include "EMBMartin/device/rotary_encoder.h"
+#include "EMBMartin/device/mpu6050.h"
+#include "EMBMartin/algorithm/angle_filter.h"
+#include "EMBMartin/algorithm/PID.h"
 
 EMBMARTIN_BALANCED_CAR_NAMESPACE_BEGIN
 

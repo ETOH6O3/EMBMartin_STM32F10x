@@ -1,15 +1,10 @@
 #pragma once
 
 #include "EMBMartin/macro.h"
-#include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)
-#include "EMBMartin/hal/gpio/basic_tools.h"
-#include "EMBMartin/hal/system.h"
 #include "EMBMartin/algorithm/angle_filter.h"
 #include "EMBMartin/device/mpu6050.h"
 
 EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
-
-
 
 class SingleLoopPID
 {
@@ -24,7 +19,7 @@ private:
     const double &current; //!< 当前值引用
     double dt;             //!< 采样时间间隔（秒）
 
-    const int16_t* d_current; // 可选：直接使用现成的微分值
+    const int16_t *d_current; // 可选：直接使用现成的微分值
 
     double previous_error = 0.0; //!< 上一次误差值
     double integral = 0.0;       //!< 积分值
@@ -32,11 +27,11 @@ private:
 public:
     SingleLoopPID(
         double _kp, double _ki, double _kd, double &_current, double _dt,
-        double _integral_limit, double _output_limit, double _alpha = 0.0 /*默认不滤波*/, const int16_t* _d_current = nullptr) noexcept;
+        double _integral_limit, double _output_limit, double _alpha = 0.0 /*默认不滤波*/, const int16_t *_d_current = nullptr) noexcept;
 
     double compute(double target) noexcept; // 中断函数中调用
 
-    inline void reinit()noexcept
+    inline void reinit() noexcept
     {
         this->previous_error = 0;
         this->integral = 0;
@@ -60,7 +55,7 @@ public:
     void set(
         double _kp, double _ki, double _kd, double _dt,
         double _integral_limit, double _output_limit,
-        double _alpha = 0.0, const int16_t* _d_current = nullptr) noexcept;
+        double _alpha = 0.0, const int16_t *_d_current = nullptr) noexcept;
 
     /// 只改三个增益（最常用的调参入口）
     inline void set_gains(double _kp, double _ki, double _kd) noexcept
@@ -91,7 +86,7 @@ public:
     }
 
     /// 改微分值来源；传 nullptr 表示恢复自行差分
-    inline void set_d_current(const int16_t* _d_current) noexcept
+    inline void set_d_current(const int16_t *_d_current) noexcept
     {
         this->d_current = _d_current;
     }
@@ -126,7 +121,7 @@ private:
     // 互补滤波器
     AngleComplementaryFilter angle_filter;         //!< 角度互补滤波器
     AngleComplementaryFilter::Status angle_status; //!< 当前角度状态,每次compute更新
-    const double pitch_med_angle;                 //!< 平衡车静止时的俯仰角（度）
+    const double pitch_med_angle;                  //!< 平衡车静止时的俯仰角（度）
     // PID 控制器
     SingleLoopPID vertical; //!< 垂直方向 PID 控制器
     SingleLoopPID velocity; //!< 速度方向 PID 控制器
@@ -147,9 +142,6 @@ public:
                    double dt /* 采样时间间隔（秒） */, double _pitch_med_angle) noexcept;
 
     Output compute(double turn_trg, double velocity_trg) noexcept; // 中断函数中调用
-
-    
 };
-
 
 EMBMARTIN_STM32F10X_NAMESPACE_END
