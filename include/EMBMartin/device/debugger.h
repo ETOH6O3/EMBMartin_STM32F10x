@@ -17,7 +17,7 @@
 #include "EMBMartin/lang/inspect.h"
 #include "EMBMartin/algorithm/coordinate.h"
 
-EMBMARTIN_NAMESPACE_BEGIN
+EMBMARTIN_DEVICE_NAMESPACE_BEGIN
 
 enum class LogLevel
 {
@@ -30,7 +30,7 @@ enum class LogLevel
 };
 
 template <size_t buffer_size = 128>
-class MartinDebugger : public IOStream<buffer_size>
+class MartinDebugger : public lang::IOStream<buffer_size>
 {
 private:
     LogLevel log_level = LogLevel::INFO;
@@ -76,7 +76,7 @@ using Debugger = MartinDebugger<buffer_size>;
 
 template <uint8_t FONT_SIZE = 18, uint16_t SCREEN_X_PIXELS = 300, uint16_t SCREEN_Y_PIXELS = 200,
           uint8_t MAX_SLIDER_IDX = 32, typename SLIDER_PARAM_T = float, typename JOYSTICK_PARAM_T = int8_t, size_t buffer_size = 128>
-class JiangXieDebugger : public IOStream<buffer_size>
+class JiangXieDebugger : public lang::IOStream<buffer_size>
 {
 private:
     static_assert(FONT_SIZE >= 10, "FONT_SIZE must be not less than 10");
@@ -85,12 +85,12 @@ private:
     constexpr static double __FONT_WIDTH = FONT_SIZE * 0.6;
     constexpr static double __FONT_HEIGHT = FONT_SIZE * 1.0;
 
-    Coordinate<uint8_t, 0, __MAX_X_COORD - 1, 0, __MAX_Y_COORD - 1> __coord = {0u, 0u};
+    algorithm::Coordinate<uint8_t, 0, __MAX_X_COORD - 1, 0, __MAX_Y_COORD - 1> __coord = {0u, 0u};
 
-    String<buffer_size> common_content = {};
+    lang::String<buffer_size> common_content = {};
 
     // SLIDER_PARAM_T __slider_params[MAX_SLIDER_IDX] = {[0 ... MAX_SLIDER_IDX - 1] = 100}; // 需开启 C99 扩展支持
-    etl::unordered_map<String<32>, SLIDER_PARAM_T, MAX_SLIDER_IDX, MAX_SLIDER_IDX, etl::hash<etl::string_view>> __slider_params = {};
+    etl::unordered_map<lang::String<32>, SLIDER_PARAM_T, MAX_SLIDER_IDX, MAX_SLIDER_IDX, etl::hash<etl::string_view>> __slider_params = {};
 
     using __JOYSTICK_PARAMS_T = std::pair<JOYSTICK_PARAM_T, JOYSTICK_PARAM_T>;
     std::pair<__JOYSTICK_PARAMS_T, __JOYSTICK_PARAMS_T> __joysticks_params;
@@ -114,7 +114,7 @@ private:
      *
      * @param pkg_content 数据包内的内容（不含 [] ）
      */
-    String<32> __parse_pkg_content(const etl::string_view &pkg_content) noexcept;
+    lang::String<32> __parse_pkg_content(const etl::string_view &pkg_content) noexcept;
 
 public:
     template <typename... Args>
@@ -156,17 +156,17 @@ public:
     auto parse() noexcept;
 };
 
-EMBMARTIN_NAMESPACE_END
+EMBMARTIN_DEVICE_NAMESPACE_END
 
 template <std::size_t buffer_size>
 template <class... Args>
-void EMBMartin::MartinDebugger<buffer_size>::send_log(
-    EMBMartin::LogLevel level, bool output_to_console, const char *file_name, Args &&...args) noexcept
+void EMBMartin::device::MartinDebugger<buffer_size>::send_log(
+    EMBMartin::device::LogLevel level, bool output_to_console, const char *file_name, Args &&...args) noexcept
 {
     if (level >= log_level)
     {
         this->show("\x1B\x1E[Log][");
-        this->show(enum_name<0, 6>(level));
+        this->show(lang::enum_name<0, 6>(level));
         this->show("][");
         this->show(output_to_console ? "1" : "0");
         this->show("][");
@@ -178,7 +178,7 @@ void EMBMartin::MartinDebugger<buffer_size>::send_log(
 }
 template <std::size_t buffer_size>
 template <class __Struct>
-void EMBMartin::MartinDebugger<buffer_size>::send_struct(
+void EMBMartin::device::MartinDebugger<buffer_size>::send_struct(
     const __Struct &data, const char *var_name) noexcept
 {
     this->show("\x1B\x1E[Struct][");
@@ -194,10 +194,10 @@ void EMBMartin::MartinDebugger<buffer_size>::send_struct(
 template <std::uint8_t FONT_SIZE, std::uint16_t SCREEN_X_PIXELS, std::uint16_t SCREEN_Y_PIXELS,
           uint8_t MAX_SLIDER_IDX, typename SLIDER_PARAM_T, typename JOYSTICK_PARAM_T, std::size_t buffer_size>
 template <class... Args>
-void EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
+void EMBMartin::device::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
                                  MAX_SLIDER_IDX, SLIDER_PARAM_T, JOYSTICK_PARAM_T, buffer_size>::display(Args &&...args) noexcept
 {
-    String<buffer_size> str;
+    lang::String<buffer_size> str;
     str.format(std::forward<decltype(args)>(args)...);
 
     auto begin_it = str.begin();
@@ -247,13 +247,13 @@ void EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
 
 template <std::uint8_t FONT_SIZE, std::uint16_t SCREEN_X_PIXELS, std::uint16_t SCREEN_Y_PIXELS,
           uint8_t MAX_SLIDER_IDX, typename SLIDER_PARAM_T, typename JOYSTICK_PARAM_T, std::size_t buffer_size>
-EMBMartin::String<32> EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
+EMBMartin::lang::String<32> EMBMartin::device::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
                                                   MAX_SLIDER_IDX, SLIDER_PARAM_T, JOYSTICK_PARAM_T, buffer_size>::__parse_pkg_content(const etl::string_view &pkg_content) noexcept
 {
     const auto class_name_end_pos = pkg_content.find(',');
-    if (class_name_end_pos == String<32>::npos)
+    if (class_name_end_pos == lang::String<32>::npos)
     {
-        return EMBMartin::String<8>("[") + pkg_content + ']'; // 退回
+        return EMBMartin::lang::String<8>("[") + pkg_content + ']'; // 退回
     }
     const auto class_name = pkg_content.substr(0, class_name_end_pos);
 
@@ -266,7 +266,7 @@ EMBMartin::String<32> EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SC
 
         // 滑杆值允许小数（如 0.05）。这里用库自带的 String::to_float() 解析：
         // 它接受首尾空白、正负号、小数点与指数，非法输入由 ok 标记失败。
-        const FloatingResult slider_parsed = String<32>(slider_value_str).to_float();
+        const lang::FloatingResult slider_parsed = lang::String<32>(slider_value_str).to_float();
         if (!slider_parsed)
         {
             return ""; // 非法数值：忽略本包，不改动已有参数
@@ -281,16 +281,16 @@ EMBMartin::String<32> EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SC
         // 格式：[joystick, left_x, left_y, right_x, right_y]
         const auto left_x_end_pos = pkg_content.find(',', class_name_end_pos + 1);
         const auto left_x_str = pkg_content.substr(class_name_end_pos + 1, left_x_end_pos - class_name_end_pos - 1);
-        const auto left_x = static_cast<JOYSTICK_PARAM_T>(atoi(left_x_str));
+        const auto left_x = static_cast<JOYSTICK_PARAM_T>(lang::atoi(left_x_str));
         const auto left_y_end_pos = pkg_content.find(',', left_x_end_pos + 1);
         const auto left_y_str = pkg_content.substr(left_x_end_pos + 1, left_y_end_pos - left_x_end_pos - 1);
-        const auto left_y = static_cast<JOYSTICK_PARAM_T>(atoi(left_y_str));
+        const auto left_y = static_cast<JOYSTICK_PARAM_T>(lang::atoi(left_y_str));
         const auto right_x_end_pos = pkg_content.find(',', left_y_end_pos + 1);
         const auto right_x_str = pkg_content.substr(left_y_end_pos + 1, right_x_end_pos - left_y_end_pos - 1);
-        const auto right_x = static_cast<JOYSTICK_PARAM_T>(atoi(right_x_str));
+        const auto right_x = static_cast<JOYSTICK_PARAM_T>(lang::atoi(right_x_str));
         const auto right_y_end_pos = pkg_content.find(',', right_x_end_pos + 1);
         const auto right_y_str = pkg_content.substr(right_x_end_pos + 1, right_y_end_pos - right_x_end_pos - 1);
-        const auto right_y = static_cast<JOYSTICK_PARAM_T>(atoi(right_y_str));
+        const auto right_y = static_cast<JOYSTICK_PARAM_T>(lang::atoi(right_y_str));
 
         __joysticks_params.first.first = left_x;
         __joysticks_params.first.second = left_y;
@@ -301,16 +301,16 @@ EMBMartin::String<32> EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SC
     }
     else
     {
-        return EMBMartin::String<8>("[") + pkg_content + ']'; // 退回
+        return EMBMartin::lang::String<8>("[") + pkg_content + ']'; // 退回
     }
 }
 
 template <std::uint8_t FONT_SIZE, std::uint16_t SCREEN_X_PIXELS, std::uint16_t SCREEN_Y_PIXELS,
           uint8_t MAX_SLIDER_IDX, typename SLIDER_PARAM_T, typename JOYSTICK_PARAM_T, std::size_t buffer_size>
-auto EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
+auto EMBMartin::device::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
                                  MAX_SLIDER_IDX, SLIDER_PARAM_T, JOYSTICK_PARAM_T, buffer_size>::parse() noexcept
 {
-    const String<buffer_size> line = InStream<buffer_size>::getline();
+    const lang::String<buffer_size> line = lang::InStream<buffer_size>::getline();
     this->common_content.clear();
 
     for (size_t i = 0; i < line.size(); i++)
@@ -325,7 +325,7 @@ auto EMBMartin::JiangXieDebugger<FONT_SIZE, SCREEN_X_PIXELS, SCREEN_Y_PIXELS,
         else
         {
             const auto pkg_end_pos = line.find(']', i);
-            if (pkg_end_pos == String<buffer_size>::npos)
+            if (pkg_end_pos == lang::String<buffer_size>::npos)
             {
                 common_content = line.substr(i);
                 break;

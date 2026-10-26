@@ -8,9 +8,9 @@
 
 #include "EMBMartin/hal/peripheral/I2C.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_DEVICE_NAMESPACE_BEGIN
 
-class MPU6050 : public I2C
+class MPU6050 : public hal::I2C
 {
 private:
 public:
@@ -183,7 +183,7 @@ public:
         int16_t gyro_x, gyro_y, gyro_z;
     };
     MPU6050(
-        GPIOPin SCL, GPIOPin SDA, bool AD0 = 0, /* 是否更改地址 */
+        hal::GPIOPin SCL, hal::GPIOPin SDA, bool AD0 = 0, /* 是否更改地址 */
         bool gyroscope_enable = 1, uint8_t SMPRT_DIV = 8 /* 分频数 */,
         uint8_t ACCEL_AFS_SCL = 0b01 /* 加速度满量程选择 0-3*/,
         uint8_t GYRO_FS_SEL = 0b10 /* 角速度满量程选择 0-3*/) noexcept;
@@ -205,4 +205,4 @@ public:
     Data get_data() noexcept;
 };
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_DEVICE_NAMESPACE_END

@@ -1,7 +1,7 @@
 #include "EMBMartin/hal/peripheral/TIM.h"
-#include "EMBMartin/hal/delay.h" // Delayer::delay 的回退路径要用 sys::delay_ms
+#include "EMBMartin/hal/delay.h" // Delayer::delay 的回退路径要用 delay_ms
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_HAL_NAMESPACE_BEGIN
 
 OuterTimer::OuterTimer(
     TIM_TypeDef *__TIMX, GPIOPin echo_pin, uint16_t time,
@@ -42,4 +42,4 @@ OuterTimer::OuterTimer(
 
     TIM_Cmd(__TIMX, ENABLE);
 }
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_HAL_NAMESPACE_END

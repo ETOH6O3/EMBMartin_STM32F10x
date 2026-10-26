@@ -6,7 +6,7 @@
 #include "EMBMartin/lang/fmt/fmt_config.h"
 #include "EMBMartin/lang/fmt/fmt_helpers.h"
 
-EMBMARTIN_NAMESPACE_BEGIN
+EMBMARTIN_LANG_NAMESPACE_BEGIN
 
 // #################################################################################################
 // # 后端二：etl_fmt —— 直转发第三方库 ETL 的 format
@@ -19,7 +19,7 @@ EMBMARTIN_NAMESPACE_BEGIN
 // #################################################################################################
 
 /**
- * @namespace EMBMartin::etl_fmt
+ * @namespace EMBMartin::lang::etl_fmt
  * @brief ETL 直转发后端
  *
  * @details 本命名空间在 @c EMBMARTIN_FMT_USE_ETL 为真时是**内联命名空间**，因此
@@ -261,4 +261,4 @@ EMBMARTIN_FMT_INLINE_ETL namespace etl_fmt
 	}
 } // namespace etl_fmt
 
-EMBMARTIN_NAMESPACE_END
+EMBMARTIN_LANG_NAMESPACE_END

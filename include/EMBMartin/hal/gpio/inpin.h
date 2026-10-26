@@ -4,7 +4,7 @@
 #include "EMBMartin/hal/gpio/basic_tools.h"
 #include "__Delay.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_HAL_NAMESPACE_BEGIN
 
 /**
  * @brief 通用输入引脚封装，负责 GPIO 输入模式初始化和电平读取
@@ -44,4 +44,4 @@ public:
     }
 };
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_HAL_NAMESPACE_END

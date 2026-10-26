@@ -25,20 +25,20 @@ namespace etl
 	 *       - @c "formatter<T,@c conditional_t<cond,@c char,@c 不完整类型>>" → 既能匹配又能约束。
 	 *       故这里用第三种：条件成立时槽位是 @c char ，否则替换失败（SFINAE）。
 	 *
-	 * @see EMBMartin::pair_spec
+	 * @see EMBMartin::lang::pair_spec
 	 */
 	template <typename _Pair>
 	struct formatter<_Pair,
-					 etl::conditional_t<::EMBMartin::pair_spec::is_decomposable_pair<_Pair>::value,
+					 etl::conditional_t<::EMBMartin::lang::pair_spec::is_decomposable_pair<_Pair>::value,
 										char,
-										::EMBMartin::pair_spec::not_a_pair>>
+										::EMBMartin::lang::pair_spec::not_a_pair>>
 	{
-		using _Tx = ::EMBMartin::generalized_pair_element_t<0, _Pair>; ///< 左元素类型
-		using _Ty = ::EMBMartin::generalized_pair_element_t<1, _Pair>; ///< 右元素类型
+		using _Tx = ::EMBMartin::lang::generalized_pair_element_t<0, _Pair>; ///< 左元素类型
+		using _Ty = ::EMBMartin::lang::generalized_pair_element_t<1, _Pair>; ///< 右元素类型
 
 		using _Spec = etl::private_format::format_spec_t; ///< ETL 的说明符类型
 
-		::EMBMartin::pair_spec::parts _parts{}; ///< 切分后的 pair 说明符
+		::EMBMartin::lang::pair_spec::parts _parts{}; ///< 切分后的 pair 说明符
 		_Spec _spec_x{};						///< 左元素的说明符（仅在 @c _has_element_spec 为真时有效）
 		_Spec _spec_y{};						///< 右元素的说明符（仅在 @c _has_element_spec 为真时有效）
 		bool _has_element_spec = false;			///< 是否显式给出了元素级子说明符
@@ -61,10 +61,10 @@ namespace etl
 			}
 
 			// 切分广义 pair 说明符
-			::EMBMartin::pair_spec::parts parts;
-			::EMBMartin::pair_spec::split(etl::string_view(begin, static_cast<size_t>(close - begin)), parts);
+			::EMBMartin::lang::pair_spec::parts parts;
+			::EMBMartin::lang::pair_spec::split(etl::string_view(begin, static_cast<size_t>(close - begin)), parts);
 			_parts = parts;
-			_has_element_spec = ::EMBMartin::pair_spec::has_element_spec(parts);
+			_has_element_spec = ::EMBMartin::lang::pair_spec::has_element_spec(parts);
 
 			// 元素子说明符：复用 ETL 的说明符解析器 + 元素自己的 formatter
 			if (_has_element_spec)
@@ -153,21 +153,21 @@ namespace etl
 	};
 
 	/**
-	 * @brief  @ref EMBMartin::fixed "fixed<N>" 在 ETL 后端下的自定义格式化器
+	 * @brief  @ref EMBMartin::lang::fixed "fixed<N>" 在 ETL 后端下的自定义格式化器
 	 *
 	 * @details
 	 * ETL 已把它认识的说明符片段解析进 `fmt_ctx.format_spec`（fill / align / sign /
 	 * `0` / width / precision / type），本特化只把这些字段翻译成
-	 * 渲染交给与旧后端共用的整数运算实现 @c EMBMartin::fixed_detail::spec 。
+	 * 渲染交给与旧后端共用的整数运算实现 @c EMBMartin::lang::fixed_detail::spec 。
 	 * 因此 ETL 那个「浮点 precision 被忽略」的缺陷不会影响 `fixed<N>`。
 	 *
 	 * 支持的表示类型只有 `f` 与 `F`；给出 `e` / `g` / `a` 等其它表示类型会触发
 	 * @c EMBMARTIN_FMT_ASSERT。
 	 *
-	 * @tparam N 默认小数位数，见 @ref EMBMartin::fixed
+	 * @tparam N 默认小数位数，见 @ref EMBMartin::lang::fixed
 	 */
 	template <size_t N>
-	struct formatter<::EMBMartin::fixed<N>, char>
+	struct formatter<::EMBMartin::lang::fixed<N>, char>
 	{
 		/**
 		 * @brief 消费本替换字段的说明符
@@ -197,7 +197,7 @@ namespace etl
 		 * @return 已推进的输出迭代器
 		 */
 		template <typename OutputIt>
-		typename format_context<OutputIt>::iterator format(const ::EMBMartin::fixed<N> &value,
+		typename format_context<OutputIt>::iterator format(const ::EMBMartin::lang::fixed<N> &value,
 														   format_context<OutputIt> &fmt_ctx)
 		{
 			using spec_t = etl::private_format::format_spec_t;
@@ -210,7 +210,7 @@ namespace etl
 				EMBMARTIN_FMT_ASSERT(fs.type.value() == 'f' || fs.type.value() == 'F');
 			}
 
-			::EMBMartin::fixed_detail::spec s;
+			::EMBMartin::lang::fixed_detail::spec s;
 			s.fill = fs.fill;
 			s.zero_fill = fs.zero;
 			s.upper = fs.type.has_value() && fs.type.value() == 'F';
@@ -242,8 +242,8 @@ namespace etl
 				break;
 			}
 
-			char buf[::EMBMartin::fixed_detail::buffer_size];
-			const size_t written = ::EMBMartin::fixed_detail::render(buf, value.value, static_cast<unsigned>(N), s);
+			char buf[::EMBMartin::lang::fixed_detail::buffer_size];
+			const size_t written = ::EMBMartin::lang::fixed_detail::render(buf, value.value, static_cast<unsigned>(N), s);
 
 			OutputIt out = fmt_ctx.out();
 			for (size_t i = 0; i < written; ++i)

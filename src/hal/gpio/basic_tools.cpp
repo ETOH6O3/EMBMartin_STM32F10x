@@ -1,6 +1,6 @@
 #include "EMBMartin/hal/gpio/basic_tools.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_HAL_NAMESPACE_BEGIN
 
 uint8_t Get_GPIO_PortSource(GPIO_TypeDef *port) noexcept
 {
@@ -332,4 +332,4 @@ auto Get_TIM_Index(TIM_TypeDef *TIMX) noexcept -> size_t
         return 0; // 默认回退
 }
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_HAL_NAMESPACE_END

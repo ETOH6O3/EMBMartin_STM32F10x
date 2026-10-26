@@ -19,7 +19,7 @@
 #include "EMBMartin/hal/peripheral/PWM.h"
 #include "EMBMartin/hal/gpio/outpin.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_DEVICE_NAMESPACE_BEGIN
 
 /**
  * @brief 直流电机驱动类
@@ -30,13 +30,13 @@ EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
 class DCMotorDriver
 {
 EMBMARTIN_DEBUGING_SPECIFIER:
-    PWM PWMA;
-    PWM PWMB;
-    OutPin STBY;
-    OutPin AIN1;
-    OutPin BIN1;
-    OutPin AIN2;
-    OutPin BIN2;
+    hal::PWM PWMA;
+    hal::PWM PWMB;
+    hal::OutPin STBY;
+    hal::OutPin AIN1;
+    hal::OutPin BIN1;
+    hal::OutPin AIN2;
+    hal::OutPin BIN2;
 
     int16_t current_left_speed_permillage = 0;
     int16_t current_right_speed_permillage = 0;
@@ -50,11 +50,11 @@ public:
         REVERSE
     };
     DCMotorDriver(
-        PWM _PWMA, OutPin _AIN1, OutPin _AIN2,
-        OutPin STBY,
-        PWM _PWMB, OutPin _BIN1, OutPin _BIN2) noexcept;
+        hal::PWM _PWMA, hal::OutPin _AIN1, hal::OutPin _AIN2,
+        hal::OutPin STBY,
+        hal::PWM _PWMB, hal::OutPin _BIN1, hal::OutPin _BIN2) noexcept;
 
-    DCMotorDriver(PWM _PWMA, OutPin _AIN1, OutPin _AIN2, OutPin STBY = null_pin /* 直接接到了 3V */) noexcept;
+    DCMotorDriver(hal::PWM _PWMA, hal::OutPin _AIN1, hal::OutPin _AIN2, hal::OutPin STBY = hal::null_pin /* 直接接到了 3V */) noexcept;
 
     inline void standby() noexcept
     {
@@ -78,4 +78,4 @@ public:
     }
 };
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_DEVICE_NAMESPACE_END

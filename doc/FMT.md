@@ -9,14 +9,14 @@
 
 | 我想…… | 用 |
 | --- | --- |
-| 写进自己的 `char` 缓冲区 | `EMBMartin::format_to(buf, "...", args...)` |
-| 最多写 n 个字符 | `EMBMartin::format_to_n(buf, n, "...", args...)` |
-| 写进 `etl::istring` | `EMBMartin::format_to(istring, "...", args...)` |
-| 只算要占多少字符 | `EMBMartin::formatted_size("...", args...)` |
+| 写进自己的 `char` 缓冲区 | `EMBMartin::lang::format_to(buf, "...", args...)` |
+| 最多写 n 个字符 | `EMBMartin::lang::format_to_n(buf, n, "...", args...)` |
+| 写进 `etl::istring` | `EMBMartin::lang::format_to(istring, "...", args...)` |
+| 只算要占多少字符 | `EMBMartin::lang::formatted_size("...", args...)` |
 | 写进 `String<N>` | `str.format("...", args...)` |
 | 输出到串口 / OLED | `console.println("...", args...)` |
-| 固定小数位 | `EMBMartin::fixed<2>{x}` |
-| 让自己的类型可格式化 | 特化 `etl::formatter<T>` 或 `EMBMartin::legacy_fmt::formatter<T>` |
+| 固定小数位 | `EMBMartin::lang::fixed<2>{x}` |
+| 让自己的类型可格式化 | 特化 `etl::formatter<T>` 或 `EMBMartin::lang::legacy_fmt::formatter<T>` |
 
 最小例子：
 
@@ -24,7 +24,7 @@
 #include "fmt.h"
 #include "mstring.h"
 
-EMBMartin::String<32> s;
+EMBMartin::lang::String<32> s;
 s.format("x = {}, y = {}", 12, 7);        // "x = 12, y = 7"
 s.assign_format("{:>8}", 3.5);            // "     3.5"
 ```
@@ -37,8 +37,8 @@ s.assign_format("{:>8}", 3.5);            // "     3.5"
 
 | 宏取值 | 底层 | 内联命名空间 |
 | --- | --- | --- |
-| `1`（默认） | 第三方库 ETL 的 format | `EMBMartin::etl_fmt` |
-| `0` | 本库既有的旧格式化核心 | `EMBMartin::legacy_fmt` |
+| `1`（默认） | 第三方库 ETL 的 format | `EMBMartin::lang::etl_fmt` |
+| `0` | 本库既有的旧格式化核心 | `EMBMartin::lang::legacy_fmt` |
 
 在 Keil 的 `Define` 栏里写 `EMBMARTIN_FMT_USE_ETL=0` 即可切换。
 
@@ -48,13 +48,13 @@ s.assign_format("{:>8}", 3.5);            // "     3.5"
 两套实现始终都存在于工程里，因此也可以显式指名后端（两者都提供第 2 节的同一套接口）：
 
 ```cpp
-EMBMartin::etl_fmt::format_to(buf, "{}", 42);       // 强制走 ETL
-EMBMartin::legacy_fmt::format_to(buf, "{}", 42);    // 强制走旧实现
-EMBMartin::legacy_fmt::formatted_size("{}", 42);    // 同理
+EMBMartin::lang::etl_fmt::format_to(buf, "{}", 42);       // 强制走 ETL
+EMBMartin::lang::legacy_fmt::format_to(buf, "{}", 42);    // 强制走旧实现
+EMBMartin::lang::legacy_fmt::formatted_size("{}", 42);    // 同理
 ```
 
 `legacy_fmt` 里另外保留了**旧接口**（`FormatError` 错误码、`FormatString<N>`、`FormatContext`），
-那套写法必须写全 `EMBMartin::legacy_fmt::` 前缀，见第 7 节。
+那套写法必须写全 `EMBMartin::lang::legacy_fmt::` 前缀，见第 7 节。
 
 > 只要在一个工程（全部翻译单元）里统一这个宏即可；不要在不同文件里给不同的值。
 
@@ -62,7 +62,7 @@ EMBMartin::legacy_fmt::formatted_size("{}", 42);    // 同理
 
 ## 2. 接口一览
 
-以下的 `EMBMartin::` 前缀在 `using namespace EMBMartin;` 之后可以省略。
+以下的 `EMBMartin::` 前缀在 `using namespace EMBMartin::lang;` 之后可以省略。
 
 ### 2.1 写入固定缓冲区
 
@@ -80,7 +80,7 @@ OutputIt format_to(OutputIt out, const char (&fmt)[N], const Args &...args);
 >
 > ```cpp
 > char buf[64];
-> char *end = EMBMartin::format_to(buf, "{} + {} = {}", 1, 2, 3);
+> char *end = EMBMartin::lang::format_to(buf, "{} + {} = {}", 1, 2, 3);
 > *end = '\0';
 > // buf == "1 + 2 = 3"
 > ```
@@ -115,7 +115,7 @@ etl::istring::iterator format_to(etl::istring &out, etl::string_view fmt, const 
 
 ```cpp
 etl::string<64> s;
-EMBMartin::format_to(s, "x={}", 42);       // s == "x=42"
+EMBMartin::lang::format_to(s, "x={}", 42);       // s == "x=42"
 ```
 
 ### 2.4 只计算长度
@@ -126,7 +126,7 @@ size_t formatted_size(etl::string_view fmt, const Args &...args);
 ```
 
 ```cpp
-const size_t n = EMBMartin::formatted_size("{}", 12345);   // 5
+const size_t n = EMBMartin::lang::formatted_size("{}", 12345);   // 5
 ```
 
 ### 2.5 运行期格式串
@@ -141,9 +141,9 @@ OutputIt vformat_to(OutputIt out, etl::string_view fmt, const Args &...args);
 
 ```cpp
 etl::string_view rt = "rt={}";
-EMBMartin::format_to(buf, rt, 7);      // 字符串视图
+EMBMartin::lang::format_to(buf, rt, 7);      // 字符串视图
 const char *rt2 = "p={}";
-EMBMartin::format_to(buf, rt2, 8);     // C 字符串
+EMBMartin::lang::format_to(buf, rt2, 8);     // C 字符串
 ```
 
 > 字面量重载会把长度一并传给后端，因此在 ETL 的 C++20 模式下可以启用编译期格式串检查；
@@ -248,15 +248,15 @@ console.println("hello");              // 无参数：原样输出
 | `,` / `_` 分组 | 数值分组：`{:,}` → `1,234,567`；`{:_x}` → `dead_beef` |
 | `%` | 百分比：`{:.1%}` 对 `0.5` → `50.0%` |
 
-### 3.4 浮点小数位：`EMBMartin::fixed<N>`
+### 3.4 浮点小数位：`EMBMartin::lang::fixed<N>`
 
 **这是本节最需要注意的一条**：ETL 后端**无法控制浮点的小数位数**——ETL 20.49.0 的浮点格式化
 把小数位硬编码为 6 且从不读 precision，`{:.0f}`、`{:.2f}`、`{:.4f}` 的输出完全一样
 （该缺陷在上游 master 仍未修复）。所以**不要用 `{:.Nf}` 表达小数位**，改用 `fixed<N>`：
 
 ```cpp
-oled.println("Dist: {}m", EMBMartin::fixed<2>{distance});     // "Dist: 1.23m"
-s.format("{} / {}", EMBMartin::fixed<2>{x}, EMBMartin::fixed<3>{y});
+oled.println("Dist: {}m", EMBMartin::lang::fixed<2>{distance});     // "Dist: 1.23m"
+s.format("{} / {}", EMBMartin::lang::fixed<2>{x}, EMBMartin::lang::fixed<3>{y});
 ```
 
 `fixed<N>` 是「按恰好 N 位小数输出」的包装类型，**两套后端、各编译器的输出逐字符一致**，
@@ -280,7 +280,7 @@ s.format("{} / {}", EMBMartin::fixed<2>{x}, EMBMartin::fixed<3>{y});
 - `|值| × 10^N` 超出 `unsigned long long` 时按上限截断。
 
 > ⚠️ `fixed` 与 `std::fixed`（I/O 操纵符）同名。若本翻译单元里同时有 `using namespace std;`
-> 和 `using namespace EMBMartin;`，请写限定名 `EMBMartin::fixed<N>{...}`，否则在某些标准库
+> 和 `using namespace EMBMartin::lang;`，请写限定名 `EMBMartin::lang::fixed<N>{...}`，否则在某些标准库
 > （如 armclang 的 libc++）下会二义。
 
 ---
@@ -323,7 +323,7 @@ namespace etl
 
 用 `etl::formatter<元素类型>` 去格式化成员，就不用自己重写数字格式化。
 
-### 旧后端：特化 `EMBMartin::legacy_fmt::formatter<T>`
+### 旧后端：特化 `EMBMartin::lang::legacy_fmt::formatter<T>`
 
 ```cpp
 namespace EMBMartin { namespace legacy_fmt
@@ -488,12 +488,12 @@ s.format("{:[:#x,,:#b]}", Coordinate<int>(255, 42));  // "[0xff, 0b101010]"
 ```cpp
 #include "fmt.h"
 
-EMBMartin::legacy_fmt::FormatString<5> fmt_str("x={}");   // 模板参数 = 字面量长度 + 1
+EMBMartin::lang::legacy_fmt::FormatString<5> fmt_str("x={}");   // 模板参数 = 字面量长度 + 1
 char buf[32];
-const int result = EMBMartin::legacy_fmt::format_to(buf, sizeof(buf), fmt_str, 42);
+const int result = EMBMartin::lang::legacy_fmt::format_to(buf, sizeof(buf), fmt_str, 42);
 if (result < 0)
 {
-    const auto err = static_cast<EMBMartin::legacy_fmt::FormatError>(result);
+    const auto err = static_cast<EMBMartin::lang::legacy_fmt::FormatError>(result);
     // 例如 BufferOverflow(-1) / InvalidFormatSpec(-2) / MismatchedBraces(-5) / TooMuchContext(-6)
 }
 else
@@ -505,7 +505,7 @@ else
 关于这套旧接口，有三点必须知道：
 
 1. **返回值不是写入长度**。成功时它是 `0`（有占位符），或不含占位符时的剩余格式串长度；
-   想知道长度请用 `String<N>::format` 或 `EMBMartin::formatted_size`。它只用来区分「成功 / 失败」。
+   想知道长度请用 `String<N>::format` 或 `EMBMartin::lang::formatted_size`。它只用来区分「成功 / 失败」。
 2. 成功时缓冲区**会**以 `'\0'` 结尾（与 `format_to` 不同）；缓冲区不足时返回 `BufferOverflow`。
 3. `FormatString<N>` 的模板参数必须**恰好**等于字面量长度 + 1（`"x={}"` → `FormatString<5>`），
    写大了编译不过。这是这套旧接口的历史包袱，也是新代码推荐用 `String<N>::format` 的原因之一。
@@ -522,7 +522,7 @@ else
 | `format_to` 不补 `'\0'` | 用 `char` 缓冲区时记得 `*end = '\0';` |
 | `format_to_n` 不告诉你「本应多长」 | 用 `formatted_size` 再算一次 |
 | `{:.2f}` 在 ETL 后端无效 | 用 `fixed<N>`，见 3.4 |
-| `fixed` 与 `std::fixed` 同名 | 有 `using namespace std;` 时写 `EMBMartin::fixed<N>` |
+| `fixed` 与 `std::fixed` 同名 | 有 `using namespace std;` 时写 `EMBMartin::lang::fixed<N>` |
 | 自定义类型在两套后端要各写一份 formatter | 见第 4 节；已有的内置类型不用管 |
 | 旧后端单次结果不得超过 512 字节 | 含实参的格式化结果超过该值会断言；可用预定义宏 `EMBMARTIN_FMT_LEGACY_SCRATCH_SIZE` 调大（占用栈） |
 | 旧后端不支持 `{0}` 与嵌套 `{}` | 需要这些就把宏设为 1 |

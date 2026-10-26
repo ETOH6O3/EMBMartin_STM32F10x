@@ -7,7 +7,7 @@
 
 #include "EMBMartin/lang/fmt/fmt_config.h"
 
-EMBMARTIN_NAMESPACE_BEGIN
+EMBMARTIN_LANG_NAMESPACE_BEGIN
 
 // ------------------------------------------前向声明--------------------------------------------------
 
@@ -26,7 +26,7 @@ class String;
 
 
 /**
- * @namespace EMBMartin::pair_spec
+ * @namespace EMBMartin::lang::pair_spec
  * @brief 广义 pair（@c Coordinate / @c add_result / @c std::pair / @c std::tuple ...）说明符的切分工具
  *
  * @details
@@ -184,9 +184,9 @@ namespace pair_spec
  * 用法：
  * @code
  * double d = 1.2345;
- * s.format("Dist: {}m", EMBMartin::fixed<2>{d});   // "Dist: 1.23m"
- * s.format("[{:8.3}]", EMBMartin::fixed<2>{d});    // 说明符里的 precision 覆盖 N → 1.234
- * oled.println("Dist: {}m", EMBMartin::fixed<2>{ultrasonic_sensor});
+ * s.format("Dist: {}m", EMBMartin::lang::fixed<2>{d});   // "Dist: 1.23m"
+ * s.format("[{:8.3}]", EMBMartin::lang::fixed<2>{d});    // 说明符里的 precision 覆盖 N → 1.234
+ * oled.println("Dist: {}m", EMBMartin::lang::fixed<2>{ultrasonic_sensor});
  * @endcode
  *
  * 支持的说明符：@c [[fill]align][sign][0][width][.precision][f|F]
@@ -201,14 +201,14 @@ namespace pair_spec
  *          @c "using@c namespace@c std;" 与 @c "using@c namespace@c EMBMartin;" ，
  *          非限定的 @c fixed<N> 会二义（是否报错取决于标准库是否间接引入了 @c \<ios\> ：
  *          armclang 的 libc++ 会，MSVC/GCC 在只包含 @c \<memory\> / @c \<string_view\> 时不会）。
- *          此时请写限定名 @c EMBMartin::fixed<N>{...} 。
+ *          此时请写限定名 @c EMBMartin::lang::fixed<N>{...} 。
  *
  * @tparam N 默认小数位数，取值范围 0 ~ 9
  */
 template <size_t N>
 struct fixed
 {
-	static_assert(N <= 9, "EMBMartin::fixed<N> 的小数位数最多 9 位");
+	static_assert(N <= 9, "EMBMartin::lang::fixed<N> 的小数位数最多 9 位");
 
 	/** @brief 被包装的值（统一用 @c double 承载） */
 	double value;
@@ -222,8 +222,8 @@ struct fixed
 };
 
 /**
- * @namespace EMBMartin::fixed_detail
- * @brief @ref EMBMartin::fixed 的后端无关渲染实现
+ * @namespace EMBMartin::lang::fixed_detail
+ * @brief @ref EMBMartin::lang::fixed 的后端无关渲染实现
  *
  * @details 两套后端的 formatter 只负责把各自的说明符翻译成 @ref spec ，渲染全部走这里，
  * 因此输出必然一致。
@@ -421,4 +421,4 @@ namespace fixed_detail
 	}
 } // namespace fixed_detail
 
-EMBMARTIN_NAMESPACE_END
+EMBMARTIN_LANG_NAMESPACE_END

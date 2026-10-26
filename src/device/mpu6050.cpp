@@ -2,14 +2,14 @@
 
 #include <tuple>
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_DEVICE_NAMESPACE_BEGIN
 
 MPU6050::MPU6050(
-    GPIOPin SCL, GPIOPin SDA, bool AD0,
+    hal::GPIOPin SCL, hal::GPIOPin SDA, bool AD0,
     bool gyroscope_enable, uint8_t SMPRT_DIV,
     uint8_t ACCEL_AFS_SCL,
     uint8_t GYRO_FS_SEL) noexcept
-    : I2C{SCL, SDA, uint8_t(0xD0 + (AD0 << 1))}
+    : hal::I2C{SCL, SDA, uint8_t(0xD0 + (AD0 << 1))}
 {
     write_reg(REGS::PWR_MGMT_1, gyroscope_enable);     // 解除休眠，是否启用陀螺仪作为时钟源
     write_reg(REGS::PWR_MGMT_2, 0x00);                 // 六轴都工作
@@ -37,4 +37,4 @@ MPU6050::Data MPU6050::get_data() noexcept
     return merge_rslt;
 }
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_DEVICE_NAMESPACE_END

@@ -4,7 +4,7 @@
 
 extern uint32_t SystemCoreClock;
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_HAL_NAMESPACE_BEGIN
 
 PWM::PWM(
     TIM_TypeDef *__TIMX, int CHn, uint8_t TIMx_REMAP, const GPIOPin output_pin,
@@ -137,4 +137,4 @@ void PWM::set_duty(int Duty_permillage) noexcept
     }
 }
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_HAL_NAMESPACE_END

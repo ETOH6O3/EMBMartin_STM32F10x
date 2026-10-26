@@ -1,8 +1,8 @@
 #include "EMBMartin/device/ultrasonic_sensor.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_DEVICE_NAMESPACE_BEGIN
 
-UltrasonicSensor::UltrasonicSensor(const GPIOPin &echo, const GPIOPin &trig, double tim_time_s, uint16_t temprature_kelvin,
+UltrasonicSensor::UltrasonicSensor(const hal::GPIOPin &echo, const hal::GPIOPin &trig, double tim_time_s, uint16_t temprature_kelvin,
                                    TIM_TypeDef *update_TIMX, TIM_TypeDef *trig_TIMX,
                                    uint8_t trig_divider, uint8_t trig_start_wait) noexcept
     : __echo{echo, GPIO_Mode_IPU}, __trig{trig}, TIM_TIME_S{tim_time_s}, cnt{0}, SOUND_VELOCITY{uint16_t(20.05 * std::sqrt(temprature_kelvin))},
@@ -13,10 +13,10 @@ UltrasonicSensor::UltrasonicSensor(const GPIOPin &echo, const GPIOPin &trig, dou
     __echo_last = __echo; // 以构造时刻的电平为基准，避免把上电前的高电平当成一次回波
 
     if (update_TIMX != nullptr)
-        __update_handle = sys::InnerTimerManager::add(update_TIMX, [this]()
+        __update_handle = hal::InnerTimerManager::add(update_TIMX, [this]()
                                                       { this->update(); });
     if (trig_TIMX != nullptr)
-        __trig_handle = sys::InnerTimerManager::add(trig_TIMX, [this]()
+        __trig_handle = hal::InnerTimerManager::add(trig_TIMX, [this]()
                                                     { this->trig_tick(); });
 }
 
@@ -74,4 +74,4 @@ double UltrasonicSensor::get_distance() const noexcept
     return filtered_distance;
 }
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_DEVICE_NAMESPACE_END

@@ -8,8 +8,8 @@
 #include "EMBMartin/hal/system.h"
 
 using namespace std;
-using namespace EMBMartin;
-using namespace STM32;
+using namespace EMBMartin::hal;
+using namespace EMBMartin::device;
 
 auto SCK_pin = GPIOPin{GPIOA, GPIO_Pin_9};
 auto SDA_pin = GPIOPin{GPIOA, GPIO_Pin_10};
@@ -18,7 +18,7 @@ OLEDConsole<> oled(SCK_pin, SDA_pin);
 uint16_t num = 0;
 
 // 用 InnerTimerManager 的便捷接口把回调挂到 TIM2 更新中断上
-sys::InnerTimerManager timer2{TIM2, 0.1, true, 2, 2, {[]()
+InnerTimerManager timer2{TIM2, 0.1, true, 2, 2, {[]()
 														{ num++; }}};
 
 int main()

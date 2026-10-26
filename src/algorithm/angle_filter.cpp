@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_ALGORITHM_NAMESPACE_BEGIN
 
 void AngleComplementaryFilter::update() noexcept
 {
@@ -14,4 +14,4 @@ void AngleComplementaryFilter::update() noexcept
     current_yaw = current_yaw + MPU_data.gyro_z * 1000 / 32768.0 * dt; // 偏航角无法互补滤波
 }
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_ALGORITHM_NAMESPACE_END

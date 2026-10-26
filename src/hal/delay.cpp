@@ -1,8 +1,6 @@
 #include "EMBMartin/hal/delay.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
-namespace sys
-{
+EMBMARTIN_HAL_NAMESPACE_BEGIN
 
 void Delayer::start(uint32_t cnt) noexcept
 {
@@ -56,9 +54,8 @@ void Delayer::delay(uint32_t cnt) noexcept
     const double __second = tick_second();
     if (__second > 0.0 && cnt > 0)
     {
-        sys::delay_ms(intmax_t(double(cnt) * __second * 1000.0 + 0.5));
+        delay_ms(intmax_t(double(cnt) * __second * 1000.0 + 0.5));
     }
 }
 
-} // namespace sys
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_HAL_NAMESPACE_END

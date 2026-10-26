@@ -3,8 +3,8 @@
 #include "EMBMartin/EMBMartin.h"
 
 using namespace std;
-using namespace EMBMartin;
-using namespace STM32;
+using namespace EMBMartin::hal;
+using namespace EMBMartin::device;
 
 // 8 个 LED：低电平点亮
 array<LED, 8> leds = {{

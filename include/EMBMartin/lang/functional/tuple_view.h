@@ -15,7 +15,7 @@
 #include "EMBMartin/macro.h"
 #include "EMBMartin/lang/meta.h"
 
-EMBMARTIN_NAMESPACE_BEGIN
+EMBMARTIN_LANG_NAMESPACE_BEGIN
 
 //------------------------------------------ 广义 tuples 基础操作 --------------------------------------------------
 
@@ -463,7 +463,7 @@ class TupleUnpackView
 {
 private:
 	static constexpr size_t total_size =
-		EMBMartin::generalized_tuple_size_v<remove_cvref_t<Tuple>>;
+		EMBMartin::lang::generalized_tuple_size_v<remove_cvref_t<Tuple>>;
 
 	// 越界时先断言，并把 mid_size 退化为 0：否则 size_t 下溢出的天文数字会继续被
 	// make_offset_index_sequence 拿去实例化，产生一串与真正原因无关的级联报错。
@@ -674,7 +674,7 @@ struct _tuple_insert_element;
 template <size_t N, typename Tuple, size_t... Is, size_t InsertPos, typename... ExtraTs>
 struct _tuple_insert_element<N, Tuple, std::index_sequence<Is...>, InsertPos, std::tuple<ExtraTs...>, true, false>
 {
-	using type = EMBMartin::generalized_tuple_element_t<_tuple_view_index<N, Is...>::value, EMBMartin::remove_cvref_t<Tuple>>;
+	using type = EMBMartin::lang::generalized_tuple_element_t<_tuple_view_index<N, Is...>::value, EMBMartin::lang::remove_cvref_t<Tuple>>;
 };
 
 template <size_t N, typename Tuple, size_t... Is, size_t InsertPos, typename... ExtraTs>
@@ -686,8 +686,8 @@ struct _tuple_insert_element<N, Tuple, std::index_sequence<Is...>, InsertPos, st
 template <size_t N, typename Tuple, size_t... Is, size_t InsertPos, typename... ExtraTs>
 struct _tuple_insert_element<N, Tuple, std::index_sequence<Is...>, InsertPos, std::tuple<ExtraTs...>, false, false>
 {
-	using type = EMBMartin::generalized_tuple_element_t<
-		_tuple_view_index<N - sizeof...(ExtraTs), Is...>::value, EMBMartin::remove_cvref_t<Tuple>>;
+	using type = EMBMartin::lang::generalized_tuple_element_t<
+		_tuple_view_index<N - sizeof...(ExtraTs), Is...>::value, EMBMartin::lang::remove_cvref_t<Tuple>>;
 };
 
 // 推导 TupleUnpackView 的第 N 项类型；三个位置分别对应前置 / 中间子视图 / 后置。
@@ -707,7 +707,7 @@ template <size_t N, typename Tuple, size_t PreN, size_t PostN, bool Const>
 struct _tuple_unpack_view_element<N, Tuple, PreN, PostN, Const, true, false>
 {
 	using raw_ref = std::remove_reference_t<Tuple>;
-	using element = EMBMartin::generalized_tuple_element_t<N, raw_ref>;
+	using element = EMBMartin::lang::generalized_tuple_element_t<N, raw_ref>;
 	using type = std::conditional_t<Const, std::add_const_t<element>, element>;
 };
 
@@ -716,7 +716,7 @@ template <size_t N, typename Tuple, size_t PreN, size_t PostN, bool Const>
 struct _tuple_unpack_view_element<N, Tuple, PreN, PostN, Const, false, true>
 {
 	static constexpr size_t total_size =
-		EMBMartin::generalized_tuple_size_v<EMBMartin::remove_cvref_t<Tuple>>;
+		EMBMartin::lang::generalized_tuple_size_v<EMBMartin::lang::remove_cvref_t<Tuple>>;
 	static constexpr size_t mid_size =
 		(total_size >= PreN + PostN) ? (total_size - PreN - PostN) : 0;
 	using mid_seq = make_offset_index_sequence<PreN, mid_size>;
@@ -729,7 +729,7 @@ struct _tuple_unpack_view_element<N, Tuple, PreN, PostN, Const, false, true>
 		std::add_lvalue_reference_t<std::add_const_t<std::remove_reference_t<Tuple>>>,
 		Tuple &>;
 
-	using type = EMBMartin::TupleView<storage_ref, mid_seq>;
+	using type = EMBMartin::lang::TupleView<storage_ref, mid_seq>;
 };
 
 // 后置：N > PreN
@@ -737,151 +737,151 @@ template <size_t N, typename Tuple, size_t PreN, size_t PostN, bool Const>
 struct _tuple_unpack_view_element<N, Tuple, PreN, PostN, Const, false, false>
 {
 	using raw_ref = std::remove_reference_t<Tuple>;
-	using element = EMBMartin::generalized_tuple_element_t<
-		EMBMartin::generalized_tuple_size_v<EMBMartin::remove_cvref_t<Tuple>> - PostN + (N - PreN - 1),
+	using element = EMBMartin::lang::generalized_tuple_element_t<
+		EMBMartin::lang::generalized_tuple_size_v<EMBMartin::lang::remove_cvref_t<Tuple>> - PostN + (N - PreN - 1),
 		raw_ref>;
 	using type = std::conditional_t<Const, std::add_const_t<element>, element>;
 };
 EMBMARTIN_DETAIL_NAMESPACE_END
 
-EMBMARTIN_NAMESPACE_END
+EMBMARTIN_LANG_NAMESPACE_END
 
 //------------------------------------------ std 特化：支持 structured binding ----------
 namespace std
 {
 	template <typename Tuple, size_t... Is>
-	struct tuple_size<EMBMartin::TupleView<Tuple, index_sequence<Is...>>>
+	struct tuple_size<EMBMartin::lang::TupleView<Tuple, index_sequence<Is...>>>
 		: integral_constant<size_t, sizeof...(Is)>
 	{
 	};
 	template <typename Tuple, size_t... Is>
-	struct tuple_size<const EMBMartin::TupleView<Tuple, index_sequence<Is...>>>
-		: tuple_size<EMBMartin::TupleView<Tuple, index_sequence<Is...>>>
+	struct tuple_size<const EMBMartin::lang::TupleView<Tuple, index_sequence<Is...>>>
+		: tuple_size<EMBMartin::lang::TupleView<Tuple, index_sequence<Is...>>>
 	{
 	};
 	template <typename Tuple, size_t... Is>
-	struct tuple_size<volatile EMBMartin::TupleView<Tuple, index_sequence<Is...>>>
-		: tuple_size<EMBMartin::TupleView<Tuple, index_sequence<Is...>>>
+	struct tuple_size<volatile EMBMartin::lang::TupleView<Tuple, index_sequence<Is...>>>
+		: tuple_size<EMBMartin::lang::TupleView<Tuple, index_sequence<Is...>>>
 	{
 	};
 	template <typename Tuple, size_t... Is>
-	struct tuple_size<const volatile EMBMartin::TupleView<Tuple, index_sequence<Is...>>>
-		: tuple_size<EMBMartin::TupleView<Tuple, index_sequence<Is...>>>
+	struct tuple_size<const volatile EMBMartin::lang::TupleView<Tuple, index_sequence<Is...>>>
+		: tuple_size<EMBMartin::lang::TupleView<Tuple, index_sequence<Is...>>>
 	{
 	};
 
 	template <typename Tuple, size_t... Is, size_t InsertPos, typename... ExtraTs>
-	struct tuple_size<EMBMartin::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
+	struct tuple_size<EMBMartin::lang::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
 		: integral_constant<size_t, sizeof...(Is) + sizeof...(ExtraTs)>
 	{
 	};
 	template <typename Tuple, size_t... Is, size_t InsertPos, typename... ExtraTs>
-	struct tuple_size<const EMBMartin::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
-		: tuple_size<EMBMartin::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
+	struct tuple_size<const EMBMartin::lang::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
+		: tuple_size<EMBMartin::lang::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
 	{
 	};
 	template <typename Tuple, size_t... Is, size_t InsertPos, typename... ExtraTs>
-	struct tuple_size<volatile EMBMartin::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
-		: tuple_size<EMBMartin::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
+	struct tuple_size<volatile EMBMartin::lang::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
+		: tuple_size<EMBMartin::lang::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
 	{
 	};
 	template <typename Tuple, size_t... Is, size_t InsertPos, typename... ExtraTs>
-	struct tuple_size<const volatile EMBMartin::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
-		: tuple_size<EMBMartin::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
+	struct tuple_size<const volatile EMBMartin::lang::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
+		: tuple_size<EMBMartin::lang::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
 	{
 	};
 
 	template <size_t N, typename Tuple, size_t... Is>
-	struct tuple_element<N, EMBMartin::TupleView<Tuple, index_sequence<Is...>>>
+	struct tuple_element<N, EMBMartin::lang::TupleView<Tuple, index_sequence<Is...>>>
 	{
-		using type = EMBMartin::generalized_tuple_element_t<
-			EMBMartin::detail::_tuple_view_index<N, Is...>::value, EMBMartin::remove_cvref_t<Tuple>>;
+		using type = EMBMartin::lang::generalized_tuple_element_t<
+			EMBMartin::lang::detail::_tuple_view_index<N, Is...>::value, EMBMartin::lang::remove_cvref_t<Tuple>>;
 	};
 	template <size_t N, typename Tuple, size_t... Is>
-	struct tuple_element<N, const EMBMartin::TupleView<Tuple, index_sequence<Is...>>>
+	struct tuple_element<N, const EMBMartin::lang::TupleView<Tuple, index_sequence<Is...>>>
 	{
-		using type = add_const_t<typename tuple_element<N, EMBMartin::TupleView<Tuple, index_sequence<Is...>>>::type>;
+		using type = add_const_t<typename tuple_element<N, EMBMartin::lang::TupleView<Tuple, index_sequence<Is...>>>::type>;
 	};
 	template <size_t N, typename Tuple, size_t... Is>
-	struct tuple_element<N, volatile EMBMartin::TupleView<Tuple, index_sequence<Is...>>>
+	struct tuple_element<N, volatile EMBMartin::lang::TupleView<Tuple, index_sequence<Is...>>>
 	{
-		using type = add_volatile_t<typename tuple_element<N, EMBMartin::TupleView<Tuple, index_sequence<Is...>>>::type>;
+		using type = add_volatile_t<typename tuple_element<N, EMBMartin::lang::TupleView<Tuple, index_sequence<Is...>>>::type>;
 	};
 	template <size_t N, typename Tuple, size_t... Is>
-	struct tuple_element<N, const volatile EMBMartin::TupleView<Tuple, index_sequence<Is...>>>
+	struct tuple_element<N, const volatile EMBMartin::lang::TupleView<Tuple, index_sequence<Is...>>>
 	{
-		using type = add_cv_t<typename tuple_element<N, EMBMartin::TupleView<Tuple, index_sequence<Is...>>>::type>;
+		using type = add_cv_t<typename tuple_element<N, EMBMartin::lang::TupleView<Tuple, index_sequence<Is...>>>::type>;
 	};
 
 	template <size_t N, typename Tuple, size_t... Is, size_t InsertPos, typename... ExtraTs>
-	struct tuple_element<N, EMBMartin::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
+	struct tuple_element<N, EMBMartin::lang::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
 	{
-		using type = typename EMBMartin::detail::_tuple_insert_element<
+		using type = typename EMBMartin::lang::detail::_tuple_insert_element<
 			N, Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>::type;
 	};
 	template <size_t N, typename Tuple, size_t... Is, size_t InsertPos, typename... ExtraTs>
-	struct tuple_element<N, const EMBMartin::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
+	struct tuple_element<N, const EMBMartin::lang::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
 	{
-		using type = add_const_t<typename tuple_element<N, EMBMartin::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>::type>;
+		using type = add_const_t<typename tuple_element<N, EMBMartin::lang::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>::type>;
 	};
 	template <size_t N, typename Tuple, size_t... Is, size_t InsertPos, typename... ExtraTs>
-	struct tuple_element<N, volatile EMBMartin::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
+	struct tuple_element<N, volatile EMBMartin::lang::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
 	{
-		using type = add_volatile_t<typename tuple_element<N, EMBMartin::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>::type>;
+		using type = add_volatile_t<typename tuple_element<N, EMBMartin::lang::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>::type>;
 	};
 	template <size_t N, typename Tuple, size_t... Is, size_t InsertPos, typename... ExtraTs>
-	struct tuple_element<N, const volatile EMBMartin::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
+	struct tuple_element<N, const volatile EMBMartin::lang::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>
 	{
-		using type = add_cv_t<typename tuple_element<N, EMBMartin::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>::type>;
+		using type = add_cv_t<typename tuple_element<N, EMBMartin::lang::TupleInsertView<Tuple, index_sequence<Is...>, InsertPos, tuple<ExtraTs...>>>::type>;
 	};
 
 	template <typename Tuple, size_t PreN, size_t PostN>
-	struct tuple_size<EMBMartin::TupleUnpackView<Tuple, PreN, PostN>>
+	struct tuple_size<EMBMartin::lang::TupleUnpackView<Tuple, PreN, PostN>>
 		: integral_constant<size_t, PreN + PostN + 1>
 	{
 	};
 
 	template <typename Tuple, size_t PreN, size_t PostN>
-	struct tuple_size<const EMBMartin::TupleUnpackView<Tuple, PreN, PostN>>
-		: tuple_size<EMBMartin::TupleUnpackView<Tuple, PreN, PostN>>
+	struct tuple_size<const EMBMartin::lang::TupleUnpackView<Tuple, PreN, PostN>>
+		: tuple_size<EMBMartin::lang::TupleUnpackView<Tuple, PreN, PostN>>
 	{
 	};
 
 	template <typename Tuple, size_t PreN, size_t PostN>
-	struct tuple_size<volatile EMBMartin::TupleUnpackView<Tuple, PreN, PostN>>
-		: tuple_size<EMBMartin::TupleUnpackView<Tuple, PreN, PostN>>
+	struct tuple_size<volatile EMBMartin::lang::TupleUnpackView<Tuple, PreN, PostN>>
+		: tuple_size<EMBMartin::lang::TupleUnpackView<Tuple, PreN, PostN>>
 	{
 	};
 
 	template <typename Tuple, size_t PreN, size_t PostN>
-	struct tuple_size<const volatile EMBMartin::TupleUnpackView<Tuple, PreN, PostN>>
-		: tuple_size<EMBMartin::TupleUnpackView<Tuple, PreN, PostN>>
+	struct tuple_size<const volatile EMBMartin::lang::TupleUnpackView<Tuple, PreN, PostN>>
+		: tuple_size<EMBMartin::lang::TupleUnpackView<Tuple, PreN, PostN>>
 	{
 	};
 
 	template <size_t N, typename Tuple, size_t PreN, size_t PostN>
-	struct tuple_element<N, EMBMartin::TupleUnpackView<Tuple, PreN, PostN>>
+	struct tuple_element<N, EMBMartin::lang::TupleUnpackView<Tuple, PreN, PostN>>
 	{
-		using type = typename EMBMartin::detail::_tuple_unpack_view_element<
+		using type = typename EMBMartin::lang::detail::_tuple_unpack_view_element<
 			N, Tuple, PreN, PostN, false>::type;
 	};
 
 	template <size_t N, typename Tuple, size_t PreN, size_t PostN>
-	struct tuple_element<N, const EMBMartin::TupleUnpackView<Tuple, PreN, PostN>>
+	struct tuple_element<N, const EMBMartin::lang::TupleUnpackView<Tuple, PreN, PostN>>
 	{
-		using type = typename EMBMartin::detail::_tuple_unpack_view_element<
+		using type = typename EMBMartin::lang::detail::_tuple_unpack_view_element<
 			N, Tuple, PreN, PostN, true>::type;
 	};
 
 	template <size_t N, typename Tuple, size_t PreN, size_t PostN>
-	struct tuple_element<N, volatile EMBMartin::TupleUnpackView<Tuple, PreN, PostN>>
-		: tuple_element<N, EMBMartin::TupleUnpackView<Tuple, PreN, PostN>>
+	struct tuple_element<N, volatile EMBMartin::lang::TupleUnpackView<Tuple, PreN, PostN>>
+		: tuple_element<N, EMBMartin::lang::TupleUnpackView<Tuple, PreN, PostN>>
 	{
 	};
 
 	template <size_t N, typename Tuple, size_t PreN, size_t PostN>
-	struct tuple_element<N, const volatile EMBMartin::TupleUnpackView<Tuple, PreN, PostN>>
-		: tuple_element<N, EMBMartin::TupleUnpackView<Tuple, PreN, PostN>>
+	struct tuple_element<N, const volatile EMBMartin::lang::TupleUnpackView<Tuple, PreN, PostN>>
+		: tuple_element<N, EMBMartin::lang::TupleUnpackView<Tuple, PreN, PostN>>
 	{
 	};
 

@@ -18,7 +18,7 @@
 
 #include "EMBMartin/macro.h"
 
-EMBMARTIN_NAMESPACE_BEGIN
+EMBMARTIN_ALGORITHM_NAMESPACE_BEGIN
 
 // ------------------------------------------溢出处理--------------------------------------------------
 
@@ -421,5 +421,5 @@ constexpr inline split_double split_double_func(double x) noexcept
 		u.i};
 }
 
-EMBMARTIN_NAMESPACE_END
+EMBMARTIN_ALGORITHM_NAMESPACE_END
 

@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_ALGORITHM_NAMESPACE_BEGIN
 
 SingleLoopPID::SingleLoopPID(
     double _kp, double _ki, double _kd, double &_current, double _dt,
@@ -24,7 +24,7 @@ void SingleLoopPID::set(
     set_d_current(_d_current);
 }
 
-BalancedCarPID::BalancedCarPID(MPU6050::Data &_MPU_data,
+BalancedCarPID::BalancedCarPID(device::MPU6050::Data &_MPU_data,
                                int16_t &_pace_left, int16_t &_pace_right,
                                PIDParams vertical_params, PIDParams velocity_params, PIDParams turn_params,
                                double dt, double _pitch_med_angle) noexcept
@@ -106,4 +106,4 @@ BalancedCarPID::Output BalancedCarPID::compute(double turn_trg, double velocity_
     };
 }
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_ALGORITHM_NAMESPACE_END

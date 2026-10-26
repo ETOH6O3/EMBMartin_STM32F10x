@@ -3,7 +3,7 @@
 #include "EMBMartin/macro.h"
 #include "EMBMartin/hal/gpio/outpin.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_DEVICE_NAMESPACE_BEGIN
 /**
  * @brief 蜂鸣器类，用于控制 STM32 GPIO 连接的蜂鸣器
  *
@@ -12,7 +12,7 @@ EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
 class Buzzer
 {
 private:
-    OutPin output;     //!< 物理输出引脚
+    hal::OutPin output;     //!< 物理输出引脚
     bool driven_level; //!< 驱动电平，false 表示低电平驱动，true 表示高电平驱动
 
 public:
@@ -22,7 +22,7 @@ public:
      * @param driven_level 驱动电平，默认为 false（低电平驱动蜂鸣器）
      * @note 会在构造时自动初始化 GPIO 为推挽输出模式
      */
-    inline Buzzer(GPIOPin p, bool driven_level = false) noexcept : output(p), driven_level(driven_level)
+    inline Buzzer(hal::GPIOPin p, bool driven_level = false) noexcept : output(p), driven_level(driven_level)
     {
         this->off(); // 初始化时关闭蜂鸣器
     }
@@ -33,7 +33,7 @@ public:
      * @param pin GPIO 引脚号
      * @param driven_level 驱动电平，默认为 false（低电平驱动蜂鸣器）
      */
-    inline Buzzer(GPIO_TypeDef *port, uint16_t pin, bool driven_level = false) noexcept : Buzzer{GPIOPin{port, pin}, driven_level} {}
+    inline Buzzer(GPIO_TypeDef *port, uint16_t pin, bool driven_level = false) noexcept : Buzzer{hal::GPIOPin{port, pin}, driven_level} {}
 
     /**
      * @brief 打开蜂鸣器
@@ -121,4 +121,4 @@ public:
         return *this;
     }
 };
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_DEVICE_NAMESPACE_END

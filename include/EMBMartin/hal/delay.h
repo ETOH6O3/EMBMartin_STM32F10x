@@ -27,7 +27,7 @@
 #include "EMBMartin/hal/gpio/basic_tools.h"
 #include "EMBMartin/hal/irq.h"
 
-EMBMARTIN_SYS_NAMESPACE_BEGIN
+EMBMARTIN_HAL_NAMESPACE_BEGIN
 
 // C 函数封装为 C++ 函数
 
@@ -59,7 +59,7 @@ inline auto delay_s(intmax_t s) noexcept
  * 2. `done()`：在任意上下文（含中断）查询是否到期。
  *
  * 由于只做一次自增和一次有符号差值比较，`done()` 是非阻塞的，也不需要关中断，
- * 因此可以替代会打乱 SysTick 的 `Delay_ms`，以及会关中断的 `sys::delay_ms`。
+ * 因此可以替代会打乱 SysTick 的 `Delay_ms`，以及会关中断的 `delay_ms`。
  *
  * @code
  * Delayer servo_delay{TIM3};                 // 构造即自动把 tick() 注册进 TIM3 的队列
@@ -81,7 +81,7 @@ private:
     uint32_t deadline = 0;            //!< 到期时刻
     uint32_t duration = 0;            //!< 上次装载的节拍数，供 restart() 使用
     bool running = false;             //!< 是否处于运行中
-    sys::InnerTimerManager::Handle __tick_handle = {}; //!< 本对象在定时器队列里的句柄
+    InnerTimerManager::Handle __tick_handle = {}; //!< 本对象在定时器队列里的句柄
 
 public:
     /**
@@ -90,7 +90,7 @@ public:
      */
     inline explicit Delayer(TIM_TypeDef *TIMX) noexcept
         : __TIMX(TIMX),
-          __tick_handle(sys::InnerTimerManager::add(TIMX, [this]()
+          __tick_handle(InnerTimerManager::add(TIMX, [this]()
                                                     { tick(); }))
     {
     }
@@ -98,7 +98,7 @@ public:
     /// 析构时注销节拍回调
     inline ~Delayer() noexcept
     {
-        sys::InnerTimerManager::remove(__tick_handle);
+        InnerTimerManager::remove(__tick_handle);
     }
 
     Delayer(const Delayer &) = delete;
@@ -122,7 +122,7 @@ public:
      *
      * 若绑定的定时器尚未初始化或未开启，节拍不会推进，`done()` 永远不会变真，
      * 此时直接跳过——立刻置为到期，不装载等待。需要真正等待请用 `delay()`
-     * 或 `delay_ms()`，它们在这种情况下会自动改走 `sys::delay`。
+     * 或 `delay_ms()`，它们在这种情况下会自动改走 `hal::delay`。
      */
     void start(uint32_t cnt) noexcept;
 
@@ -135,7 +135,7 @@ public:
     /// 单个节拍的时长（秒），直接向定时管理器查询，未初始化定时器时为 0
     [[nodiscard]] inline double tick_second() const noexcept
     {
-        return sys::InnerTimerManager::period(__TIMX);
+        return InnerTimerManager::period(__TIMX);
     }
 
     /**
@@ -146,7 +146,7 @@ public:
      */
     [[nodiscard]] inline bool is_ready() const noexcept
     {
-        return sys::InnerTimerManager::is_ticking(__TIMX);
+        return InnerTimerManager::is_ticking(__TIMX);
     }
 
     /// 单个节拍的时长（毫秒）
@@ -173,9 +173,9 @@ public:
      *
      * 循环期间**不关中断**，节拍由使用者自己的定时中断推进，所以超声回波、
      * 编码器等中断仍然正常工作——这是它与 `Delay_ms`（占用 SysTick）、
-     * `sys::delay_ms`（整个延时关中断）的关键区别。
+     * `delay_ms`（整个延时关中断）的关键区别。
      *
-     * @note 若定时器未初始化或未开启，节拍不会推进，此时自动改用 `sys::delay_ms`
+     * @note 若定时器未初始化或未开启，节拍不会推进，此时自动改用 `delay_ms`
      *       等完同样长的时间（周期未知时直接返回），不会死等。
      */
     void delay(uint32_t cnt) noexcept;
@@ -233,4 +233,4 @@ public:
     }
 };
 
-EMBMARTIN_SYS_NAMESPACE_END
+EMBMARTIN_HAL_NAMESPACE_END

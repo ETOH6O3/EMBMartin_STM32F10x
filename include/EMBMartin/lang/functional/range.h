@@ -14,7 +14,7 @@
 
 #include "EMBMartin/lang/functional/slice.h"
 
-EMBMARTIN_NAMESPACE_BEGIN
+EMBMARTIN_LANG_NAMESPACE_BEGIN
 
 template <typename T>
 using Range = Slice<T>;
@@ -41,4 +41,4 @@ constexpr inline Range<size_t> range(int stop)
 	return Range<size_t>(static_cast<size_t>(stop));
 }
 
-EMBMARTIN_NAMESPACE_END
+EMBMARTIN_LANG_NAMESPACE_END

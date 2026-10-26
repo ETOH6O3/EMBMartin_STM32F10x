@@ -8,14 +8,14 @@
 
 #include "EMBMartin/device/mpu6050.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_ALGORITHM_NAMESPACE_BEGIN
 
 class AngleComplementaryFilter
 {
 private:
     const double alpha;            //!< 互补滤波系数
     const double dt;               //!< 采样时间间隔（秒）
-    const MPU6050::Data &MPU_data; //!< MPU6050 数据引用
+    const device::MPU6050::Data &MPU_data; //!< MPU6050 数据引用
 
     double current_pitch = 0.0; //!< 当前俯仰角（度）
     double current_roll = 0.0;  //!< 当前横滚角（度）
@@ -28,7 +28,7 @@ public:
         double yaw;   //!< 偏航角（度）
     };
     AngleComplementaryFilter(
-        MPU6050::Data &_MPU_data,
+        device::MPU6050::Data &_MPU_data,
         double _alpha = 0.001, double _dt = 0.001) noexcept
         : alpha(_alpha), dt(_dt), MPU_data(_MPU_data) {};
 
@@ -36,4 +36,4 @@ public:
     inline Status get_status() const noexcept { return {current_pitch, current_roll, current_yaw}; }
 };
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_ALGORITHM_NAMESPACE_END

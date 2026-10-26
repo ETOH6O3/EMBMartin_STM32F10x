@@ -18,7 +18,7 @@
 
 #include "EMBMartin/macro.h"
 
-EMBMARTIN_NAMESPACE_BEGIN
+EMBMARTIN_LANG_NAMESPACE_BEGIN
 
 // C++17 兼容的 remove_cvref / remove_cvref_t
 #if defined(__cpp_lib_remove_cvref)
@@ -602,5 +602,5 @@ auto make_swapped_index_sequence()
 	return detail::_make_swapped_index_sequence<N1, N2>(std::make_index_sequence<I>{});
 }
 
-EMBMARTIN_NAMESPACE_END
+EMBMARTIN_LANG_NAMESPACE_END
 

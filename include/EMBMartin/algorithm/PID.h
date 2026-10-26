@@ -4,7 +4,7 @@
 #include "EMBMartin/algorithm/angle_filter.h"
 #include "EMBMartin/device/mpu6050.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_ALGORITHM_NAMESPACE_BEGIN
 
 class SingleLoopPID
 {
@@ -115,7 +115,7 @@ class BalancedCarPID
 {
 private:
     // 数据获取
-    const MPU6050::Data &MPU_data; //!< MPU6050 数据引用
+    const device::MPU6050::Data &MPU_data; //!< MPU6050 数据引用
     const int16_t &pace_left;      //!< 左轮编码器数据引用
     const int16_t &pace_right;     //!< 右轮编码器数据引用
     // 互补滤波器
@@ -136,7 +136,7 @@ public:
         double duty_left_permillage;  //!< 左轮占空比千分比
         double duty_right_permillage; //!< 右轮占空比千分比
     };
-    BalancedCarPID(MPU6050::Data &_MPU_data,
+    BalancedCarPID(device::MPU6050::Data &_MPU_data,
                    int16_t &_pace_left, int16_t &_pace_right,
                    PIDParams vertical_params, PIDParams velocity_params, PIDParams turn_params,
                    double dt /* 采样时间间隔（秒） */, double _pitch_med_angle) noexcept;
@@ -144,4 +144,4 @@ public:
     Output compute(double turn_trg, double velocity_trg) noexcept; // 中断函数中调用
 };
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_ALGORITHM_NAMESPACE_END

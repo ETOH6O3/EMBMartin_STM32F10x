@@ -2,7 +2,7 @@
 
 #include "EMBMartin/macro.h"
 #include "EMBMartin/hal/gpio/outpin.h"
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_DEVICE_NAMESPACE_BEGIN
 
 /**
  * @brief LED 类，用于控制 STM32 GPIO 连接的 LED
@@ -12,7 +12,7 @@ EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
 class LED
 {
 private:
-    OutPin output;     //!< 物理输出引脚
+    hal::OutPin output;     //!< 物理输出引脚
     bool driven_level; //!< 驱动电平，false 表示低电平点亮，true 表示高电平点亮
 
 public:
@@ -22,7 +22,7 @@ public:
      * @param driven_level 驱动电平，默认为 false（低电平点亮 LED）
      * @note 会在构造时自动初始化 GPIO 为推挽输出模式
      */
-    LED(GPIOPin p, bool driven_level = false) noexcept
+    LED(hal::GPIOPin p, bool driven_level = false) noexcept
         : output(p), driven_level(driven_level)
     {
         this->off(); // 初始化时熄灭 LED
@@ -35,7 +35,7 @@ public:
      * @param driven_level 驱动电平，默认为 false（低电平点亮 LED）
      */
     LED(GPIO_TypeDef *port, uint16_t pin, bool driven_level = false) noexcept
-        : LED{GPIOPin{port, pin}, driven_level} {}
+        : LED{hal::GPIOPin{port, pin}, driven_level} {}
 
     /**
      * @brief 点亮 LED
@@ -96,4 +96,4 @@ public:
     }
 };
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_DEVICE_NAMESPACE_END

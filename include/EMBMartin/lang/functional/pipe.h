@@ -17,7 +17,7 @@
 #include "EMBMartin/lang/functional/tuple_view.h"
 #include "EMBMartin/lang/functional/tuple_utility.h"
 
-EMBMARTIN_NAMESPACE_BEGIN
+EMBMARTIN_LANG_NAMESPACE_BEGIN
 
 //------------------------------------------ 高级管道运算 --------------------------------------------------
 
@@ -547,18 +547,18 @@ constexpr decltype(auto) operator|(T &&val, FUNC &&func)
 }
 
 
-EMBMARTIN_NAMESPACE_END
+EMBMARTIN_LANG_NAMESPACE_END
 
 //------------------------------------------ std 特化：支持 structured binding ----------
 namespace std
 {
-	template <size_t N, EMBMartin::detail::_PipeUnpackMode MODE, typename TUPLE>
-	struct tuple_element<N, EMBMartin::detail::_PipeWrapper<MODE, TUPLE>>
+	template <size_t N, EMBMartin::lang::detail::_PipeUnpackMode MODE, typename TUPLE>
+	struct tuple_element<N, EMBMartin::lang::detail::_PipeWrapper<MODE, TUPLE>>
 		: tuple_element<N, TUPLE>
 	{
 	};
-	template <EMBMartin::detail::_PipeUnpackMode MODE, typename TUPLE>
-	struct tuple_size<EMBMartin::detail::_PipeWrapper<MODE, TUPLE>>
+	template <EMBMartin::lang::detail::_PipeUnpackMode MODE, typename TUPLE>
+	struct tuple_size<EMBMartin::lang::detail::_PipeWrapper<MODE, TUPLE>>
 		: tuple_size<TUPLE>
 	{
 	};

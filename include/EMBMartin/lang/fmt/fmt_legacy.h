@@ -6,7 +6,7 @@
 #include "EMBMartin/lang/fmt/fmt_config.h"
 #include "EMBMartin/lang/fmt/fmt_helpers.h"
 
-EMBMARTIN_NAMESPACE_BEGIN
+EMBMARTIN_LANG_NAMESPACE_BEGIN
 
 // #################################################################################################
 // #                                                                                               #
@@ -864,7 +864,7 @@ struct formatter<T, std::enable_if_t<std::is_arithmetic_v<T>>> : public FormatLe
 };
 
 /**
- * @namespace EMBMartin::legacy_fmt::core_detail
+ * @namespace EMBMartin::lang::legacy_fmt::core_detail
  * @brief 旧核心的内部实现细节
  *
  * @details 包含浮点拆分与舍入的辅助函数、参数包递归展开、以及占位符计数工具。
@@ -1377,7 +1377,7 @@ int formatter<T, std::enable_if_t<is_string_like_v<T> || is_character_array_v<T>
  *
  * @tparam _Pair 可结构化绑定出两个成员的广义 pair 类型
  *
- * @see EMBMartin::pair_spec
+ * @see EMBMartin::lang::pair_spec
  * @note ETL 后端下本语法受限：@c <...> 括号会与 ETL 的对齐符 @c < 冲突，
  *       无括号形式也不可用（@c ':' 已被 ETL 消费）。详见 @ref fmt_syntax_diff 。
  */
@@ -1556,10 +1556,10 @@ auto formatter<_Pair, std::enable_if_t<is_generalized_pair_v<_Pair>>>::format(co
 // ------------------------------------------定点小数 fixed<N> 的旧核心 formatter--------------------------------------------------
 
 /**
- * @brief @ref EMBMartin::fixed "fixed<N>" 在旧核心下的格式化器
+ * @brief @ref EMBMartin::lang::fixed "fixed<N>" 在旧核心下的格式化器
  *
  * @details 说明符的解析复用旧核心的 @ref FormatLex （fill / align / sign / @c 0 / width /
- * @c .precision ），但**渲染走 @ref EMBMartin::fixed_detail::render 的整数运算**，与 ETL 后端
+ * @c .precision ），但**渲染走 @ref EMBMartin::lang::fixed_detail::render 的整数运算**，与 ETL 后端
  * 共用同一份实现，因此两套后端输出逐字符一致，也不会碰到旧核心「平局舍入随
  * @c long@c double 位数变化」的坑。
  *
@@ -1570,9 +1570,9 @@ auto formatter<_Pair, std::enable_if_t<is_generalized_pair_v<_Pair>>>::format(co
  *       覆盖 @c N ）。旧核心自身的算术 formatter 仍然使用 @c default_prec ，不受影响。
  */
 template <size_t N>
-struct formatter<::EMBMartin::fixed<N>, void> : public FormatLex<::EMBMartin::fixed<N>>
+struct formatter<::EMBMartin::lang::fixed<N>, void> : public FormatLex<::EMBMartin::lang::fixed<N>>
 {
-	using BaseType = FormatLex<::EMBMartin::fixed<N>>; ///< 说明符词法解析器的基类别名
+	using BaseType = FormatLex<::EMBMartin::lang::fixed<N>>; ///< 说明符词法解析器的基类别名
 
 	/**
 	 * @brief 解析 @c fixed<N> 的说明符
@@ -1602,7 +1602,7 @@ struct formatter<::EMBMartin::fixed<N>, void> : public FormatLex<::EMBMartin::fi
 	 * @retval FormatError::InvalidFormatSpec 使用了定点不支持的表示类型或选项
 	 * @retval FormatError::BufferOverflow    输出缓冲区不足
 	 */
-	int format(const ::EMBMartin::fixed<N> &value, FormatContext &ctx) const
+	int format(const ::EMBMartin::lang::fixed<N> &value, FormatContext &ctx) const
 	{
 		using Type = typename BaseType::Type;
 		if (this->_type != Type::fFixed && this->_type != Type::FFixed)
@@ -1617,7 +1617,7 @@ struct formatter<::EMBMartin::fixed<N>, void> : public FormatLex<::EMBMartin::fi
 			return static_cast<int>(FormatError::InvalidFormatSpec);
 		}
 
-		::EMBMartin::fixed_detail::spec s;
+		::EMBMartin::lang::fixed_detail::spec s;
 		s.fill = this->_fill;
 		s.align = char(this->_align);
 		s.width = this->_width;
@@ -1637,8 +1637,8 @@ struct formatter<::EMBMartin::fixed<N>, void> : public FormatLex<::EMBMartin::fi
 			break;
 		}
 
-		char buf[::EMBMartin::fixed_detail::buffer_size];
-		const size_t written = ::EMBMartin::fixed_detail::render(buf, value.value, static_cast<unsigned>(N), s);
+		char buf[::EMBMartin::lang::fixed_detail::buffer_size];
+		const size_t written = ::EMBMartin::lang::fixed_detail::render(buf, value.value, static_cast<unsigned>(N), s);
 		if (!ctx.write_safe(etl::string_view(buf, written)))
 		{
 			return static_cast<int>(FormatError::BufferOverflow);
@@ -1874,7 +1874,7 @@ struct FormatImpl<Arg, Rest...>
  *          需要写入长度请改用 @c formatted_size 或 ETL 风格接口。
  * @note 成功时缓冲区中会带结尾 @c '\\0' （由 @c FormatImpl<> 追加）。
  * @note 这是旧接口，不受 @c EMBMARTIN_FMT_USE_ETL 影响；使用时请写
- *       @c EMBMartin::legacy_fmt:: 限定名。
+ *       @c EMBMartin::lang::legacy_fmt:: 限定名。
  * @see FormatError
  */
 template <size_t N, typename... Args>
@@ -2207,4 +2207,4 @@ int format_to(char *buffer, size_t capacity,
 	// `is_formattable` / `is_formattable_v` 由上面的旧核心提供（旧签名自定义点的探测），此处不重复定义。
 } // namespace legacy_fmt
 
-EMBMARTIN_NAMESPACE_END
+EMBMARTIN_LANG_NAMESPACE_END

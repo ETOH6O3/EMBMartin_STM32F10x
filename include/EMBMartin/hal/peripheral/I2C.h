@@ -39,7 +39,7 @@
 #define EMBMARTIN_I2C_DELAY_LOOPS 6
 #endif
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_HAL_NAMESPACE_BEGIN
 
 class I2C
 {
@@ -102,7 +102,7 @@ public:
     template <typename _Container_OR_NUM>
     void write_reg(uint8_t first_reg_addr, const _Container_OR_NUM &data) noexcept
     {
-        if constexpr (has_iterator_v<_Container_OR_NUM>)
+        if constexpr (lang::has_iterator_v<_Container_OR_NUM>)
         {
             start();
             send_byte(_addr);
@@ -173,4 +173,4 @@ public:
 };
 
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_HAL_NAMESPACE_END

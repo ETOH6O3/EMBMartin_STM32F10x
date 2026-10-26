@@ -16,8 +16,8 @@
 ```cpp
 #include "EMBMartin/EMBMartin.h"
 
-using namespace EMBMartin;
-using namespace STM32;
+using namespace EMBMartin::lang;
+using namespace EMBMartin::hal;
 
 USBConsole console{USART3, 0, 9600};
 

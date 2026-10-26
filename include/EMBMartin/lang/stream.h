@@ -19,7 +19,7 @@
 #include "EMBMartin/lang/fmt.h"
 #include "EMBMartin/lang/mstring.h"
 
-EMBMARTIN_NAMESPACE_BEGIN
+EMBMARTIN_LANG_NAMESPACE_BEGIN
 
 template <size_t buffer_size = 128>
 class OutStream
@@ -451,7 +451,7 @@ template <typename FMT, typename... Args>
 bool OutStream<buffer_size>::format_to_buffer(const FMT &fmt_str, Args &&...args) noexcept
 {
     // 后端无关的 ETL 风格接口：把内容写进本流的固定缓冲区
-    auto *out = EMBMartin::format_to_n(
+    auto *out = EMBMartin::lang::format_to_n(
         this->buffer, _buffer_size - 1, fmt_str, args...);
 
     const size_t written = static_cast<size_t>(out - this->buffer);
@@ -460,7 +460,7 @@ bool OutStream<buffer_size>::format_to_buffer(const FMT &fmt_str, Args &&...args
     // 只有「写满缓冲区」这一种情形才需要确认是否真的被截断
     if (written == _buffer_size - 1)
     {
-        return EMBMartin::formatted_size(fmt_str, args...) <= written;
+        return EMBMartin::lang::formatted_size(fmt_str, args...) <= written;
     }
     return true;
 }
@@ -644,7 +644,7 @@ String<buffer_size> InStream<buffer_size>::getline() noexcept
     return result;
 }
 
-EMBMARTIN_NAMESPACE_END
+EMBMARTIN_LANG_NAMESPACE_END
 
 // debug 控制台
 EMBMARTIN_DEBUGING_EXTERN_CONSOLE;

@@ -1,6 +1,6 @@
 #include "EMBMartin/hal/peripheral/I2C.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_HAL_NAMESPACE_BEGIN
 
 void I2C::start() noexcept
 {
@@ -164,4 +164,4 @@ uint8_t I2C::read_reg(uint8_t reg_addr) noexcept
     return rslt;
 }
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_HAL_NAMESPACE_END

@@ -17,7 +17,7 @@
 
 #include "EMBMartin/hal/peripheral/PWM.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_DEVICE_NAMESPACE_BEGIN
 
 /**
  * @brief 舵机驱动类
@@ -25,7 +25,7 @@ EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
  * 以 PWM 输出 50 Hz 方波，通过脉宽控制舵机角度。
  * 角度以「百分度」（格恩 / gon，1 gon = 0.9°）为单位，范围 0~200 对应 0~180°。
  */
-class SteeringEngine : public PWM
+class SteeringEngine : public hal::PWM
 {
 private:
     constexpr static int duty_min = 30;                          //!< 占空比最小值（左闭）
@@ -45,7 +45,7 @@ private:
 
 public:
     inline SteeringEngine(TIM_TypeDef *TIMX, int CHn, uint8_t TIMx_REMAP = 0b00) noexcept
-        : PWM(TIMX, CHn, TIMx_REMAP, duty_min, 50, 10), __degree_gon(0) {};
+        : hal::PWM(TIMX, CHn, TIMx_REMAP, duty_min, 50, 10), __degree_gon(0) {};
 
     /**
      * @brief 设置舵机角度（百分度）
@@ -74,4 +74,4 @@ public:
     }
 };
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_DEVICE_NAMESPACE_END

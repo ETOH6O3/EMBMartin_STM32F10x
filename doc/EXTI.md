@@ -21,7 +21,7 @@ EXTIManager manager(
 示例：
 
 ```cpp
-using namespace EMBMartin::STM32;
+using namespace EMBMartin::hal;
 
 EXTIManager key(PA6, [] {
     // 处理按键中断

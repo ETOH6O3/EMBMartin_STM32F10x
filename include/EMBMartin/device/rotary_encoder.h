@@ -21,7 +21,7 @@
 #include "EMBMartin/hal/peripheral/EXTI.h"
 #include "EMBMartin/hal/peripheral/TIM.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_DEVICE_NAMESPACE_BEGIN
 
 /**
  * @brief 旋转编码器类，用于处理正交编码器输入
@@ -32,12 +32,12 @@ EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
 class EXTIRotaryEncoder
 {
 private:
-    const EXTIManager exti_a; //!< A 相外部中断管理器
-    const EXTIManager exti_b; //!< B 相外部中断管理器
+    const hal::EXTIManager exti_a; //!< A 相外部中断管理器
+    const hal::EXTIManager exti_b; //!< B 相外部中断管理器
     int16_t count = 0;        //!< 当前计数值
 
     volatile int16_t speed = 0;                         //!< 上一个采样周期内的计数增量（变速）
-    sys::InnerTimerManager::Handle __speed_handle = {}; //!< 采样回调在定时器队列里的句柄
+    hal::InnerTimerManager::Handle __speed_handle = {}; //!< 采样回调在定时器队列里的句柄
     const uint16_t __sample_interval = 1;               //!< 每隔多少个节拍采样一次速度
     uint16_t __sample_cnt = 0;                          //!< 距上次采样已过的节拍数
 
@@ -92,7 +92,7 @@ public:
      * @param sample_interval_cnt 每隔多少个节拍采样一次速度，默认为 1（每个节拍都采样）
      */
     inline EXTIRotaryEncoder(
-        GPIOPin pin_a, GPIOPin pin_b,
+        hal::GPIOPin pin_a, hal::GPIOPin pin_b,
         uint8_t PreemptionPriority = 0, uint8_t SubPriority = 0,
         EXTIMode_TypeDef _EXTI_Mode = EXTI_Mode_Interrupt,
         TIM_TypeDef *TIMX = nullptr, uint16_t sample_interval_cnt = 1) noexcept
@@ -108,7 +108,7 @@ public:
     {
         if (TIMX != nullptr)
         {
-            __speed_handle = sys::InnerTimerManager::add(TIMX, [this]()
+            __speed_handle = hal::InnerTimerManager::add(TIMX, [this]()
                                                          { __sample(); });
         }
     }
@@ -116,7 +116,7 @@ public:
     /// 析构时注销速度采样
     inline ~EXTIRotaryEncoder() noexcept
     {
-        sys::InnerTimerManager::remove(__speed_handle);
+        hal::InnerTimerManager::remove(__speed_handle);
     }
 
     /**
@@ -155,4 +155,4 @@ public:
     }
 };
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_DEVICE_NAMESPACE_END

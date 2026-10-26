@@ -5,13 +5,13 @@
 #include "EMBMartin/hal/gpio.h"
 #include "EMBMartin/hal/system.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_DEVICE_NAMESPACE_BEGIN
 
 class UltrasonicSensor
 {
 private:
-    Inpin __echo;
-    OutPin __trig;
+    hal::Inpin __echo;
+    hal::OutPin __trig;
 
     const double TIM_TIME_S;
     uint16_t cnt;
@@ -29,8 +29,8 @@ private:
     /// 分频/等待状态机的当前剩余节拍数
     uint8_t __trig_phase;
 
-    sys::InnerTimerManager::Handle __update_handle = {}; //!< 回波采样在快拍定时器队列里的句柄
-    sys::InnerTimerManager::Handle __trig_handle = {};   //!< 测距触发在慢拍定时器队列里的句柄
+    hal::InnerTimerManager::Handle __update_handle = {}; //!< 回波采样在快拍定时器队列里的句柄
+    hal::InnerTimerManager::Handle __trig_handle = {};   //!< 测距触发在慢拍定时器队列里的句柄
 
     // 互补滤波：本次输出 = α · 本次测量 + (1 - α) · 上次输出
     static constexpr double FILTER_ALPHA = 1; //!< 新测量的权重
@@ -72,15 +72,15 @@ public:
      * `(k - trig_start_wait) % trig_divider == 0`。分频为 N 时每个探头的实际测量周期
      * 是触发周期的 N 倍，N 个探头错开后总测量率不变。
      */
-    UltrasonicSensor(const GPIOPin &echo, const GPIOPin &trig, double tim_time_s, uint16_t temprature_kelvin,
+    UltrasonicSensor(const hal::GPIOPin &echo, const hal::GPIOPin &trig, double tim_time_s, uint16_t temprature_kelvin,
                      TIM_TypeDef *update_TIMX = nullptr, TIM_TypeDef *trig_TIMX = nullptr,
                      uint8_t trig_divider = 1, uint8_t trig_start_wait = 0) noexcept;
 
     /// 析构时注销测距触发与回波采样
     inline ~UltrasonicSensor() noexcept
     {
-        sys::InnerTimerManager::remove(__update_handle);
-        sys::InnerTimerManager::remove(__trig_handle);
+        hal::InnerTimerManager::remove(__update_handle);
+        hal::InnerTimerManager::remove(__trig_handle);
     }
 
     UltrasonicSensor(const UltrasonicSensor &) = delete;
@@ -90,7 +90,7 @@ public:
     inline void trig() noexcept
     {
         __trig = 1;
-        sys::delay_us(10);
+        hal::delay_us(10);
         __trig = 0;
     }
 
@@ -138,4 +138,4 @@ public:
     }
 };
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_DEVICE_NAMESPACE_END

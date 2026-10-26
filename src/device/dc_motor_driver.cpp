@@ -2,12 +2,12 @@
 
 #include <cmath>
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_DEVICE_NAMESPACE_BEGIN
 
 DCMotorDriver::DCMotorDriver(
-    PWM _PWMA, OutPin _AIN1, OutPin _AIN2,
-    OutPin STBY,
-    PWM _PWMB, OutPin _BIN1, OutPin _BIN2) noexcept
+    hal::PWM _PWMA, hal::OutPin _AIN1, hal::OutPin _AIN2,
+    hal::OutPin STBY,
+    hal::PWM _PWMB, hal::OutPin _BIN1, hal::OutPin _BIN2) noexcept
     : PWMA{_PWMA}, AIN1{_AIN1}, AIN2{_AIN2},
       STBY{STBY},
       PWMB{_PWMB}, BIN1{_BIN1}, BIN2{_BIN2}
@@ -17,15 +17,15 @@ DCMotorDriver::DCMotorDriver(
     set_mode(Mode::FORWARD, 1);
 }
 
-DCMotorDriver::DCMotorDriver(PWM _PWMA, OutPin _AIN1, OutPin _AIN2, OutPin STBY) noexcept
+DCMotorDriver::DCMotorDriver(hal::PWM _PWMA, hal::OutPin _AIN1, hal::OutPin _AIN2, hal::OutPin STBY) noexcept
     : DCMotorDriver(_PWMA, _AIN1, _AIN2, STBY,
-                    PWM{nullptr, 0, 0}, OutPin{null_pin}, OutPin{null_pin}) {}
+                    hal::PWM{nullptr, 0, 0}, hal::OutPin{hal::null_pin}, hal::OutPin{hal::null_pin}) {}
 
 void DCMotorDriver::set_mode(Mode mode, uint8_t motor_index) noexcept
 {
-    OutPin *IN1;
-    OutPin *IN2;
-    PWM *PWm;
+    hal::OutPin *IN1;
+    hal::OutPin *IN2;
+    hal::PWM *PWm;
     if (motor_index == 0)
     {
         IN1 = &AIN1;
@@ -65,7 +65,7 @@ void DCMotorDriver::set_mode(Mode mode, uint8_t motor_index) noexcept
 void DCMotorDriver::set_speed(int16_t speed_permillage, uint8_t motor_index) noexcept
 {
     speed_permillage = std::clamp<int16_t>(speed_permillage, -990, 990);
-    PWM *PWm;
+    hal::PWM *PWm;
     if (motor_index == 0)
     {
         current_left_speed_permillage = speed_permillage;
@@ -85,4 +85,4 @@ void DCMotorDriver::set_speed(int16_t speed_permillage, uint8_t motor_index) noe
     PWm->set_duty(std::abs(speed_permillage));
 }
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_DEVICE_NAMESPACE_END

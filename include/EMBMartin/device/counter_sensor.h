@@ -18,7 +18,7 @@
 #include "EMBMartin/macro.h"
 #include "EMBMartin/hal/gpio/basic_tools.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_DEVICE_NAMESPACE_BEGIN
 
 /**
  * @brief 计数传感器类，用于处理基于外部中断的计数传感器
@@ -30,7 +30,7 @@ class CounterSensor
 {
 private:
     bool edge;   //!< 触发方式，true 表示上升沿触发，false 表示下降沿触发
-    GPIOPin pin; //!< GPIO 引脚信息
+    hal::GPIOPin pin; //!< GPIO 引脚信息
 
 public:
     /**
@@ -43,10 +43,10 @@ public:
      * @param _EXTI_Mode EXTI 模式，默认为 EXTI_Mode_Interrupt (中断模式)
      */
     CounterSensor(
-        GPIOPin _pin, bool _edge,
+        hal::GPIOPin _pin, bool _edge,
         uint8_t PreemptionPriority = 0, uint8_t SubPriority = 0,
         GPIOSpeed_TypeDef _GPIO_Speed = GPIO_Speed_50MHz,
         EXTIMode_TypeDef _EXTI_Mode = EXTI_Mode_Interrupt) noexcept;
 };
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_DEVICE_NAMESPACE_END

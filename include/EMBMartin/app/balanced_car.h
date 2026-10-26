@@ -14,26 +14,26 @@ EMBMARTIN_DEBUGING_SPECIFIER:
     const double EXTI_TIME_S;
     const double left_speed_scaling;
 
-    DCMotorDriver &driver;
-    RotaryEncoder &encoder_left;
-    RotaryEncoder &encoder_right;
+    device::DCMotorDriver &driver;
+    device::RotaryEncoder &encoder_left;
+    device::RotaryEncoder &encoder_right;
     int16_t v_left;
     int16_t v_right;
-    MPU6050 &MPU;
-    MPU6050::Data mpu_data;
-    AngleComplementaryFilter angle_filter;
-    AngleComplementaryFilter::Status angle;
-    BalancedCarPID controller;
+    device::MPU6050 &MPU;
+    device::MPU6050::Data mpu_data;
+    algorithm::AngleComplementaryFilter angle_filter;
+    algorithm::AngleComplementaryFilter::Status angle;
+    algorithm::BalancedCarPID controller;
 
 public:
     BalancedCar(
-        DCMotorDriver &_driver,
-        RotaryEncoder &_encoder_left,
-        RotaryEncoder &_encoder_right,
-        MPU6050 &_MPU,
-        PIDParams vertical_params,
-        PIDParams velocity_params,
-        PIDParams turn_params,
+        device::DCMotorDriver &_driver,
+        device::RotaryEncoder &_encoder_left,
+        device::RotaryEncoder &_encoder_right,
+        device::MPU6050 &_MPU,
+        algorithm::PIDParams vertical_params,
+        algorithm::PIDParams velocity_params,
+        algorithm::PIDParams turn_params,
         double pitch_med_angle,
         double _left_speed_scaling,
         double dt) noexcept;
@@ -47,4 +47,3 @@ public:
 };
 
 EMBMARTIN_BALANCED_CAR_NAMESPACE_END
-

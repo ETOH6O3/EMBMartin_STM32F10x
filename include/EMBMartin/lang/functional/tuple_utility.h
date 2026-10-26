@@ -16,7 +16,7 @@
 #include "EMBMartin/lang/meta.h"
 #include "EMBMartin/lang/functional/tuple_view.h"
 
-EMBMARTIN_NAMESPACE_BEGIN
+EMBMARTIN_LANG_NAMESPACE_BEGIN
 
 
 /**
@@ -859,4 +859,4 @@ constexpr decltype(auto) swap(Tuple &&t)
 }
 
 
-EMBMARTIN_NAMESPACE_END
+EMBMARTIN_LANG_NAMESPACE_END

@@ -1,6 +1,7 @@
 #include "EMBMartin/device/OLED.h"
 
-using namespace EMBMartin::STM32;
+using namespace EMBMartin::hal;
+using namespace EMBMartin::device;
 using namespace EMBMartin_OLED_v1;
 using namespace EMBMartin_OLED_v2;
 
@@ -8,10 +9,10 @@ using namespace EMBMartin_OLED_v2;
 #define OLED_W_SCL(x) GPIO_WriteBit(OLED_SCL.port, OLED_SCL.pin, (BitAction)(x))
 #define OLED_W_SDA(x) GPIO_WriteBit(OLED_SDA.port, OLED_SDA.pin, (BitAction)(x))
 
-IO::IO(const GPIOPin &SCL, const GPIOPin &SDA) noexcept : OLED_SCL(SCL), OLED_SDA(SDA), current_X(1), current_Y(1)
+IO::IO(const hal::GPIOPin &SCL, const hal::GPIOPin &SDA) noexcept : OLED_SCL(SCL), OLED_SDA(SDA), current_X(1), current_Y(1)
 {
-	RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(SCL.port), ENABLE);
-	RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(SDA.port), ENABLE);
+	RCC_APB2PeriphClockCmd(hal::Get_RCC_APB2Periph(SCL.port), ENABLE);
+	RCC_APB2PeriphClockCmd(hal::Get_RCC_APB2Periph(SDA.port), ENABLE);
 
 	GPIO_InitTypeDef GPIO_InitStructure;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_OD;
@@ -340,7 +341,7 @@ void OLEDBase::write_data(uint8_t data) noexcept
 	stop();
 }
 
-OLEDBase::OLEDBase(GPIOPin SCL, GPIOPin SDA, bool SA0) noexcept : I2C(SCL, SDA, 0x78 | (SA0 << 1))
+OLEDBase::OLEDBase(hal::GPIOPin SCL, hal::GPIOPin SDA, bool SA0) noexcept : hal::I2C(SCL, SDA, 0x78 | (SA0 << 1))
 {
 
 	// 上电延迟

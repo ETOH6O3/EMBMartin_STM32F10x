@@ -1,20 +1,20 @@
 #include "EMBMartin/device/rotary_encoder.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_DEVICE_NAMESPACE_BEGIN
 
 RotaryEncoder::RotaryEncoder(TIM_TypeDef *TIMX, uint8_t TIMx_REMAP, bool reverse) noexcept
     : __TIMX(TIMX)
 {
-    auto gpiopin1 = _GEN_TIM_CH_TO_GPIOPin_REMAP[TIMx_REMAP][Get_TIM_Index(TIMX)][0];
-    auto gpiopin2 = _GEN_TIM_CH_TO_GPIOPin_REMAP[TIMx_REMAP][Get_TIM_Index(TIMX)][1];
+    auto gpiopin1 = hal::_GEN_TIM_CH_TO_GPIOPin_REMAP[TIMx_REMAP][hal::Get_TIM_Index(TIMX)][0];
+    auto gpiopin2 = hal::_GEN_TIM_CH_TO_GPIOPin_REMAP[TIMx_REMAP][hal::Get_TIM_Index(TIMX)][1];
 
     /*开启时钟*/
     if (TIMX != TIM1)
-        RCC_APB1PeriphClockCmd(get_TIM_RCC_APB1Periph(TIMX), ENABLE);
+        RCC_APB1PeriphClockCmd(hal::get_TIM_RCC_APB1Periph(TIMX), ENABLE);
     else
         RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
-    RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(gpiopin1.port), ENABLE);
-    RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(gpiopin2.port), ENABLE);
+    RCC_APB2PeriphClockCmd(hal::Get_RCC_APB2Periph(gpiopin1.port), ENABLE);
+    RCC_APB2PeriphClockCmd(hal::Get_RCC_APB2Periph(gpiopin2.port), ENABLE);
 
     /*GPIO初始化*/
     GPIO_InitTypeDef GPIO_InitStructure;
@@ -24,7 +24,7 @@ RotaryEncoder::RotaryEncoder(TIM_TypeDef *TIMX, uint8_t TIMx_REMAP, bool reverse
     GPIO_Init(gpiopin1.port, &GPIO_InitStructure);
     GPIO_InitStructure.GPIO_Pin = gpiopin2.pin;
     GPIO_Init(gpiopin2.port, &GPIO_InitStructure);
-    if (gpiopin1 == PB4)
+    if (gpiopin1 == hal::PB4)
     {
         GPIO_PinRemapConfig(GPIO_Remap_SWJ_NoJTRST, ENABLE);
     }
@@ -57,4 +57,4 @@ RotaryEncoder::RotaryEncoder(TIM_TypeDef *TIMX, uint8_t TIMx_REMAP, bool reverse
     TIM_Cmd(TIMX, ENABLE);
 }
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_DEVICE_NAMESPACE_END

@@ -20,7 +20,7 @@
 #include "EMBMartin/lang/stream.h"
 #include "EMBMartin/device/debugger.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_DEVICE_NAMESPACE_BEGIN
 
 /**
  * @brief USB 串口终端
@@ -32,11 +32,11 @@ EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
  * @tparam BaseStream 提供 output_char / 格式化接口的流类型，默认 MartinDebugger<128>
  */
 template <typename BaseStream = MartinDebugger<128>>
-class USBConsole : public BaseStream, public EMBMartin::STM32::USART
+class USBConsole : public BaseStream, public hal::USART
 {
 public:
     inline USBConsole(USART_TypeDef *USARTx, int remap = 0b00, int baud_rate = 9600) noexcept
-        : EMBMartin::STM32::USART(USARTx, remap, baud_rate)
+        : hal::USART(USARTx, remap, baud_rate)
     {
     }
     /**
@@ -53,13 +53,13 @@ public:
 template <class BaseStream>
 void USBConsole<BaseStream>::read() noexcept
 {
-    char *in_p = this->EMBMartin::InStream<128>::buffer;
+    char *in_p = this->lang::InStream<128>::buffer;
     // while ((*(in_p++) = this->read_halfword()) && (*in_p != '\n') && (*in_p != '\r'))
     // ;
     while (true)
     {
         char ch = this->read_halfword();
-        if (ch == '\0' || ch == '\n' || ch == '\r' || (in_p - this->EMBMartin::InStream<128>::buffer) >= 127)
+        if (ch == '\0' || ch == '\n' || ch == '\r' || (in_p - this->lang::InStream<128>::buffer) >= 127)
             break;
         *(in_p++) = ch;
     }
@@ -76,4 +76,4 @@ void USBConsole<BaseStream>::read() noexcept
 template <typename BaseStream = JiangXieDebugger<>>
 using BluetoothConsole = USBConsole<BaseStream>;
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_DEVICE_NAMESPACE_END

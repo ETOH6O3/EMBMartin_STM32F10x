@@ -1,6 +1,6 @@
 #include "EMBMartin/hal/peripheral/USART.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_HAL_NAMESPACE_BEGIN
 
 USART::USART(USART_TypeDef *USARTx, int remap, int baud_rate) noexcept
     : _USARTx(USARTx)
@@ -62,7 +62,7 @@ uint16_t USART::read_halfword() noexcept
     return data_status[index].data;
 }
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_HAL_NAMESPACE_END
 
 extern "C"
 {
@@ -70,7 +70,7 @@ extern "C"
     {
         if (USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)
         {
-            EMBMartin::STM32::USART::data_status[0] = {.data_ready = true, .data = USART_ReceiveData(USART1)};
+            EMBMartin::hal::USART::data_status[0] = {.data_ready = true, .data = USART_ReceiveData(USART1)};
             // USART_ClearITPendingBit(USART1, USART_IT_RXNE);
         }
     }
@@ -79,7 +79,7 @@ extern "C"
     {
         if (USART_GetITStatus(USART2, USART_IT_RXNE) != RESET)
         {
-            EMBMartin::STM32::USART::data_status[1] = {.data_ready = true, .data = USART_ReceiveData(USART2)};
+            EMBMartin::hal::USART::data_status[1] = {.data_ready = true, .data = USART_ReceiveData(USART2)};
             // USART_ClearITPendingBit(USART2, USART_IT_RXNE);
         }
     }
@@ -88,7 +88,7 @@ extern "C"
     {
         if (USART_GetITStatus(USART3, USART_IT_RXNE) != RESET)
         {
-            EMBMartin::STM32::USART::data_status[2] = {.data_ready = true, .data = USART_ReceiveData(USART3)};
+            EMBMartin::hal::USART::data_status[2] = {.data_ready = true, .data = USART_ReceiveData(USART3)};
             // USART_ClearITPendingBit(USART3, USART_IT_RXNE);
         }
     }

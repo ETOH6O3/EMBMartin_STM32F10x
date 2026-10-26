@@ -34,7 +34,7 @@
 #include "EMBMartin/macro.h"
 #include "EMBMartin/lang/functional.h"
 
-EMBMARTIN_NAMESPACE_BEGIN
+EMBMARTIN_LANG_NAMESPACE_BEGIN
 
 // ------------------------------------------编译时获取类型名--------------------------------------------------
 
@@ -712,4 +712,4 @@ constexpr bool enum_contains(etl::string_view name)
         return (detail::try_cast<E, Ranges>(name, dummy) || ...);
 }
 
-EMBMARTIN_NAMESPACE_END
+EMBMARTIN_LANG_NAMESPACE_END

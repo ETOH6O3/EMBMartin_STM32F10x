@@ -7,8 +7,8 @@
 #include "EMBMartin/EMBMartin.h"
 
 using namespace std;
-using namespace EMBMartin;
-using namespace STM32;
+using namespace EMBMartin::hal;
+using namespace EMBMartin::device;
 
 auto SCK_pin = PA9;
 auto SDA_pin = PA10;

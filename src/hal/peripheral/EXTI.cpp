@@ -1,8 +1,8 @@
 #include "EMBMartin/hal/peripheral/EXTI.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_HAL_NAMESPACE_BEGIN
 
-EXTIManager::EXTIManager(const EMBMartin::STM32::GPIOPin &gpio_pin, const EXTIManager::Callback &operate,
+EXTIManager::EXTIManager(const GPIOPin &gpio_pin, const EXTIManager::Callback &operate,
                          EXTITrigger_TypeDef trigger, std::uint8_t __PreemptionPriority, std::uint8_t __SubPriority,
                          EXTIMode_TypeDef _EXTI_Mode) noexcept
     : __EXTI_pin(gpio_pin, GPIO_Mode_IPD) // GPIO 初始化
@@ -43,14 +43,14 @@ EXTIManager::~EXTIManager() // 禁用对应 EXTI line、注销回调
     EXTI_ClearITPendingBit(Get_EXTI_Line(__EXTI_pin.get_pin().pin));
 }
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_HAL_NAMESPACE_END
 
 extern "C"{
     void EXTI0_IRQHandler(void)
     {
         if (EXTI_GetITStatus(EXTI_Line0) != RESET)
         {
-            if(auto *__manager = EMBMartin::STM32::EXTIManager::instance(0))
+            if(auto *__manager = EMBMartin::hal::EXTIManager::instance(0))
                 __manager->invoke();
             EXTI_ClearITPendingBit(EXTI_Line0);
         }
@@ -60,7 +60,7 @@ extern "C"{
     {
         if (EXTI_GetITStatus(EXTI_Line1) != RESET)
         {
-            if(auto *__manager = EMBMartin::STM32::EXTIManager::instance(1))
+            if(auto *__manager = EMBMartin::hal::EXTIManager::instance(1))
                 __manager->invoke();
             EXTI_ClearITPendingBit(EXTI_Line1);
         }
@@ -70,7 +70,7 @@ extern "C"{
     {
         if (EXTI_GetITStatus(EXTI_Line2) != RESET)
         {
-            if(auto *__manager = EMBMartin::STM32::EXTIManager::instance(2))
+            if(auto *__manager = EMBMartin::hal::EXTIManager::instance(2))
                 __manager->invoke();
             EXTI_ClearITPendingBit(EXTI_Line2);
         }
@@ -80,7 +80,7 @@ extern "C"{
     {
         if (EXTI_GetITStatus(EXTI_Line3) != RESET)
         {
-            if(auto *__manager = EMBMartin::STM32::EXTIManager::instance(3))
+            if(auto *__manager = EMBMartin::hal::EXTIManager::instance(3))
                 __manager->invoke();
             EXTI_ClearITPendingBit(EXTI_Line3);
         }
@@ -90,7 +90,7 @@ extern "C"{
     {
         if (EXTI_GetITStatus(EXTI_Line4) != RESET)
         {
-            if(auto *__manager = EMBMartin::STM32::EXTIManager::instance(4))
+            if(auto *__manager = EMBMartin::hal::EXTIManager::instance(4))
                 __manager->invoke();
             EXTI_ClearITPendingBit(EXTI_Line4);
         }
@@ -102,7 +102,7 @@ extern "C"{
         {
             if (EXTI_GetITStatus(1 << i) != RESET)
             {
-                if(auto *__manager = EMBMartin::STM32::EXTIManager::instance(i))
+                if(auto *__manager = EMBMartin::hal::EXTIManager::instance(i))
                     __manager->invoke();
                 EXTI_ClearITPendingBit(1 << i);
             }
@@ -115,7 +115,7 @@ extern "C"{
         {
             if (EXTI_GetITStatus(1 << i) != RESET)
             {
-                if(auto *__manager = EMBMartin::STM32::EXTIManager::instance(i))
+                if(auto *__manager = EMBMartin::hal::EXTIManager::instance(i))
                     __manager->invoke();
                 EXTI_ClearITPendingBit(1 << i);
             }

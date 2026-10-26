@@ -11,9 +11,9 @@
 #include "EMBMartin/device/debugger.h"
 
 using namespace std;
-using namespace EMBMartin;
-using namespace STM32;
-using namespace sys; // Delayer 位于 EMBMartin::STM32::sys
+using namespace EMBMartin::lang;
+using namespace EMBMartin::hal;
+using namespace EMBMartin::device;
 /***************************************************************************************************
 IO与外设分配：
 
@@ -97,8 +97,8 @@ DCMotorDriver driver{
 constexpr double TIM1_TIME_S = 0.2;
 constexpr double TIM3_TIME_S = 0.0001;
 
-volatile sys::InnerTimerManager timer3{TIM3, TIM3_TIME_S, true, 0, 0};
-volatile sys::InnerTimerManager timer1{TIM1, TIM1_TIME_S, true, 0, 0};
+volatile InnerTimerManager timer3{TIM3, TIM3_TIME_S, true, 0, 0};
+volatile InnerTimerManager timer1{TIM1, TIM1_TIME_S, true, 0, 0};
 
 // TIM3（0.1 ms）负责回波采样，TIM1（0.2 s）负责触发测距——两者节拍频率相差四个数量级，必须分开挂
 UltrasonicSensor ultrasonic_sensor{PA2, PA6, TIM3_TIME_S, 300, TIM3, TIM1}; // TRIG - PA6, ECHO - PA2
@@ -135,10 +135,10 @@ int main()
 	// {
 	// 	// servo_pwm.set_duty(75);
 	// 	// servo_pwm.set_degree(0);
-	// 	// sys::delay_ms(1000);
+	// 	// delay_ms(1000);
 	// 	servo_pwm.set_degree(85);
 	// 	// servo_pwm.set_degree(180);
-	// 	// sys::delay_ms(1000);
+	// 	// delay_ms(1000);
 	// 	tick_delayer.delay(100);
 	// 	usart.plot(90, ultrasonic_sensor.get_distance() * 100, 90, 50);
 	// }

@@ -8,8 +8,8 @@
 #include "EMBMartin/EMBMartin.h"
 
 using namespace std;
-using namespace EMBMartin;
-using namespace STM32;
+using namespace EMBMartin::hal;
+using namespace EMBMartin::device;
 
 // OLED 走软件 I2C：SCL - PB8，SDA - PB9
 OLEDConsole<> oled{PB8, PB9};

@@ -21,7 +21,7 @@ extern "C"
     void TIM3_IRQHandler(void);
     void TIM4_IRQHandler(void);
 }
-EMBMARTIN_SYS_NAMESPACE_BEGIN
+EMBMARTIN_HAL_NAMESPACE_BEGIN
 
 /**
  * @brief 内部定时器管理器
@@ -225,4 +225,4 @@ public:
     friend void ::TIM4_IRQHandler(void);
 };
 
-EMBMARTIN_SYS_NAMESPACE_END
+EMBMARTIN_HAL_NAMESPACE_END

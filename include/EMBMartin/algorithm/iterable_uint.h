@@ -1,8 +1,13 @@
 #pragma once
 
+#include <climits>
+#include <cstddef>
+#include <iterator>
+#include <type_traits>
+
 #include "EMBMartin/macro.h"
 
-EMBMARTIN_NAMESPACE_BEGIN
+EMBMARTIN_ALGORITHM_NAMESPACE_BEGIN
 
 template <typename T>
 class IterableUInt
@@ -390,4 +395,4 @@ public:
 using IterableUInt8 = IterableUInt<uint8_t>;
 using IterableUInt16 = IterableUInt<uint16_t>;
 using IterableUInt32 = IterableUInt<uint32_t>;
-EMBMARTIN_NAMESPACE_END
+EMBMARTIN_ALGORITHM_NAMESPACE_END

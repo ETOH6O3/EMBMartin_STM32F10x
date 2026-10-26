@@ -5,7 +5,7 @@ extern uint32_t SystemCoreClock;
 
 constexpr inline uint16_t __TIM_Prescaler_plus1 = 1000; // 配合 TIM_GetCounter 可获得小数点后三位精度
 
-EMBMARTIN_SYS_NAMESPACE_BEGIN
+EMBMARTIN_HAL_NAMESPACE_BEGIN
 
 InnerTimerManager::InnerTimerManager(
     TIM_TypeDef *__TIMX, double time,
@@ -126,7 +126,7 @@ size_t InnerTimerManager::count(TIM_TypeDef *TIMX) noexcept
     return __total;
 }
 
-EMBMARTIN_SYS_NAMESPACE_END
+EMBMARTIN_HAL_NAMESPACE_END
 
 // 定时器更新中断：由本库统一实现，直接调用对应队列
 extern "C"
@@ -135,7 +135,7 @@ extern "C"
     {
         if (TIM_GetITStatus(TIM1, TIM_IT_Update) != RESET)
         {
-            EMBMartin::STM32::sys::InnerTimerManager::invoke(0);
+            EMBMartin::hal::InnerTimerManager::invoke(0);
             TIM_ClearITPendingBit(TIM1, TIM_IT_Update);
         }
     }
@@ -144,7 +144,7 @@ extern "C"
     {
         if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
         {
-            EMBMartin::STM32::sys::InnerTimerManager::invoke(1);
+            EMBMartin::hal::InnerTimerManager::invoke(1);
             TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
         }
     }
@@ -153,7 +153,7 @@ extern "C"
     {
         if (TIM_GetITStatus(TIM3, TIM_IT_Update) != RESET)
         {
-            EMBMartin::STM32::sys::InnerTimerManager::invoke(2);
+            EMBMartin::hal::InnerTimerManager::invoke(2);
             TIM_ClearITPendingBit(TIM3, TIM_IT_Update);
         }
     }
@@ -162,7 +162,7 @@ extern "C"
     {
         if (TIM_GetITStatus(TIM4, TIM_IT_Update) != RESET)
         {
-            EMBMartin::STM32::sys::InnerTimerManager::invoke(3);
+            EMBMartin::hal::InnerTimerManager::invoke(3);
             TIM_ClearITPendingBit(TIM4, TIM_IT_Update);
         }
     }

@@ -1,6 +1,6 @@
 #include "EMBMartin/hal/gpio/outpin.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_HAL_NAMESPACE_BEGIN
 
 OutPin::OutPin(GPIOPin p) noexcept : pin(p), current_level(0)
 {
@@ -70,4 +70,4 @@ OutPin &OutPin::operator=(bool value) noexcept
     return *this;
 }
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_HAL_NAMESPACE_END

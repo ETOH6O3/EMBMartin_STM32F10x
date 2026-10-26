@@ -22,8 +22,8 @@
  *
  * | @c EMBMARTIN_FMT_USE_ETL | 内联命名空间 | 底层实现 |
  * | :--- | :--- | :--- |
- * | @c 1（默认） | @c EMBMartin::etl_fmt | 直转发第三方库 ETL 的 @c format |
- * | @c 0 | @c EMBMartin::legacy_fmt | 本库既有旧格式化核心（原样保留）+ ETL 风格接口适配 |
+ * | @c 1（默认） | @c EMBMartin::lang::etl_fmt | 直转发第三方库 ETL 的 @c format |
+ * | @c 0 | @c EMBMartin::lang::legacy_fmt | 本库既有旧格式化核心（原样保留）+ ETL 风格接口适配 |
  *
  * 命名空间分层（@c embmartin 即 @c EMBMartin）：
  * @verbatim
@@ -34,9 +34,9 @@
    @endverbatim
  *
  * @note @c EMBMARTIN_FMT_USE_ETL 只决定哪一个命名空间内联，**不取消**另一个的定义：
- *       两套实现始终都被编译，因此始终可以写出 @c EMBMartin::legacy_fmt::... 或
- *       @c EMBMartin::etl_fmt::... 来显式指定后端。任何时刻都恰好只有一个内联命名空间，
- *       故 @c EMBMartin::format_to(...) 这类写法不会产生二义。
+ *       两套实现始终都被编译，因此始终可以写出 @c EMBMartin::lang::legacy_fmt::... 或
+ *       @c EMBMartin::lang::etl_fmt::... 来显式指定后端。任何时刻都恰好只有一个内联命名空间，
+ *       故 @c EMBMartin::lang::format_to(...) 这类写法不会产生二义。
  *
  * @note 两套后端对外提供**同一套 ETL 风格接口**，调用方无需用宏切换写法：
  *       @c format_to / @c format_to_n / @c vformat_to / @c formatted_size ，
@@ -64,25 +64,25 @@
  *
  * @warning @c assert 在定义了 @c NDEBUG 时同样会被移除。需要运行时保护请覆盖
  *          @c EMBMARTIN_FMT_ASSERT （例如改走自定义错误处理器），或使用旧接口的
- *          @ref EMBMartin::legacy_fmt::FormatError 错误码（仅 @c legacy_fmt 提供）。
+ *          @ref EMBMartin::lang::legacy_fmt::FormatError 错误码（仅 @c legacy_fmt 提供）。
  *
  * @section fmt_legacy_compat 旧接口兼容层
  *
  * @c legacy_fmt 内部**原样保留**旧实现及其旧接口，供仍需 @c FormatError 错误码的代码使用：
- * - @ref EMBMartin::legacy_fmt::FormatError
- * - @ref EMBMartin::legacy_fmt::FormatContext
- * - @ref EMBMartin::legacy_fmt::FormatParseContext
- * - @ref EMBMartin::legacy_fmt::FormatString
- * - @ref EMBMartin::legacy_fmt::FormatLex
- * - @ref EMBMartin::legacy_fmt::formatter （旧签名的自定义点，见下）
- * - 旧的 @ref EMBMartin::legacy_fmt::format_to "int format_to(char*, size_t, const FormatString<N>&, const Args&...)"
+ * - @ref EMBMartin::lang::legacy_fmt::FormatError
+ * - @ref EMBMartin::lang::legacy_fmt::FormatContext
+ * - @ref EMBMartin::lang::legacy_fmt::FormatParseContext
+ * - @ref EMBMartin::lang::legacy_fmt::FormatString
+ * - @ref EMBMartin::lang::legacy_fmt::FormatLex
+ * - @ref EMBMartin::lang::legacy_fmt::formatter （旧签名的自定义点，见下）
+ * - 旧的 @ref EMBMartin::lang::legacy_fmt::format_to "int format_to(char*, size_t, const FormatString<N>&, const Args&...)"
  *
  * 其中旧签名自定义点要求实现：
  * - @c int @c parse(FormatParseContext@c &)  —— 返回 0 表示成功，负数表示错误码；
  * - @c int @c format(const@c T@c &, FormatContext@c &)  —— 同上。
  *
  * @note 这不是新接口，不随 @c EMBMARTIN_FMT_USE_ETL 变化；使用它必须写
- *       @c EMBMartin::legacy_fmt:: 限定名。
+ *       @c EMBMartin::lang::legacy_fmt:: 限定名。
  *
  * @section fmt_syntax_diff 语法差异
  *
@@ -118,9 +118,9 @@
  * 的输出因此完全相同。这是 ETL 上游**至今未实现**的功能（已核对 master 分支，代码里
  * 仍写着 @c "const@c size_t@c fractional_decimals@c =@c 6;@c //@c default" ），不是配置问题。
  *
- * 需要固定小数位时请使用 @ref EMBMartin::fixed "EMBMartin::fixed<N>" ：
+ * 需要固定小数位时请使用 @ref EMBMartin::lang::fixed "EMBMartin::lang::fixed<N>" ：
  * @code
- * oled.println("Dist: {}m", EMBMartin::fixed<2>{distance});   // "Dist: 1.23m"
+ * oled.println("Dist: {}m", EMBMartin::lang::fixed<2>{distance});   // "Dist: 1.23m"
  * @endcode
  *
  * @c fixed<N> 用整数运算渲染，**两套后端输出逐字符一致**，也不受旧核心 @c long@c double
@@ -133,15 +133,15 @@
  *   可调大该宏。
  * - 旧后端不支持 @c {0} 手动索引与 @c {} 嵌套动态宽度／精度（旧核心本身不支持）。
  * - ETL 20.49.0 的浮点格式化忽略 @c precision （见上一节）。不要在 ETL 后端依赖
- *   @c {:.Nf} ；要固定小数位就用 @ref EMBMartin::fixed 。
+ *   @c {:.Nf} ；要固定小数位就用 @ref EMBMartin::lang::fixed 。
  * - 旧核心的浮点舍入建立在 @c long@c double 之上。当被丢弃的部分**恰好以 5 开头**
  *   （平局）时，结果取决于 @c long@c double 的有效位数：MinGW/x86-64 为 80 位
  *   （进位的概率更高），MSVC 与 armclang(ARM) 为 64 位。例如旧后端 @c {:.3e} 对
  *   @c 1234.5f 可能是 @c 1.235e+003 也可能是 @c 1.234e+003 。这是被原样保留的旧实现
  *   自身的性质，与本次迁移无关；@c fixed<N> 与 ETL 后端的其它路径不受影响。
  *
- * @see EMBMartin::fixed
- * @see EMBMartin::pair_spec
+ * @see EMBMartin::lang::fixed
+ * @see EMBMartin::lang::pair_spec
  * @see EMBMARTIN_FMT_ASSERT
  * @see FMT.md —— 面向使用者的接口文档
  */

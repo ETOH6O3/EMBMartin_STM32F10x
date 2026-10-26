@@ -66,8 +66,8 @@ s = "abc";                 // 赋值重置状态，truncated() 为 false
 ```cpp
 #include "EMBMartin/EMBMartin.h"
 
-using namespace EMBMartin;
-using namespace STM32;
+using namespace EMBMartin::lang;
+using namespace EMBMartin::hal;
 
 int main()
 {

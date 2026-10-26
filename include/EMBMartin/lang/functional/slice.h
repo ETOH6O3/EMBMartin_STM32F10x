@@ -16,7 +16,7 @@
 #include "EMBMartin/lang/meta.h"
 #include "EMBMartin/lang/stream.h"
 
-EMBMARTIN_NAMESPACE_BEGIN
+EMBMARTIN_LANG_NAMESPACE_BEGIN
 
 //------------------------------------------python 风格 slice 和 range 对象 --------------------------------------------------
 
@@ -211,4 +211,4 @@ public:
 };
 
 
-EMBMARTIN_NAMESPACE_END
+EMBMARTIN_LANG_NAMESPACE_END

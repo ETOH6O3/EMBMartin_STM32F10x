@@ -7,8 +7,10 @@
 #include "EMBMartin/lang/fmt.h"
 
 using namespace std;
-using namespace EMBMartin;
-using namespace STM32;
+using namespace EMBMartin::lang;
+using namespace EMBMartin::hal;
+using namespace EMBMartin::device;
+using namespace EMBMartin::algorithm;
 
 auto oled_scl = PB8;
 auto oled_sda = PB9;

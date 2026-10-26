@@ -8,13 +8,13 @@
 
 #include "EMBMartin/hal/peripheral/PWM.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_DEVICE_NAMESPACE_BEGIN
 
 /**
  * @brief 呼吸灯类，用于实现呼吸灯效果
  *
  */
-class BreathingLED : public PWM
+class BreathingLED : public hal::PWM
 {
 private:
     bool __driven_level;
@@ -55,4 +55,4 @@ public:
     void breathe(int times = 1) noexcept;
 };
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_DEVICE_NAMESPACE_END

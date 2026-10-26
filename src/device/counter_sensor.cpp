@@ -1,6 +1,6 @@
 #include "EMBMartin/device/counter_sensor.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_DEVICE_NAMESPACE_BEGIN
 
 /**
  * @brief CounterSensor构造函数，用于初始化计数传感器
@@ -23,13 +23,13 @@ EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
  * 5. 配置嵌套向量中断控制器(NVIC)优先级和中断通道
  */
 CounterSensor::CounterSensor(
-    GPIOPin _pin, bool _edge,
+    hal::GPIOPin _pin, bool _edge,
     uint8_t __PreemptionPriority, uint8_t __SubPriority,
     GPIOSpeed_TypeDef _GPIO_Speed, EXTIMode_TypeDef _EXTI_Mode) noexcept
     : pin{_pin}, edge(_edge)
 {
     // ------------------------------------------CLK--------------------------------------------------
-    RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(_pin.port) | RCC_APB2Periph_AFIO, ENABLE);
+    RCC_APB2PeriphClockCmd(hal::Get_RCC_APB2Periph(_pin.port) | RCC_APB2Periph_AFIO, ENABLE);
 
     // ------------------------------------------GPIO--------------------------------------------------
 
@@ -41,10 +41,10 @@ CounterSensor::CounterSensor(
     GPIO_Init(_pin.port, &GPIO_InitStruct);
 
     // ------------------------------------------EXTI--------------------------------------------------
-    GPIO_EXTILineConfig(Get_GPIO_PortSource(_pin.port), Get_GPIO_PinSource(_pin.pin));
+    GPIO_EXTILineConfig(hal::Get_GPIO_PortSource(_pin.port), hal::Get_GPIO_PinSource(_pin.pin));
 
     EXTI_InitTypeDef EXTI_InitStructure = {
-        .EXTI_Line = Get_EXTI_Line(_pin.pin),
+        .EXTI_Line = hal::Get_EXTI_Line(_pin.pin),
         .EXTI_Mode = _EXTI_Mode,
         .EXTI_Trigger = _edge ? EXTI_Trigger_Rising : EXTI_Trigger_Falling,
         .EXTI_LineCmd = ENABLE,
@@ -55,7 +55,7 @@ CounterSensor::CounterSensor(
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
 
     NVIC_InitTypeDef NVIC_InitStructure = {
-        .NVIC_IRQChannel = static_cast<uint8_t>(Get_IRQChannel(_pin.pin)),
+        .NVIC_IRQChannel = static_cast<uint8_t>(hal::Get_IRQChannel(_pin.pin)),
         .NVIC_IRQChannelPreemptionPriority = __PreemptionPriority,
         .NVIC_IRQChannelSubPriority = __SubPriority,
         .NVIC_IRQChannelCmd = ENABLE,
@@ -63,4 +63,4 @@ CounterSensor::CounterSensor(
     NVIC_Init(&NVIC_InitStructure);
 }
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_DEVICE_NAMESPACE_END

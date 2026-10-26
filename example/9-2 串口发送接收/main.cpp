@@ -7,8 +7,9 @@
 #include "EMBMartin/EMBMartin.h"
 
 using namespace std;
-using namespace EMBMartin;
-using namespace STM32;
+using namespace EMBMartin::lang;
+using namespace EMBMartin::hal;
+using namespace EMBMartin::device;
 
 auto oled_scl = PB8;
 auto oled_sda = PB9;

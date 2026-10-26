@@ -7,7 +7,7 @@
 #include "EMBMartin/hal/peripheral/timer_manager.h"
 
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_HAL_NAMESPACE_BEGIN
 
 /**
  * @brief 外部定时器类，用于处理 STM32 的外部定时器功能
@@ -36,7 +36,7 @@ public:
  * 继承自 InnerTimerManager，提供计数功能，每次定时中断自动增加计数值
  * @note 构造时自动把自身的计数回调注册进所属定时器的队列，用户不用再写中断函数
  */
-class TIMCounter : public sys::InnerTimerManager
+class TIMCounter : public InnerTimerManager
 {
 private:
     uint16_t count = 0; ///< 计数值
@@ -103,4 +103,4 @@ private:
     Handle __counter_handle = {}; //!< 计数回调节点句柄
 };
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_HAL_NAMESPACE_END

@@ -9,7 +9,7 @@ extern "C" void USART1_IRQHandler(void);
 extern "C" void USART2_IRQHandler(void);
 extern "C" void USART3_IRQHandler(void);
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_HAL_NAMESPACE_BEGIN
 
 class USART
 {
@@ -43,4 +43,4 @@ public:
 };
 
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_HAL_NAMESPACE_END

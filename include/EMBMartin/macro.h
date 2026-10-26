@@ -51,8 +51,10 @@
 #define EMBMARTIN_DEBUGING_SPECIFIER public
 
 #ifndef EMBMARTIN_DEBUGING_EXTERN_CONSOLE // 允许通过预定义宏修改
-#define EMBMARTIN_DEBUGING_EXTERN_CONSOLE extern EMBMartin::OutStream<128> &console;
-#endif // EMBMARTIN_DEBUGING_EXTERN_OLED
+// console 是全局变量（不在任何命名空间里），用户在自己的翻译单元里定义它；
+// 类型在 lang 层，所以这里必须写全 EMBMartin::lang::OutStream。
+#define EMBMARTIN_DEBUGING_EXTERN_CONSOLE extern EMBMartin::lang::OutStream<128> &console;
+#endif // EMBMARTIN_DEBUGING_EXTERN_CONSOLE
 
 /**
  * @brief 断言宏定义函数
@@ -119,6 +121,17 @@
 
 // ------------------------------------------名字空间--------------------------------------------------
 
+// 本库的命名空间按源码目录分层，外层统一是 EMBMartin，内层一层与目录一一对应：
+//
+//   EMBMartin::lang      平台无关基础设施（meta / 容器 / 字符串 / 格式化 / 流）
+//   EMBMartin::hal       芯片外设驱动（GPIO / 定时器 / EXTI / I2C / PWM / USART / 延时）
+//   EMBMartin::device    具体器件驱动（LED / 按键 / 编码器 / 电机 / OLED / MPU6050 ...）
+//   EMBMartin::algorithm 与具体硬件无关的算法（PID / 互补滤波 / 坐标 / 数学）
+//   EMBMartin::app       面向应用的组装（平衡车等）
+//
+// 规则：**文件放在哪一层，代码就写在哪个命名空间里**。头文件里不得出现
+// using namespace，跨层引用一律写限定名（如 hal::USART、device::MPU6050）。
+
 // 细节命名空间, 嵌套在其它命名空间中
 #define EMBMARTIN_DETAIL_NAMESPACE_BEGIN \
   namespace detail                       \
@@ -131,32 +144,56 @@
   {
 #define EMBMARTIN_NAMESPACE_END }
 
-#define EMBMARTIN_STM32F10X_NAMESPACE_BEGIN \
-  EMBMARTIN_NAMESPACE_BEGIN                 \
-  namespace STM32                           \
+#define EMBMARTIN_LANG_NAMESPACE_BEGIN \
+  EMBMARTIN_NAMESPACE_BEGIN            \
+  namespace lang                       \
   {
-#define EMBMARTIN_STM32F10X_NAMESPACE_END \
+#define EMBMARTIN_LANG_NAMESPACE_END \
+  EMBMARTIN_NAMESPACE_END            \
+  }
+
+#define EMBMARTIN_HAL_NAMESPACE_BEGIN \
+  EMBMARTIN_NAMESPACE_BEGIN           \
+  namespace hal                       \
+  {
+#define EMBMARTIN_HAL_NAMESPACE_END \
+  EMBMARTIN_NAMESPACE_END           \
+  }
+
+#define EMBMARTIN_DEVICE_NAMESPACE_BEGIN \
+  EMBMARTIN_NAMESPACE_BEGIN              \
+  namespace device                       \
+  {
+#define EMBMARTIN_DEVICE_NAMESPACE_END \
+  EMBMARTIN_NAMESPACE_END              \
+  }
+
+#define EMBMARTIN_ALGORITHM_NAMESPACE_BEGIN \
+  EMBMARTIN_NAMESPACE_BEGIN                 \
+  namespace algorithm                       \
+  {
+#define EMBMARTIN_ALGORITHM_NAMESPACE_END \
   EMBMARTIN_NAMESPACE_END                 \
   }
 
-#define EMBMARTIN_OLED_NAMESPACE_BEGIN \
-  EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
-
-#define EMBMARTIN_OLED_NAMESPACE_END \
-  EMBMARTIN_STM32F10X_NAMESPACE_END
-
-#define EMBMARTIN_SYS_NAMESPACE_BEGIN \
-  EMBMARTIN_STM32F10X_NAMESPACE_BEGIN \
-  namespace sys                       \
+#define EMBMARTIN_APP_NAMESPACE_BEGIN \
+  EMBMARTIN_NAMESPACE_BEGIN           \
+  namespace app                       \
   {
-#define EMBMARTIN_SYS_NAMESPACE_END \
-  EMBMARTIN_STM32F10X_NAMESPACE_END \
+#define EMBMARTIN_APP_NAMESPACE_END \
+  EMBMARTIN_NAMESPACE_END           \
   }
 
+// 子系统别名：语义上指明「这是 OLED 子系统 / 平衡车应用」，实际落在对应层里
+#define EMBMARTIN_OLED_NAMESPACE_BEGIN \
+  EMBMARTIN_DEVICE_NAMESPACE_BEGIN
+#define EMBMARTIN_OLED_NAMESPACE_END \
+  EMBMARTIN_DEVICE_NAMESPACE_END
+
 #define EMBMARTIN_BALANCED_CAR_NAMESPACE_BEGIN \
-  EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+  EMBMARTIN_APP_NAMESPACE_BEGIN
 #define EMBMARTIN_BALANCED_CAR_NAMESPACE_END \
-  EMBMARTIN_STM32F10X_NAMESPACE_END
+  EMBMARTIN_APP_NAMESPACE_END
 
 // ------------------------------------------版本控制--------------------------------------------------
 #define EMBMARTIN_USING_OLD_OLED_VERSION 0

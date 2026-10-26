@@ -1,10 +1,12 @@
 #pragma once
 
 #include <cstdint>
+
 #include "EMBMartin/macro.h"
+#include EMBMARTIN_MACRO_TOSTRING(STM32_DEVICE_HEADER)
 
 
-EMBMARTIN_SYS_NAMESPACE_BEGIN
+EMBMARTIN_HAL_NAMESPACE_BEGIN
 
 /**
  * @brief 中断保护类
@@ -34,4 +36,4 @@ private:
     static inline uint32_t nesting_count_ = 0; // 嵌套深度
     uint32_t saved_primask_ = 0;
 };
-EMBMARTIN_SYS_NAMESPACE_END
+EMBMARTIN_HAL_NAMESPACE_END

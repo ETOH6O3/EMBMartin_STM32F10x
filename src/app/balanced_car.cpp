@@ -3,13 +3,13 @@
 EMBMARTIN_BALANCED_CAR_NAMESPACE_BEGIN
 
 BalancedCar::BalancedCar(
-    DCMotorDriver &_driver,
-    RotaryEncoder &_encoder_left,
-    RotaryEncoder &_encoder_right,
-    MPU6050 &_MPU,
-    PIDParams vertical_params,
-    PIDParams velocity_params,
-    PIDParams turn_params,
+    device::DCMotorDriver &_driver,
+    device::RotaryEncoder &_encoder_left,
+    device::RotaryEncoder &_encoder_right,
+    device::MPU6050 &_MPU,
+    algorithm::PIDParams vertical_params,
+    algorithm::PIDParams velocity_params,
+    algorithm::PIDParams turn_params,
     double pitch_med_angle,
     double _left_speed_scaling,
     double dt) noexcept

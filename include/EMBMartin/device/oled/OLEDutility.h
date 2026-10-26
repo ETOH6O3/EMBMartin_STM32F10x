@@ -36,7 +36,7 @@ public:
     constexpr static uint8_t col_num = Y;
     constexpr static auto size = std::make_pair(X, Y);
 
-    constexpr OLEDBitMap(const std::array<uint8_t, ceil_div<uint8_t>(X, 8) * Y> &pic = {}, BWPixel zero_equals_to = BWPixel::Transparent);
+    constexpr OLEDBitMap(const std::array<uint8_t, algorithm::ceil_div<uint8_t>(X, 8) * Y> &pic = {}, BWPixel zero_equals_to = BWPixel::Transparent);
 
     constexpr inline auto &operator[](uint8_t x) noexcept
     {
@@ -48,13 +48,13 @@ public:
         return this->__pixels[x];
     };
 
-    constexpr inline auto &operator[](const Coordinate<uint8_t, 0, X - 1, 0, Y - 1> &c) noexcept
+    constexpr inline auto &operator[](const algorithm::Coordinate<uint8_t, 0, X - 1, 0, Y - 1> &c) noexcept
     {
         const auto &[row_index, col_index] = c;
         return this->__pixels[row_index][col_index];
     };
 
-    constexpr inline const auto &operator[](const Coordinate<uint8_t, 0, X - 1, 0, Y - 1> &c) const noexcept
+    constexpr inline const auto &operator[](const algorithm::Coordinate<uint8_t, 0, X - 1, 0, Y - 1> &c) const noexcept
     {
         const auto &[row_index, col_index] = c;
         return this->__pixels[row_index][col_index];
@@ -62,12 +62,12 @@ public:
 };
 
 template <uint8_t X, uint8_t Y>
-constexpr OLEDBitMap<X, Y>::OLEDBitMap(const std::array<uint8_t, ceil_div<uint8_t>(X, 8) * Y> &pic, BWPixel zero_equals_to)
+constexpr OLEDBitMap<X, Y>::OLEDBitMap(const std::array<uint8_t, algorithm::ceil_div<uint8_t>(X, 8) * Y> &pic, BWPixel zero_equals_to)
 {
     uint8_t current_start_row = 0;
     uint8_t current_remained_row = X;
     uint8_t current_col = 0;
-    for (const IterableUInt8 &_8_col_pix : pic)
+    for (const algorithm::IterableUInt8 &_8_col_pix : pic)
     {
         for (uint8_t i = 0; (i < 8) && (i < current_remained_row); i++)
         {

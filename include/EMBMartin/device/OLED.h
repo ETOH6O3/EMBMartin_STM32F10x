@@ -47,8 +47,8 @@ EMBMARTIN_OLED_OLD_VERSION_NAMESPACE_BEGIN
 class IO
 {
 private:
-    GPIOPin OLED_SCL;  ///< I2C 时钟引脚
-    GPIOPin OLED_SDA;  ///< I2C 数据引脚
+    hal::GPIOPin OLED_SCL;  ///< I2C 时钟引脚
+    hal::GPIOPin OLED_SDA;  ///< I2C 数据引脚
     uint8_t current_X; ///< 当前显示位置的列坐标 (1-16)
     uint8_t current_Y; ///< 当前显示位置的行坐标 (1-4)
 
@@ -176,7 +176,7 @@ public:
      * @param SCL I2C 时钟引脚配置
      * @param SDA I2C 数据引脚配置
      */
-    IO(const GPIOPin &SCL, const GPIOPin &SDA) noexcept;
+    IO(const hal::GPIOPin &SCL, const hal::GPIOPin &SDA) noexcept;
     inline void show(const char &c) noexcept
     {
         ShowChar(c);
@@ -291,7 +291,7 @@ EMBMARTIN_OLED_OLD_VERSION_NAMESPACE_END
 
 EMBMARTIN_OLED_NEW_VERSION_NAMESPACE_BEGIN
 
-class OLEDBase : public I2C
+class OLEDBase : public hal::I2C
 {
 protected:
     struct ControlBytes
@@ -451,7 +451,7 @@ protected:
     void write_cmd(uint8_t cmd) noexcept;
     void write_data(uint8_t data) noexcept;
     template <typename Container>
-    std::enable_if_t<has_iterator_v<Container>> write_data(const Container &data) noexcept;
+    std::enable_if_t<lang::has_iterator_v<Container>> write_data(const Container &data) noexcept;
 
     inline void set_coordinate(uint8_t x, uint8_t page /*0 - 7*/) noexcept
     {
@@ -463,7 +463,7 @@ protected:
     }
 
 public:
-    OLEDBase(GPIOPin SCL, GPIOPin SDA, bool SA0 = 0) noexcept;
+    OLEDBase(hal::GPIOPin SCL, hal::GPIOPin SDA, bool SA0 = 0) noexcept;
     inline void clear() noexcept
     {
         for (uint8_t page = 0; page < 8; page++)
@@ -478,7 +478,7 @@ public:
 };
 
 template <typename Container>
-std::enable_if_t<has_iterator_v<Container>> OLEDBase::write_data(const Container &datas) noexcept
+std::enable_if_t<lang::has_iterator_v<Container>> OLEDBase::write_data(const Container &datas) noexcept
 {
     start();
     EMBMARTIN_KEEP_CODE_ORDER;
@@ -501,7 +501,7 @@ std::enable_if_t<has_iterator_v<Container>> OLEDBase::write_data(const Container
     stop();
 }
 
-template <OLEDFontSize font_size = OLEDFontSize::F8x16, typename BaseOStream = EMBMartin::OutStream<128>>
+template <OLEDFontSize font_size = OLEDFontSize::F8x16, typename BaseOStream = lang::OutStream<128>>
 class OLEDConsole : private OLEDBase, public BaseOStream
 {
 private:
@@ -512,7 +512,7 @@ private:
     static constexpr uint8_t row_num = 64 / font_size_y;
     static constexpr uint8_t row_max = row_num - 1;
 
-    Coordinate<uint8_t, 0, col_max, 0, row_max> current_position{0, 0};
+    algorithm::Coordinate<uint8_t, 0, col_max, 0, row_max> current_position{0, 0};
 
     inline void show_char(uint8_t x, uint8_t page, char c)
     {
@@ -605,11 +605,11 @@ void OLEDConsole<font_size, BaseOStream>::show_char(char c) noexcept
 class OLEDPlayerBase : private OLEDBase
 {
 protected:
-    std::array<std::array<IterableUInt8, 128>, 8> video_mem{};
+    std::array<std::array<algorithm::IterableUInt8, 128>, 8> video_mem{};
 
     constexpr static uint8_t col_num = 128;
     constexpr static uint8_t row_num = 64;
-    using OLEDCoordinate = Coordinate<uint8_t, 0, row_num - 1, 0, col_num - 1>;
+    using OLEDCoordinate = algorithm::Coordinate<uint8_t, 0, row_num - 1, 0, col_num - 1>;
 
 public:
     using OLEDBase::OLEDBase;

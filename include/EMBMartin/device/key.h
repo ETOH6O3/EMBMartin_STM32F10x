@@ -3,7 +3,7 @@
 #include "EMBMartin/macro.h"
 #include "EMBMartin/hal/gpio/inpin.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
+EMBMARTIN_DEVICE_NAMESPACE_BEGIN
 
 /**
  * @brief 读取按键状态并进行消抖处理
@@ -31,7 +31,7 @@ inline bool read_key(GPIO_TypeDef *GPIOx, uint16_t pin, bool trigger = false, in
  * @param debounce_delay_ms 消抖动延迟时间，单位为毫秒，默认为 20 毫秒
  * @return 按键按下并释放后返回 true，否则返回 false
  */
-inline bool read_key(const GPIOPin& pin, bool trigger = false, intmax_t debounce_delay_ms = 20) noexcept
+inline bool read_key(const hal::GPIOPin& pin, bool trigger = false, intmax_t debounce_delay_ms = 20) noexcept
 {
     return read_key(pin.port, pin.pin, trigger, debounce_delay_ms);
 }
@@ -45,7 +45,7 @@ inline bool read_key(const GPIOPin& pin, bool trigger = false, intmax_t debounce
 class Key
 {
 private:
-    Inpin input;  //!< 输入引脚
+    hal::Inpin input;  //!< 输入引脚
     bool trigger; //!< 按键触发状态，false 表示低电平触发，true 表示高电平触发
 
 public:
@@ -55,7 +55,7 @@ public:
      * @param trigger 按键触发状态，默认为 false（低电平触发）
      * @note 会在构造时自动初始化 GPIO 为输入模式
      */
-    Key(const GPIOPin& p, bool trigger = false) noexcept
+    Key(const hal::GPIOPin& p, bool trigger = false) noexcept
         : input(p, trigger ? GPIO_Mode_IPD : GPIO_Mode_IPU), trigger(trigger) {}
 
     /**
@@ -65,7 +65,7 @@ public:
      * @param trigger 按键触发状态，默认为 false（低电平触发）
      */
     Key(GPIO_TypeDef *port, uint16_t pin, bool trigger = false) noexcept
-        : Key{GPIOPin{port, pin}, trigger} {}
+        : Key{hal::GPIOPin{port, pin}, trigger} {}
 
     /**
      * @brief 检测按键是否被按下
@@ -84,4 +84,4 @@ public:
 };
 
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_DEVICE_NAMESPACE_END

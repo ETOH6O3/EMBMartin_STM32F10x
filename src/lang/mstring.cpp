@@ -1,6 +1,6 @@
 #include "EMBMartin/lang/mstring.h"
 
-EMBMARTIN_NAMESPACE_BEGIN
+EMBMARTIN_LANG_NAMESPACE_BEGIN
 
 int atoi(const etl::string_view& sv) noexcept
 {
@@ -55,4 +55,4 @@ int atoi(const etl::string_view& sv) noexcept
 
 
 
-EMBMARTIN_NAMESPACE_END
+EMBMARTIN_LANG_NAMESPACE_END

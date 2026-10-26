@@ -1,7 +1,7 @@
 #include "EMBMartin/hal/gpio/inpin.h"
 
-EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
-Inpin::Inpin(const EMBMartin::STM32::GPIOPin &p, GPIOMode_TypeDef mode) noexcept : pin(p)
+EMBMARTIN_HAL_NAMESPACE_BEGIN
+Inpin::Inpin(const GPIOPin &p, GPIOMode_TypeDef mode) noexcept : pin(p)
 {
     RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(pin.port), ENABLE);
 
@@ -29,4 +29,4 @@ Inpin::Inpin(const EMBMartin::STM32::GPIOPin &p, GPIOMode_TypeDef mode) noexcept
     GPIO_Init(p.port, &GPIO_InitStruct);
 }
 
-EMBMARTIN_STM32F10X_NAMESPACE_END
+EMBMARTIN_HAL_NAMESPACE_END

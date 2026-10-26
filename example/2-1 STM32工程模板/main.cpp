@@ -3,8 +3,6 @@
 #include "EMBMartin/EMBMartin.h"
 
 using namespace std;
-using namespace EMBMartin;
-using namespace STM32;
 
 int main()
 {

@@ -7,7 +7,7 @@
 #include "EMBMartin/algorithm/mmath.h"
 #include "EMBMartin/lang/fmt.h"
 
-EMBMARTIN_NAMESPACE_BEGIN
+EMBMARTIN_ALGORITHM_NAMESPACE_BEGIN
 
 template <
 	typename _Ty,
@@ -193,23 +193,23 @@ constexpr Coordinate<_Ty, XMin, XMax, YMin, YMax>& Coordinate<_Ty, XMin, XMax, Y
 	return *this;
 }
 
-EMBMARTIN_NAMESPACE_END
+EMBMARTIN_ALGORITHM_NAMESPACE_END
 
 namespace std
 {
 	template <typename T, T XMin, T XMax, T YMin, T YMax>
-	struct tuple_size<EMBMartin::Coordinate<T, XMin, XMax, YMin, YMax>>
+	struct tuple_size<EMBMartin::algorithm::Coordinate<T, XMin, XMax, YMin, YMax>>
 		: integral_constant<size_t, 2>
 	{
 	};
 
 	template <typename T, T XMin, T XMax, T YMin, T YMax>
-	struct tuple_element<0, EMBMartin::Coordinate<T, XMin, XMax, YMin, YMax>>
+	struct tuple_element<0, EMBMartin::algorithm::Coordinate<T, XMin, XMax, YMin, YMax>>
 	{
 		using type = T;
 	};
 	template <typename T, T XMin, T XMax, T YMin, T YMax>
-	struct tuple_element<1, EMBMartin::Coordinate<T, XMin, XMax, YMin, YMax>>
+	struct tuple_element<1, EMBMartin::algorithm::Coordinate<T, XMin, XMax, YMin, YMax>>
 	{
 		using type = T;
 	};
@@ -217,7 +217,7 @@ namespace std
 
 #include "EMBMartin/lang/meta.h"
 
-EMBMARTIN_NAMESPACE_BEGIN
+EMBMARTIN_ALGORITHM_NAMESPACE_BEGIN
 
-EMBMARTIN_NAMESPACE_END
+EMBMARTIN_ALGORITHM_NAMESPACE_END
 
