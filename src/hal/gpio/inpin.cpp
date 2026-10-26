@@ -1,19 +1,32 @@
 #include "EMBMartin/hal/gpio/inpin.h"
 
 EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
-
-Key::Key(GPIOPin p, bool trigger) noexcept
-    : input(p, trigger ? GPIO_Mode_IPD : GPIO_Mode_IPU), trigger(trigger)
+Inpin::Inpin(const EMBMartin::STM32::GPIOPin &p, GPIOMode_TypeDef mode) noexcept : pin(p)
 {
+    RCC_APB2PeriphClockCmd(Get_RCC_APB2Periph(pin.port), ENABLE);
+
+    if (p == PB4)
+    {
+        RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
+        GPIO_PinRemapConfig(GPIO_Remap_SWJ_NoJTRST, ENABLE);
+    }
+    else if ((p == PA15) || (p == PB3))
+    {
+        RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
+        GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
+    }
+    else if ((p == PA13) || (p == PA14))
+    {
+        RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
+        GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE);
+    }
+
+    GPIO_InitTypeDef GPIO_InitStruct = {
+        .GPIO_Pin = p.pin,
+        .GPIO_Speed = GPIO_Speed_50MHz,
+        .GPIO_Mode = mode,
+    };
+    GPIO_Init(p.port, &GPIO_InitStruct);
 }
-
-Key::Key(GPIO_TypeDef *port, uint16_t pin, bool trigger) noexcept : Key{GPIOPin{port, pin}, trigger} {}
-
-Key::operator bool() const noexcept
-{
-    return this->is_pressed();
-}
-
-Sensor::Sensor(GPIO_TypeDef *port, uint16_t pin) noexcept : Sensor{GPIOPin{port, pin}} {}
 
 EMBMARTIN_STM32F10X_NAMESPACE_END

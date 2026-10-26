@@ -3,6 +3,11 @@
 
 EMBMARTIN_STM32F10X_NAMESPACE_BEGIN
 
+BreathingLED::BreathingLED(TIM_TypeDef *TIMX, int CHn, uint8_t TIMx_REMAP,
+                 bool driven_level, int period_s) noexcept
+        : PWM(TIMX, CHn, TIMx_REMAP, driven_level ? 0 : 1000 /* 初期关闭 */, 1000, 10),
+          __driven_level(driven_level), __period_s(period_s) {};
+
 void BreathingLED::breathe(int times) noexcept
 {
     for (int t = 0; t < times; t++)

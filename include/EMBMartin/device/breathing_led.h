@@ -39,9 +39,7 @@ public:
      * @note 呼吸灯初始化时会自动设置 PWM 频率为 1kHz，分辨率为 10‰
      */
     BreathingLED(TIM_TypeDef *TIMX, int CHn, uint8_t TIMx_REMAP = 0b00,
-                 bool driven_level = false, int period_s = 5) noexcept
-        : PWM(TIMX, CHn, TIMx_REMAP, driven_level ? 0 : 1000 /* 初期关闭 */, 1000, 10),
-          __driven_level(driven_level), __period_s(period_s) {};
+                 bool driven_level = false, int period_s = 5) noexcept;
 
     /**
      * @brief 执行呼吸灯效果

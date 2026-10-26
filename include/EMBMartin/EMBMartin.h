@@ -24,11 +24,13 @@
 
 // ------------------------------------------------ hal：纯外设驱动
 #include "EMBMartin/hal/system.h"
-#include "EMBMartin/hal/gpio/basic_tools.h"
-#include "EMBMartin/hal/gpio/outpin.h"
-#include "EMBMartin/hal/gpio/inpin.h"
 
 // ------------------------------------------------ device：具体器件驱动
+
+#include "EMBMartin/device/key.h"
+#include "EMBMartin/device/sensor.h"
+#include "EMBMartin/device/led.h"
+#include "EMBMartin/device/buzzer.h"
 #include "EMBMartin/device/rotary_encoder.h"
 #include "EMBMartin/device/counter_sensor.h"
 #include "EMBMartin/device/steering_engine.h"
