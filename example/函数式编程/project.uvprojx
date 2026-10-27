@@ -681,21 +681,20 @@
           <GroupName>System</GroupName>
           <Files>
             <File>
-              <FileName>Delay.c</FileName>
+              <FileName>cdelay.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\platform\System\__Delay.c</FilePath>
+              <FilePath>..\..\platform\System\cdelay.c</FilePath>
             </File>
             <File>
-              <FileName>Delay.h</FileName>
+              <FileName>cdelay.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\..\platform\System\__Delay.h</FilePath>
+              <FilePath>..\..\platform\System\cdelay.h</FilePath>
             </File>
           </Files>
         </Group>
         <Group>
           <GroupName>EMBMartin</GroupName>
           <Files>
-            
             <File>
               <FileName>basic_tools.h</FileName>
               <FileType>5</FileType>
@@ -801,7 +800,7 @@
               <FileType>1</FileType>
               <FilePath>..\..\src\hal\_syscalls.c</FilePath>
             </File>
-                      <File>
+            <File>
               <FileName>angle_filter.cpp</FileName>
               <FileType>8</FileType>
               <FilePath>..\..\src\algorithm\angle_filter.cpp</FilePath>
@@ -821,7 +820,6 @@
               <FileType>8</FileType>
               <FilePath>..\..\src\device\breathing_led.cpp</FilePath>
             </File>
-            
             <File>
               <FileName>EXTI.cpp</FileName>
               <FileType>8</FileType>
@@ -852,7 +850,6 @@
               <FileType>8</FileType>
               <FilePath>..\..\src\lang\mstring.cpp</FilePath>
             </File>
-            
             <File>
               <FileName>outpin.cpp</FileName>
               <FileType>8</FileType>
@@ -908,7 +905,7 @@
               <FileType>8</FileType>
               <FilePath>..\..\src\device\dc_motor_driver.cpp</FilePath>
             </File>
-</Files>
+          </Files>
         </Group>
       </Groups>
     </Target>

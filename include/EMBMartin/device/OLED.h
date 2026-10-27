@@ -514,7 +514,7 @@ private:
 
     algorithm::Coordinate<uint8_t, 0, col_max, 0, row_max> current_position{0, 0};
 
-    inline void show_char(uint8_t x, uint8_t page, char c)
+    inline void show_char(uint8_t x, uint8_t page, char c) noexcept
     {
         if constexpr (font_size == OLEDFontSize::F6x8)
         {

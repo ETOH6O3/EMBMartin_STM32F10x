@@ -681,14 +681,14 @@
           <GroupName>System</GroupName>
           <Files>
             <File>
-              <FileName>Delay.c</FileName>
+              <FileName>cdelay.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\platform\System\__Delay.c</FilePath>
+              <FilePath>..\..\platform\System\cdelay.c</FilePath>
             </File>
             <File>
-              <FileName>Delay.h</FileName>
+              <FileName>cdelay.h</FileName>
               <FileType>5</FileType>
-              <FilePath>..\..\platform\System\__Delay.h</FilePath>
+              <FilePath>..\..\platform\System\cdelay.h</FilePath>
             </File>
           </Files>
         </Group>

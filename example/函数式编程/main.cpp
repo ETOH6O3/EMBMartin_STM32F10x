@@ -38,7 +38,6 @@ int main()
 
 	detail::_to_tuple(std::make_tuple(1));
 
-	// 建议放在主函数中初始化
 	USBConsole USART_to_USB{USART3, 0, 9600}; // PB10 PB11
 
 	constexpr auto x = generalized_tuple_size_v<add_result<int>>;
